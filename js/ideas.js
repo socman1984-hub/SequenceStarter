@@ -33,23 +33,25 @@ const Ideas = (() => {
 
     const CLASSES = [
         ['face', /sing|face/i],
-        ['star', /star/i],
-        ['megatree', /mega ?tree/i],
-        ['minitree', /mini ?tree/i],
-        ['arch', /arch/i],
-        ['cane', /cane/i],
-        ['spinner', /spinner/i],
-        ['snowflake', /snow ?flake|flake/i],
-        ['matrix', /matrix|pebble|tune ?to/i],
-        ['cross', /cross/i],
-        ['peace', /peace/i],
-        ['window', /window/i],
-        ['flood', /flood/i],
-        ['wreath', /wreath|circle|ring/i],
-        ['roof', /roof|outline|house|vertical|horizontal|eave|gutter|icicle/i],
+        // English plus French, Spanish, German and Dutch prop names (matched without accents)
+        ['star', /star|etoile|estrella|\bstern|\bster\b/i],
+        ['megatree', /mega ?tree|mega ?(sapin|arbre|arbol|baum|boom)|grand (sapin|arbre)|arbol gigante/i],
+        ['minitree', /mini ?tree|mini ?(sapin|arbre|arbol|baum|boom)|petits? (sapins|arbres)|arbolito/i],
+        ['arch', /arch|\barco|\bbogen|\bboog/i],
+        ['cane', /cane|canne|sucre d.?orge|baston|zuckerstange|zuurstok/i],
+        ['spinner', /spinner|toupie/i],
+        ['snowflake', /snow ?flake|flake|flocon|\bcopo|schneeflocke|sneeuwvlok/i],
+        ['matrix', /matrix|pebble|tune ?to|matrice|matriz|\becran|pantalla|leinwand/i],
+        ['cross', /cross|croix|\bcruz|kreuz|\bkruis/i],
+        ['peace', /peace|\bpaix|\bpaz\b/i],
+        ['window', /window|fenetre|ventana|fenster|\braam/i],
+        ['flood', /flood|projecteur|\bfoco|strahler/i],
+        ['wreath', /wreath|circle|ring|couronne|cercle|corona|kranz|\bkrans|circulo/i],
+        ['roof', /roof|outline|house|vertical|horizontal|eave|gutter|icicle|maison|\btoit|\bmur\b|contour|gouttiere|glacon|\bbande|\bcasa\b|techo|tejado|carambano|\bhaus\b|\bdach|eiszapfen|\bhuis\b|\bdak\b|ijspegel/i],
     ];
 
     function nameClass(name) {
+        name = String(name).normalize('NFD').replace(/[̀-ͯ]/g, '');
         for (const [c, re] of CLASSES) if (re.test(name)) return c === 'face' ? null : c;
         return null;
     }

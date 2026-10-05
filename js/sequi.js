@@ -1797,7 +1797,7 @@
             return `<td><select class="mix-sel lv-${shown}${v ? '' : ' inherit'}" data-key="${esc(key)}" data-col="${esc(col)}" aria-label="${esc(col === '*' ? 'every part' : col)}">${opts.map(([val, lab]) => `<option value="${val}" ${val === v ? 'selected' : ''}>${lab}</option>`).join('')}</select></td>`;
         };
         $('mixTable').innerHTML = `<thead><tr><th>Prop</th><th>Every part</th>${kinds.map(k => `<th>${esc(k)}</th>`).join('')}</tr></thead><tbody>` +
-            entries.map(e => `<tr><th class="mix-prop" title="${esc(e.targets.join(', '))}">${esc(e.label)}${e.extra ? ` <button type="button" class="link mix-del" data-t="${esc(e.targets[0])}" title="Take it out of the mix">✕</button>` : ''}<span class="muted small">${e.extra ? '' : esc(e.targets.length > 1 ? `${e.targets.length} models` : e.targets[0])}${e.hiddenByDefault ? ' · only if set' : ''}</span></th>${cell(e.key, '*')}${kinds.map(k => cell(e.key, k)).join('')}</tr>`).join('') + '</tbody>';
+            entries.map(e => `<tr><th class="mix-prop" title="${esc(e.targets.join(', '))}">${esc(e.label)}${e.extra ? ` <button type="button" class="btn tiny mix-del" data-t="${esc(e.targets[0])}" title="Take this prop back out of the prop mix (it isn't deleted from your show)">Remove</button>` : ''}<span class="muted small">${e.extra ? 'added by you' : esc(e.targets.length > 1 ? `${e.targets.length} models` : e.targets[0])}${e.hiddenByDefault ? ' · only if set' : ''}</span></th>${cell(e.key, '*')}${kinds.map(k => cell(e.key, k)).join('')}</tr>`).join('') + '</tbody>';
         $('mixTable').querySelectorAll('.mix-sel').forEach(sel => sel.addEventListener('change', () => {
             commit(() => {
                 const m = mixData();

@@ -11,6 +11,8 @@ _2026-10-05_
 - **New:** 🎲 Randomize the whole sequence: a button above the parts that gives every part new lights at once (each part's own 🎲 Randomize still changes just that part).
 - **Fixed:** A part's 🎲 Randomize went back to the palette in Idea settings even after you changed that part's colors. A part you recolor (its 🎨, or by editing its rows' colors) now keeps its own colors for new ideas, shown as "own colors" on its card; ✕ goes back to the main palette.
 - **Fixed:** The 🎨 color window now opens on the scheme the part last had applied, instead of always the same one.
+- **Better:** Props named in French, Spanish, German or Dutch (étoile, sapin, flocon, maison, estrella, Stern, sneeuwvlok…) are now recognized, so ideas use them without adding them by hand.
+- **Better:** In the Prop mix, props you added yourself now say "added by you" with a Remove button (the old ✕ looked like the prop was crossed out), and the window explains what to do with props it can't recognize.
 
 ## 2026.10.04.5 — Preview fix from the community
 
