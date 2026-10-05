@@ -21,6 +21,11 @@
         lastT: -1,
         tabVisible: false,
         view: null,          // viewer geometry
+        zoom: 1,             // preview zoom factor (1 = fit everything)
+        pan: { x: 0, y: 0 }, // preview pan offset (world units) on top of the zoom
+        propsOnly: false,       // preview: hide the house photo, fit just the picked prop(s)
+        selectedProps: new Set(), // props clicked on the house (Ctrl-click adds/removes more); Props only isolates these
+        propsOnlyIdx: new Set(), // their indices into S.view.models, while Props only is active and something is picked
     };
 
     // ---------- show folder ----------
@@ -140,7 +145,7 @@
         models.forEach((m, mi) => {
             if (!m.mh) return;
             const k = pm.indexOf(mi);
-            if (k >= 0) S.view.heads.push({ g: m.offset, x: px[k], y: py[k], scale: Math.max(parseFloat(m.attrs.ScaleX) || 0, parseFloat(m.attrs.ScaleY) || 0) || 1 });
+            if (k >= 0) S.view.heads.push({ g: m.offset, mi, x: px[k], y: py[k], scale: Math.max(parseFloat(m.attrs.ScaleX) || 0, parseFloat(m.attrs.ScaleY) || 0) || 1 });
         });
         await loadPropPictures(show);
         S.modelGroups = null;
@@ -158,35 +163,139 @@
     function updateWindow() {
         const sh = S.show, V = S.view;
         if (!sh || !V) return;
+        // Props only + one or more props actually picked: frame just those,
+        // not the whole house. Otherwise (Props only with nothing picked
+        // yet, or off) frame everything, as before.
+        let only = new Set();
+        if (S.propsOnly && S.selectedProps.size) {
+            for (const name of S.selectedProps) {
+                const i = V.models.findIndex(m => m.name === name);
+                if (i >= 0) only.add(i);
+            }
+        }
         let win = { x: 0, y: 0, w: sh.previewW, h: sh.previewH };
         if (V.px.length) {
             let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
             for (let k = 0; k < V.px.length; k++) {
+                if (only.size && !only.has(V.pm[k])) continue;
                 const x = V.px[k], y = V.py[k];
                 if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
             }
-            for (const p of S.pictures || []) for (const c of p.model.image.corners) {
-                const x = c.x + (sh.center0 ? sh.previewW / 2 : 0), y = sh.previewH - c.y;
-                if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+            // the picked props turned out to have nothing drawable (shouldn't
+            // normally happen): fall back to framing everything instead
+            if (only.size && !Number.isFinite(x0)) only = new Set();
+            if (!only.size) {
+                for (const p of S.pictures || []) for (const c of p.model.image.corners) {
+                    const x = c.x + (sh.center0 ? sh.previewW / 2 : 0), y = sh.previewH - c.y;
+                    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+                }
+            } else {
+                for (const idx of only) {
+                    const selModel = V.models[idx];
+                    if (selModel.image) for (const c of selModel.image.corners) {
+                        const x = c.x + (sh.center0 ? sh.previewW / 2 : 0), y = sh.previewH - c.y;
+                        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+                    }
+                }
             }
-            const m = 0.03 * Math.max(x1 - x0, y1 - y0, 1);
-            x0 -= m; x1 += m; y0 -= m; y1 += m;
-            if (S.bgAdjusting) {
-                // lining up the photo: the whole preview area too, so it can move freely
-                x0 = Math.min(x0, 0); y0 = Math.min(y0, 0);
-                x1 = Math.max(x1, sh.previewW); y1 = Math.max(y1, sh.previewH);
-            } else if (bgImg) {
-                const r = bgRect(), top = sh.previewH - r.y - r.h;
-                x0 = Math.min(x0, r.x); x1 = Math.max(x1, r.x + r.w);
-                y0 = Math.min(y0, top); y1 = Math.max(y1, top + r.h);
+            if (Number.isFinite(x0)) {
+                // picked prop(s) get a bit more breathing room than the whole house
+                const m = (only.size ? 0.15 : 0.03) * Math.max(x1 - x0, y1 - y0, 1);
+                x0 -= m; x1 += m; y0 -= m; y1 += m;
+                if (S.bgAdjusting) {
+                    // lining up the photo: the whole preview area too, so it can move freely
+                    x0 = Math.min(x0, 0); y0 = Math.min(y0, 0);
+                    x1 = Math.max(x1, sh.previewW); y1 = Math.max(y1, sh.previewH);
+                } else if (!only.size && bgImg && !S.propsOnly) {
+                    const r = bgRect(), top = sh.previewH - r.y - r.h;
+                    x0 = Math.min(x0, r.x); x1 = Math.max(x1, r.x + r.w);
+                    y0 = Math.min(y0, top); y1 = Math.max(y1, top + r.h);
+                }
+                // No clamping to xLights' preview size: props are often placed past
+                // its edges (xLights still shows them), and clamping cut them off.
+                if (x1 - x0 > 10 && y1 - y0 > 10) win = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+                else if (x1 >= x0 && y1 >= y0) {
+                    // a single point, or a tiny prop: give it a sensible box to sit in
+                    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+                    win = { x: cx - 60, y: cy - 60, w: 120, h: 120 };
+                }
             }
-            // No clamping to xLights' preview size: props are often placed past
-            // its edges (xLights still shows them), and clamping cut them off.
-            if (x1 - x0 > 10 && y1 - y0 > 10) win = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
         }
-        S.win = win;
+        S.propsOnlyIdx = only;
+        // The fitted window above is the "home" view; the zoom buttons scale
+        // into it around its centre without recomputing what is in frame.
+        S.baseWin = win;
+        S.pan = { x: 0, y: 0 };
+        applyZoom();
+        updatePropHint();
+    }
+
+    // Zooming the live preview: a factor on top of the fitted window above,
+    // centred on it, optionally slid around by panning. 1 / no pan = fit
+    // everything (the old, only behaviour).
+    function clampZoom(z) { return Math.max(0.5, Math.min(6, z)) || 1; }
+    function applyZoom() {
+        const base = S.baseWin;
+        if (!base) return;
+        const z = S.zoom = clampZoom(S.zoom);
+        const w = base.w / z, h = base.h / z;
+        if (!S.pan) S.pan = { x: 0, y: 0 };
+        // panning can't take the window past the edges of the fitted view
+        const maxPanX = Math.max(0, (base.w - w) / 2), maxPanY = Math.max(0, (base.h - h) / 2);
+        S.pan.x = Math.max(-maxPanX, Math.min(maxPanX, S.pan.x));
+        S.pan.y = Math.max(-maxPanY, Math.min(maxPanY, S.pan.y));
+        const cx = base.x + base.w / 2 + S.pan.x, cy = base.y + base.h / 2 + S.pan.y;
+        S.win = { x: cx - w / 2, y: cy - h / 2, w, h };
         S.viewW = 0;
         sizeViewer();
+        const label = $('pvZoomLabel');
+        if (label) label.textContent = Math.round(z * 100) + '%';
+        const zOut = $('pvZoomOut'), zIn = $('pvZoomIn');
+        if (zOut) zOut.disabled = z <= 0.5 + 1e-6;
+        if (zIn) zIn.disabled = z >= 6 - 1e-6;
+    }
+    function setZoom(z) { S.zoom = z; applyZoom(); S.dirty = true; }
+    // Zoom to a new level while keeping whatever is under (clientX, clientY)
+    // in the same spot on screen, like a map: scroll in and the thing under
+    // the cursor stays there instead of the view just scaling around its centre.
+    function zoomAt(z, clientX, clientY) {
+        const base = S.baseWin;
+        if (!base || !S.win) { setZoom(z); return; }
+        const r = canvas.getBoundingClientRect();
+        const fx = (clientX - r.left) / r.width, fy = (clientY - r.top) / r.height;
+        const worldX = S.win.x + fx * S.win.w, worldY = S.win.y + fy * S.win.h;
+        S.zoom = z;
+        const nz = clampZoom(S.zoom);
+        const w = base.w / nz, h = base.h / nz;
+        if (!S.pan) S.pan = { x: 0, y: 0 };
+        S.pan.x = worldX - fx * w - (base.x + base.w / 2) + w / 2;
+        S.pan.y = worldY - fy * h - (base.y + base.h / 2) + h / 2;
+        applyZoom();
+        S.dirty = true;
+    }
+    function panBy(dxWorld, dyWorld) {
+        if (!S.pan) S.pan = { x: 0, y: 0 };
+        S.pan.x += dxWorld; S.pan.y += dyWorld;
+        applyZoom();
+        S.dirty = true;
+    }
+
+    // "Props only" hint under the transport strip: says what's picked (if
+    // anything) and offers a way out, the same way the solo/mute note does.
+    function updatePropHint() {
+        const el = $('pvPropHint');
+        if (!el) return;
+        if (!S.propsOnly) { el.hidden = true; return; }
+        el.hidden = false;
+        if (S.propsOnlyIdx.size) {
+            const names = [...S.selectedProps];
+            const who = names.length === 1 ? `<b>${esc(names[0])}</b>` : `these <b>${names.length} props</b>`;
+            el.innerHTML = `Showing only ${who}, centered. <button type="button" class="link" id="propHintClear">Show every prop</button>`;
+            const clear = $('propHintClear');
+            if (clear) clear.addEventListener('click', () => { S.selectedProps.clear(); updateWindow(); S.dirty = true; });
+        } else {
+            el.textContent = 'Showing every prop, without the house photo. Click a prop on the house to zoom in on just it (Ctrl-click to pick more than one).';
+        }
     }
 
     // Image props: the picture, plus a mask of how bright each pixel is, for
@@ -230,6 +339,7 @@
 
     function drawPictures(g, colors) {
         for (const p of S.pictures || []) {
+            if (S.propsOnlyIdx.size && !S.selectedProps.has(p.model.name)) continue;
             const r = pictureRect(p);
             if (r.w < 1 || r.h < 1) continue;
             const gi = 3 * p.model.offset;
@@ -337,14 +447,15 @@
 
     function backdrop() {
         const V = S.view;
-        const key = $('pvPhoto').checked + '|' + $('pvUnlit').checked + '|' + JSON.stringify(S.bgAdj) + '|' + !!S.bgAdjusting;
+        const only = S.propsOnlyIdx;
+        const key = $('pvPhoto').checked + '|' + $('pvUnlit').checked + '|' + JSON.stringify(S.bgAdj) + '|' + !!S.bgAdjusting + '|' + !!S.propsOnly + '|' + [...only].sort((a, b) => a - b).join(',');
         if (V.backdrop && V.backdropKey === key) return V.backdrop;
         const c = document.createElement('canvas');
         c.width = V.W; c.height = V.H;
         const g = c.getContext('2d');
         g.fillStyle = '#05070b';
         g.fillRect(0, 0, V.W, V.H);
-        if (bgImg && ($('pvPhoto').checked || S.bgAdjusting)) {
+        if (bgImg && (S.bgAdjusting || ($('pvPhoto').checked && !S.propsOnly))) {
             const r = bgRect(), win = S.win, k = V.W / win.w;
             g.globalAlpha = S.bgAdjusting ? Math.max(0.65, S.bgAdj.alpha) : S.bgAdj.alpha;
             g.drawImage(bgImg, (r.x - win.x) * k, (S.show.previewH - r.y - r.h - win.y) * k, r.w * k, r.h * k);
@@ -355,6 +466,7 @@
             g.fillStyle = S.bgAdjusting ? 'rgba(255,220,60,0.95)' : 'rgba(150,150,150,0.28)';
             const fx = V.W / V.LW, fy = V.H / V.LH, sz = Math.max(1, Math.round(fx));
             for (let k = 0; k < V.pix.length; k++) {
+                if (only.size && !only.has(V.pm[k])) continue;
                 const p = V.pix[k];
                 if (p >= 0) g.fillRect(Math.round((p % V.LW) * fx), Math.round(Math.floor(p / V.LW) * fy), sz, sz);
             }
@@ -443,8 +555,9 @@
         const d = V.img.data, u32 = V.u32, touched = V.touched;
         for (let i = 0; i < V.nTouched; i++) u32[touched[i]] = 0;
         let nt = 0;
-        const R = V.glow, LW = V.LW, LH = V.LH;
+        const R = V.glow, LW = V.LW, LH = V.LH, only = S.propsOnlyIdx;
         for (let k = 0; k < V.pix.length; k++) {
+            if (only.size && !only.has(V.pm[k])) continue;
             const p = V.pix[k];
             if (p < 0) continue;
             const ni = 3 * V.pn[k];
@@ -503,6 +616,7 @@
         const k = V.W / win.w;
         const dpr = V.W / canvas.clientWidth;
         for (const h of V.heads) {
+            if (S.propsOnlyIdx.size && !S.propsOnlyIdx.has(h.mi)) continue;
             const s = st[h.g];
             const size = headSize(h, k, dpr);                       // fixture height on the canvas
             const x = (h.x - win.x) * k, y = (h.y - win.y) * k;
@@ -549,6 +663,7 @@
         g.save();
         g.globalCompositeOperation = 'lighter';
         for (const h of V.heads) {
+            if (S.propsOnlyIdx.size && !S.propsOnlyIdx.has(h.mi)) continue;
             const s = st[h.g];
             if (!s) continue;
             const a = Math.max(s.r, s.g, s.b) / 255;
@@ -658,6 +773,61 @@
     });
     $('pvPhoto').addEventListener('change', () => { S.dirty = true; });
     $('pvUnlit').addEventListener('change', () => { S.dirty = true; });
+    $('pvZoomIn').addEventListener('click', () => setZoom(S.zoom * 1.25));
+    $('pvZoomOut').addEventListener('click', () => setZoom(S.zoom / 1.25));
+    $('pvZoomLabel').addEventListener('click', () => { S.pan = { x: 0, y: 0 }; setZoom(1); });
+    $('pvPropsOnly').addEventListener('click', () => {
+        S.propsOnly = !S.propsOnly;
+        const btn = $('pvPropsOnly');
+        btn.classList.toggle('primary', S.propsOnly);
+        btn.setAttribute('aria-pressed', String(S.propsOnly));
+        btn.textContent = S.propsOnly ? '🖼 Full view' : '💡 Props only';
+        btn.title = S.propsOnly ? 'Show the house photo again' : 'Hide the house photo and zoom in to fit just the props you pick';
+        $('pvPhoto').disabled = S.propsOnly;
+        updateWindow();
+        S.dirty = true;
+    });
+
+    // ---------- zooming and moving around ----------
+    //
+    // Scroll to zoom in/out on whatever's under the cursor, like a map;
+    // Shift + scroll pans sideways instead. Drag with the middle (scroll-
+    // wheel) mouse button to look around once zoomed in.
+
+    let panDrag = null;
+    canvas.addEventListener('mousedown', e => {
+        if (S.bgAdjusting || !S.show || e.button !== 1) return;
+        e.preventDefault();
+        panDrag = { x: e.clientX, y: e.clientY, panX: S.pan.x, panY: S.pan.y };
+        canvas.classList.add('panning');
+    });
+    window.addEventListener('mousemove', e => {
+        if (!panDrag || !S.win) return;
+        const k = S.win.w / canvas.clientWidth;
+        S.pan.x = panDrag.panX - (e.clientX - panDrag.x) * k;
+        S.pan.y = panDrag.panY - (e.clientY - panDrag.y) * k;
+        applyZoom();
+        S.dirty = true;
+    });
+    window.addEventListener('mouseup', e => { if (e.button === 1 && panDrag) { panDrag = null; canvas.classList.remove('panning'); } });
+    canvas.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
+    canvas.addEventListener('wheel', e => {
+        if (S.bgAdjusting) return;    // the line-up-photo wheel handler owns scrolling then
+        // Prevent the page/panel behind the preview from scrolling even if
+        // there's nothing to pan yet (no show loaded): a scroll "leaking"
+        // out from under the canvas is confusing either way.
+        e.preventDefault();
+        if (!S.baseWin || !S.win) return;
+        if (e.shiftKey) {
+            // mouse-wheel users (no horizontal scroll) can still pan sideways
+            const k = S.win.w / canvas.clientWidth;
+            panBy(e.deltaY * k, 0);
+            return;
+        }
+        // plain scroll (or a trackpad pinch, which arrives as Ctrl/⌘ + scroll)
+        // zooms in/out centred on the cursor
+        zoomAt(S.zoom * Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY);
+    }, { passive: false });
 
     function goToSection(id) {
         const song = XLWeb.song();
@@ -2674,7 +2844,7 @@
     let pickDrag = null;
     canvas.addEventListener('mousedown', e => {
         if (S.bgAdjusting || !S.show || e.button !== 0) return;
-        pickDrag = { a: previewPoint(e), moved: false };
+        pickDrag = { a: previewPoint(e), moved: false, ctrl: e.ctrlKey || e.metaKey };
     });
     window.addEventListener('mousemove', e => {
         if (!pickDrag) return;
@@ -2685,6 +2855,23 @@
         S.box = { x0: pickDrag.a.cx, y0: pickDrag.a.cy, x1: p.cx, y1: p.cy };
         S.dirty = true;
     });
+    // Which prop(s) Props only should centre on: whatever was last clicked.
+    // A plain click/drag replaces the pick; holding Ctrl/⌘ adds to (or
+    // removes from) it instead, for picking several props at once.
+    function setSelection(names) {
+        const next = new Set(names);
+        if (next.size === S.selectedProps.size && [...next].every(n => S.selectedProps.has(n))) return;
+        S.selectedProps = next;
+        // only reframes (and only matters) while Props only is on; otherwise
+        // just remember it for next time, without disturbing the current view
+        if (S.propsOnly) updateWindow();
+    }
+    function toggleSelection(name) {
+        const next = new Set(S.selectedProps);
+        if (next.has(name)) next.delete(name); else next.add(name);
+        S.selectedProps = next;
+        if (S.propsOnly) updateWindow();
+    }
     window.addEventListener('mouseup', e => {
         if (!pickDrag) return;
         const d = pickDrag;
@@ -2693,11 +2880,20 @@
             const models = modelsInBox(d.a, d.b);
             S.box = null;
             S.dirty = true;
-            if (models.length) popForModels(d.b, models);
-            else closePop();
+            if (models.length) {
+                if (d.ctrl) for (const m of models) toggleSelection(m.name);
+                else setSelection(models.map(m => m.name));
+                popForModels(d.b, models);
+            } else closePop();
         } else {
             const m = modelAt(d.a);
-            if (m) popForModels(d.a, [m]); else closePop();
+            // Clicking empty space (e.g. to dismiss the info popup) only
+            // closes the popup; it doesn't clear what's selected, so you
+            // can click a prop, close its popup, then flip Props only.
+            if (m) {
+                if (d.ctrl) toggleSelection(m.name); else setSelection([m.name]);
+                popForModels(d.a, [m]);
+            } else closePop();
         }
     });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !pop.hidden) closePop(); });

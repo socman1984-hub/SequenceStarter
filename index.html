@@ -217,6 +217,12 @@
             <label class="chk"><input type="checkbox" id="pvPhoto" checked> House photo</label>
             <label class="chk"><input type="checkbox" id="pvUnlit" checked> Show unlit bulbs</label>
             <button type="button" class="btn small" id="bgAdjustBtn">Line up photo…</button>
+            <div class="pv-zoom" role="group" aria-label="Zoom the preview">
+              <button type="button" class="btn small" id="pvZoomOut" title="Zoom out">−</button>
+              <span class="pv-zoom-label" id="pvZoomLabel" title="Click to reset the zoom">100%</span>
+              <button type="button" class="btn small" id="pvZoomIn" title="Zoom in">+</button>
+            </div>
+            <button type="button" class="btn small" id="pvPropsOnly" aria-pressed="false" title="Hide the house photo and zoom in to fit just the props">💡 Props only</button>
             <button type="button" class="btn small" id="pvPopOut" title="Show the preview in its own window (for a second screen)">⧉ Pop out</button>
           </div>
         </div>
@@ -248,7 +254,8 @@
         </div>
         <p class="hint" id="pvInfo"></p>
         <p class="hint" id="pvSolo" hidden></p>
-        <p class="hint pv-tip">Click a prop on the house to see what lights it; drag a box over the yard to pick several props.</p>
+        <p class="hint" id="pvPropHint" hidden></p>
+        <p class="hint pv-tip">Click a prop on the house to see what lights it (Ctrl/⌘-click to pick more than one); drag a box over the yard to pick several at once. Scroll to zoom in/out on the cursor (Shift+scroll to pan sideways); drag with the middle mouse button to look around.</p>
       </div>
       <div class="panel" id="gridPanel" hidden>
         <div class="panel-head">
