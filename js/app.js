@@ -1606,9 +1606,13 @@
 
     // ---------- the banner that says what opening a project is doing ----------
 
+    let bannerTimer = 0;
     function banner(html, buttons = [], kind = '') {
         const b = $('projBanner');
+        clearTimeout(bannerTimer);
         if (!html) { b.hidden = true; return; }
+        // done-notes go away by themselves; questions and errors stay until answered
+        if (kind === 'ok') bannerTimer = setTimeout(() => { b.hidden = true; }, 8000);
         b.hidden = false;
         b.className = 'proj-banner ' + kind;
         $('projBannerText').innerHTML = html;

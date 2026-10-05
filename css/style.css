@@ -331,7 +331,13 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: .92em; backgro
     display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px;
     margin-bottom: 12px; padding: 10px 14px; border-radius: var(--radius); border: 1px solid var(--line);
     background: var(--surface); border-left: 4px solid var(--wave); font-size: 14px;
+    /* stays in view under the song bar, so a question about a project being opened
+       is seen even when the page is scrolled down to the plan */
+    position: sticky; top: calc(var(--stick-top, 0px) - 4px); z-index: 6;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .25);
+    animation: banner-in .35s ease-out;
 }
+@keyframes banner-in { from { transform: translateY(-8px); opacity: 0; } to { transform: none; opacity: 1; } }
 .proj-banner.ask { border-left-color: var(--accent); }
 .proj-banner.ok { border-left-color: var(--good); }
 .proj-banner.error { border-left-color: var(--bad); }

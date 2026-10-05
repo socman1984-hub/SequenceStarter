@@ -2,6 +2,13 @@
 
 Release notes for Lights Auto Sequencer, newest first. The same list is in the app under **✨ What's new**.
 
+## 2026.10.04.4 — Opening projects fix
+
+_2026-10-04_
+
+- **Fixed:** Opening another project while scrolled down looked like it did nothing: the note asking for the project's song was hidden behind the song bar. It now stays in view at the top until you answer it.
+- **Better:** "Opened the project" notes clear themselves after a few seconds.
+
 ## 2026.10.04.3 — New effects, layered looks and pro techniques
 
 _2026-10-04_

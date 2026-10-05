@@ -1,5 +1,14 @@
 [
   {
+    "version": "2026.10.04.4",
+    "date": "2026-10-04",
+    "title": "Opening projects fix",
+    "items": [
+      ["fixed", "Opening another project while scrolled down looked like it did nothing: the note asking for the project's song was hidden behind the song bar. It now stays in view at the top until you answer it."],
+      ["better", "\"Opened the project\" notes clear themselves after a few seconds."]
+    ]
+  },
+  {
     "version": "2026.10.04.3",
     "date": "2026-10-04",
     "title": "New effects, layered looks and pro techniques",

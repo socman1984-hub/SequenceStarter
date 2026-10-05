@@ -354,6 +354,11 @@ show); 7 the test hooks stay on purpose (harmless, used for testing); 8 not need
 
 ## Done
 
+- **2026-10-04:** Bug: File > Open project "didn't load" when the page was scrolled down. The
+  project opened fine; when its song needed a click (permission) or choosing, the banner asking
+  for it was scrolled to the top of the page, under the sticky song bar, so it was never seen.
+  The banner is now sticky under the song bar; done-notes auto-hide after 8 s.
+
 - **2026-10-04:** Everything from the show-folder survey. Effects Wave, Meteors, Curtain, Morph,
   Snowflakes, Strobe, Off (placed on its own top Normal layer so it hides what is under it) and
   Beat meter (VU Meter *Timing Event Pulse* / *Alternate Timed Sweep* on Beats / Bars / Note
