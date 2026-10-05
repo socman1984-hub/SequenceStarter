@@ -15,6 +15,7 @@ _2026-10-05_
 - **Better:** In the Prop mix, props you added yourself now say "added by you" with a Remove button (the old ✕ looked like the prop was crossed out), and the window explains what to do with props it can't recognize.
 - **Better:** Imported sequences look much closer to xLights in the preview: moving settings (value curves), full-size pinwheels, driving snowflakes, pictures from your show folder, rotated, flipped and spinning effects, transparent On and Off, the Average blend, group sizes and row order. On a test sequence, bulbs xLights lights that the preview missed went from 17% to 7%.
 - **Fixed:** Color Wash in the preview now goes through its colors once (as xLights does) instead of wrapping back to the first; Shockwave rings use xLights' exact size and width.
+- **New:** Imported Shader effects now play in the preview (the .fs files from your show folder, run in the browser), and imported Video effects play the video files from your show folder in step with the song.
 
 ## 2026.10.04.5 — Preview fix from the community
 

@@ -2809,14 +2809,16 @@
         return `${m}:${s.toFixed(1).padStart(4, '0')}`;
     }
 
-    // Pictures in imported effects come from the show folder (or, when testing, the
+    // Pictures, videos and shaders in imported effects come from the show folder (or, when testing, the
     // served show folder: the path after "Show").
-    Effects.setPictureLoader(async path => {
+    const showFile = async path => {
         if (!S.show) return null;
         if (S.show.folder) { const f = await Show.pictureIn(S.show.folder, path); return f ? URL.createObjectURL(f) : null; }
         if (S.showBase) { const tail = String(path).split(/[\\/]show[\\/]/i).pop().replace(/\\/g, '/'); return S.showBase + tail.split('/').map(encodeURIComponent).join('/'); }
         return null;
-    });
+    };
+    Effects.setPictureLoader(showFile);
+    if (typeof XLMedia !== 'undefined') XLMedia.setLoader(showFile);
 
     window.XLSeq = {
         S, regenerate, useShow,

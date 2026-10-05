@@ -705,6 +705,44 @@ const Effects = (() => {
             id: 'nothing', label: 'Nothing', xl: 'Off', use: [], options: {}, settings: () => '', render() { },
         },
         {
+            // Imported Shader effects: the ISF file run with WebGL2 (see xlmedia.js); a
+            // sparse shimmer until it has loaded, or if it can't run in this browser.
+            id: 'shader', label: 'Shader', xl: 'Shader', use: [],
+            options: { file: '', speed: 100, leadIn: 0, offX: 0, offY: 0, zoom: 0, params: null },
+            settings: () => '',
+            render(p, N, out) {
+                const o = p.o;
+                const W = N.bw ? N.bw[0] : N.w, H = N.bh ? N.bh[0] : N.h;
+                const z = o.zoom < 0 ? Math.max(1 - Math.abs(o.zoom) / 100, 0.01) : o.zoom > 0 ? 1 + o.zoom * 9 / 100 : 1;
+                const fr = typeof XLMedia !== 'undefined' ? XLMedia.shaderFrame({ path: o.file, time: (o.leadIn || 0) * 0.025 + p.sec * (o.speed ?? 100) / 100, zoom: z, ox: (o.offX || 0) / 200 + 0.5, oy: (o.offY || 0) / 200 + 0.5, params: o.params || {}, colors: p.pal, duration: p.dur, abs: p.abs, first: p.sec < 0.03 }, W, H) : null;
+                if (!fr) { BY_ID.get('glow').render(p, N, out); return; }
+                for (let k = 0; k < N.n; k++) {
+                    const i = 4 * (Math.min(fr.h - 1, Math.round(N.v[k] * (fr.h - 1))) * fr.w + Math.min(fr.w - 1, Math.round(N.u[k] * (fr.w - 1))));
+                    const a = fr.data[i + 3] / 255;
+                    out[3 * k] = fr.data[i] * a; out[3 * k + 1] = fr.data[i + 1] * a; out[3 * k + 2] = fr.data[i + 2] * a;
+                }
+            },
+        },
+        {
+            // Imported Video effects: the file from the show folder, playing along with the song.
+            id: 'video', label: 'Video', xl: 'Video', use: [],
+            options: { file: '', speed: 1, start: 0, loopLen: 0, cropL: 0, cropR: 100, cropT: 100, cropB: 0 },
+            settings: () => '',
+            render(p, N, out) {
+                const o = p.o;
+                const W = N.bw ? N.bw[0] : N.w, H = N.bh ? N.bh[0] : N.h;
+                let at = p.sec * (o.speed || 1);
+                if (o.loopLen > 0) at %= o.loopLen;
+                const playing = typeof XLWeb !== 'undefined' && XLWeb.playing && XLWeb.playing();
+                const fr = typeof XLMedia !== 'undefined' ? XLMedia.videoFrame(o.file + '|' + p.start, o.file, (o.start || 0) + at, o.speed, W, H, playing, { left: o.cropL, right: o.cropR, top: o.cropT, bottom: o.cropB }) : null;
+                if (!fr) { BY_ID.get('glow').render(p, N, out); return; }
+                for (let k = 0; k < N.n; k++) {
+                    const i = 4 * (Math.min(fr.h - 1, Math.round((1 - N.v[k]) * (fr.h - 1))) * fr.w + Math.min(fr.w - 1, Math.round(N.u[k] * (fr.w - 1))));
+                    out[3 * k] = fr.data[i]; out[3 * k + 1] = fr.data[i + 1]; out[3 * k + 2] = fr.data[i + 2];
+                }
+            },
+        },
+        {
             // Imported xLights effects the preview has no drawing for: a dim glow in
             // their first color, so you can see where they are. (Never offered in menus.)
             id: 'glow', label: 'xLights effect', xl: 'On', use: [],
@@ -1018,6 +1056,8 @@ const Effects = (() => {
         Morph: ['morph', { sweep: ['MorphDuration', 20] }],
         Snowflakes: ['snowflakes', { count: ['Snowflakes_Count', 5], speed: ['Snowflakes_Speed', 10], type: ['Snowflakes_Type', 1] }],
         Strobe: ['strobe', { count: ['Number_Strobes', 3], duration: ['Strobe_Duration', 10] }],
+        Shader: ['shader', { speed: ['Shader_Speed', 100], leadIn: ['Shader_LeadIn', 0], offX: ['Shader_Offset_X', 0], offY: ['Shader_Offset_Y', 0], zoom: ['Shader_Zoom', 0] }],
+        Video: ['video', { speed: ['Video_Speed', 1], start: ['Video_Starttime', 0], cropL: ['Video_CropLeft', 0], cropR: ['Video_CropRight', 100], cropT: ['Video_CropTop', 100], cropB: ['Video_CropBottom', 0] }],
     };
     const PREFIXES = ['E_SLIDER_', 'E_TEXTCTRL_', 'E_CHECKBOX_', 'E_SPINCTRL_'];
     function parseCurve(v) {
@@ -1077,6 +1117,14 @@ const Effects = (() => {
             // these only bend or mirror the layers under them; they draw nothing themselves
             case 'Warp': case 'Kaleidoscope': id = 'nothing'; break;
             case 'Faces': id = 'faces'; o = { face: str('E_CHOICE_Faces_FaceDefinition', '') }; break;
+            case 'Shader': o.file = str('E_0FILEPICKERCTRL_IFS', ''); o.params = S; break;
+            case 'Video': {
+                o.file = str('E_FILEPICKERCTRL_Video_Filename', '');
+                // "Manual and Loop": the clip repeats every Duration (m:ss.fff)
+                const d = /^(\d+):(\d+(?:\.\d+)?)$/.exec(str('E_TEXTCTRL_Duration', ''));
+                if (/Loop/.test(str('E_CHOICE_Video_DurationTreatment', '')) && d) o.loopLen = (+d[1]) * 60 + (+d[2]);
+                break;
+            }
             case 'Pictures': id = 'pictures'; o = { file: str('E_FILEPICKER_Pictures_Filename', ''), scaling: str('E_CHOICE_Scaling', 'Scale To Fit') }; break;
             case 'VU Meter': {
                 const t = str('E_CHOICE_VUMeter_Type', '');

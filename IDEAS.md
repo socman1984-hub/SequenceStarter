@@ -362,6 +362,16 @@ show); 7 the test hooks stay on purpose (harmless, used for testing); 8 not need
 
 ## Done
 
+- **2026-10-05:** Shaders and videos in imported sequences (js/xlmedia.js). Golden had 60% of xLights'
+  lit bulbs dark in the preview: Video 57% / Shader 26% of that. Shaders: ISF files run in WebGL2
+  with xLights' uniforms (TIME = lead-in + time x Speed/100, RENDERSIZE, XL_OFFSET, XL_ZOOM with
+  ZoomFactor, inputs from E_SLIDER_SHADERXYZZY_* / 100, palette colors for color inputs, xl_pow);
+  retries with int literals as floats and with non-constant globals moved into main() (GLSL ES).
+  All 4 of Golden's compile; house bulbs during them match 57-100%. Videos: <video> per effect,
+  plays along while the song plays, seeks otherwise; Starttime, Speed, crop, Manual-and-Loop
+  duration. NOT verified here: the in-app test browser is a hidden page, which never decodes
+  video frames (always black); ffmpeg shows the frames have content. Check in a real tab.
+
 - **2026-10-05:** Imported-sequence preview fidelity (owner: "missing a lot of stuff"). Measured bulb
   by bulb on *A Christmas Storm* (xLights render vs preview, every 0.5 s): lit-in-xLights-but-dark
   went 17% -> 7%, total mismatches -34%. Fixes: value curves (incl. Custom) on mapped settings;
