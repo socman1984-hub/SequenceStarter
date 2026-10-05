@@ -191,6 +191,20 @@ Ctrl+Z undoes. Edits are kept per song (keyed by word position + word), survive
   *For:* menu). The tick at the start of a light row: untick it to keep that row (🔒) when
   randomizing; new ideas fill in around it.
 
+## Importing xLights sequences
+
+*File › Import xLights sequence (.xsq)* (or drop an `.xsq` on the page, after the show folder is
+open) reads a sequence made in xLights. Its song is found from its `mediaFile` name like a
+project's. Every effect is kept exactly: its settings and palette strings, layer, submodel or
+strand/node, and the file's own timing tracks, version stamp and row order. They become
+*imported* rows per part, prop, layer and effect type (rows can change lights and colors, be
+muted, duplicated, removed, copied to another part; splitting or joining parts re-homes them by
+time). The export writes them back untouched, under anything made here. Checked: *A Christmas
+Storm 2024* (3,619 effects, strands, 10 timing tracks) imported and exported renders
+byte-identical in xLights. Keeping the version stamp matters: xLights upgrades old settings on
+load by it. The preview draws imported effects with the closest effect here (brightness about
+0.6–0.9 of xLights; value curves, buffer transforms and many fine settings are not drawn).
+
 ## Projects
 
 *Save project* (Ctrl+S) writes `<song>.lightseq.json`: tempo grid, your sections, lyrics

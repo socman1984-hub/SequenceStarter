@@ -49,6 +49,7 @@
     <div class="drop-over-msg" aria-hidden="true">Let go to load it ✨</div>
     <input type="file" id="file" accept="audio/*,.mp3,.m4a,.wav,.ogg,.flac" hidden>
     <input type="file" id="projFile" accept=".json,application/json" hidden>
+    <input type="file" id="xsqFile" accept=".xsq,.xml" hidden>
     <p id="status" class="status" aria-live="polite"></p>
   </section>
 
@@ -71,6 +72,7 @@
           <div class="proj-menu file-menu" id="projMenu" role="menu" hidden>
             <button type="button" class="fm-item" id="fmSong" role="menuitem"><span>🎵 Open a song…</span></button>
             <button type="button" class="fm-item" id="openProj" role="menuitem"><span>📂 Open project…</span><kbd>Ctrl+O</kbd></button>
+            <button type="button" class="fm-item" id="fmImport" role="menuitem" title="Open a sequence made in xLights (.xsq) and keep working on it here"><span>📥 Import xLights sequence (.xsq)…</span></button>
             <div id="projMenuList"></div>
             <hr>
             <button type="button" class="fm-item" id="fmSave" role="menuitem"><span>💾 Save project</span><kbd>Ctrl+S</kbd></button>

@@ -77,6 +77,7 @@
 
     async function loadFile(file, handle) {
         if (/\.json$/i.test(file.name)) { if (await confirmLeave()) await openProjectFile(file, handle); return; }
+        if (/\.xsq$/i.test(file.name)) { if (await confirmLeave()) await importXsqFile(file); return; }
         // a different song (not the one a project being opened is waiting for) replaces the work
         if (!pendingProject && state.buffer && !(await confirmLeave())) return;
         if (!pendingProject) state.projectHandle = null;
@@ -185,7 +186,11 @@
             state.projectHandle = null;
             state.projectDirty = false;
             setProjStatus('');
-            if (pendingProject) {
+            if (pendingProject && pendingProject.importXsq) {
+                const p = pendingProject;
+                pendingProject = null;
+                await applyImport(p);
+            } else if (pendingProject) {
                 const p = pendingProject;
                 pendingProject = null;
                 await applyProject(p);
@@ -1765,10 +1770,76 @@
         }
     }
 
+    // ---------- importing a sequence made in xLights ----------
+
+    async function pickXsq() {
+        if (!(await confirmLeave())) return;
+        if (!window.showOpenFilePicker) { $('xsqFile').click(); return; }
+        try {
+            const [h] = await window.showOpenFilePicker({ id: 'xlweb-xsq', types: [{ description: 'xLights sequence', accept: { 'application/xml': ['.xsq'] } }] });
+            await importXsqFile(await h.getFile());
+        } catch (err) { if (!err || err.name !== 'AbortError') banner(`Could not open that sequence: ${esc(err.message || String(err))}`, [['OK', () => banner(null)]], 'error'); }
+    }
+    $('xsqFile').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) importXsqFile(f); });
+
+    // Effects are matched to props by name, so the show folder comes first; the
+    // song is found from the sequence's own media file name, like a project's.
+    async function importXsqFile(file) {
+        try {
+            if (!window.XLSeq || !XLSeq.S.show) {
+                banner(`To import <b>${esc(file.name)}</b>, open your xLights show folder first (on <b>2. Make a sequence</b>): the sequence's effects are matched to your props by name. Then import it again.`, [['OK', () => banner(null)]], 'ask');
+                showTab('seq');
+                return;
+            }
+            const text = await file.text();
+            if (!/<xsequence[\s>]/.test(text)) { banner(`<b>${esc(file.name)}</b> isn't an xLights sequence (.xsq).`, [['OK', () => banner(null)]], 'error'); return; }
+            const media = ((text.match(/<mediaFile>([^<]*)<\/mediaFile>/) || [])[1] || '').replace(/&amp;/g, '&').replace(/&apos;/g, "'").replace(/&quot;/g, '"');
+            const songFile = media.split(/[\\/]/).pop();
+            const p = { format: PROJECT_FORMAT, song: { file: songFile, path: media }, importXsq: text, importName: file.name };
+            if (!songFile) {
+                if (state.buffer) { await applyImport(p); return; }
+                banner(`<b>${esc(file.name)}</b> doesn't name its song. Open the song first, then import the sequence again.`, [['Choose the song…', pickSong, true], ['Cancel', () => banner(null)]], 'ask');
+                return;
+            }
+            if (state.buffer && state.fileFull && state.fileFull.toLowerCase() === songFile.toLowerCase()) { await applyImport(p); return; }
+            pendingProject = p;
+            pendingProjectHandle = null;
+            banner(`Importing <b>${esc(file.name)}</b>: looking for its song (${esc(songFile)})…`);
+            const found = await findProjectSong(p, true);
+            if (found && !found.needsClick) {
+                banner(`Importing <b>${esc(file.name)}</b>: found the song (${esc(found.how)}), reading it…`);
+                await loadFile(await found.handle.getFile(), found.handle);
+                return;
+            }
+            if (found && found.needsClick) { askToAllow(p, found); return; }
+            askForSong(p);
+        } catch (err) {
+            console.error(err);
+            banner(`Could not import that sequence: ${esc(err.message || String(err))}`, [['OK', () => banner(null)]], 'error');
+        }
+    }
+
+    async function applyImport(p) {
+        try {
+            const r = XLSeq.importXsq(p.importXsq);
+            if (p.song && p.song.path) XLSeq.setMediaPath(p.song.path);
+            state.projectHandle = null;
+            state.projectDirty = true;
+            setProjStatus(`Imported ${p.importName} · not saved as a project yet`);
+            const miss = r.missing.length ? ` <b>${r.missing.length}</b> of its props aren't in your show (${esc(r.missing.slice(0, 4).join(', '))}${r.missing.length > 4 ? ', …' : ''}); the note above the plan can swap them for yours.` : '';
+            banner(`Imported <b>${esc(p.importName)}</b>: ${r.effects.toLocaleString()} effects on ${r.props} props, grouped into ${r.rows.toLocaleString()} rows across the song's parts. They export back to xLights exactly as they were; add, change or 🎲 randomize parts on top.${miss}`, [['OK', () => banner(null)]], '');
+            showTab('seq');
+        } catch (err) {
+            console.error(err);
+            banner(`Could not import that sequence: ${esc(err.message || String(err))}`, [['OK', () => banner(null)]], 'error');
+        }
+    }
+
     $('saveProj').addEventListener('click', e => saveProject(e.shiftKey));
     // the File menu
     const menuDo = fn => () => { closeProjMenu(); fn(); };
     $('fmSong').addEventListener('click', menuDo(async () => { if (await confirmLeave()) pickSong(); }));
+    $('fmImport').addEventListener('click', menuDo(() => pickXsq()));
     $('fmSave').addEventListener('click', menuDo(() => saveProject(false)));
     $('fmSaveAs').addEventListener('click', menuDo(() => saveProject(true)));
     $('fmExport').addEventListener('click', menuDo(() => window.XLSeq && XLSeq.openExport()));

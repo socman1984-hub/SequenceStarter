@@ -1286,15 +1286,20 @@
         if (!S.plan) return;
         if (d.op === 'split' && S.plan.sections[d.from]) {
             const src = S.plan.sections[d.from];
-            S.plan.sections[d.to] = { rows: Sequencer.cloneRows(src.rows), pool: (src.pool || []).slice() };
+            S.plan.sections[d.to] = { rows: Sequencer.cloneRows(src.rows.filter(r => r.trigger !== 'fixed')), pool: (src.pool || []).slice() };
             if (S.open.has(d.from)) S.open.add(d.to);
-        } else if (d.op === 'merge') {
+        }
+        // imported effects from parts that are going away; regroupImported re-homes them by time
+        const orphans = [];
+        if (d.op === 'merge') {
+            orphans.push(...((S.plan.sections[d.removed] || { rows: [] }).rows.filter(r => r.trigger === 'fixed')));
             delete S.plan.sections[d.removed];
         } else if (d.op === 'reset') {
             const song = XLWeb.song();
             const ids = new Set(song ? song.sections.map(s => s.id) : []);
-            for (const k of Object.keys(S.plan.sections)) if (!ids.has(k)) delete S.plan.sections[k];
+            for (const k of Object.keys(S.plan.sections)) if (!ids.has(k)) { orphans.push(...S.plan.sections[k].rows.filter(r => r.trigger === 'fixed')); delete S.plan.sections[k]; }
         }
+        if (S.plan.imported) Sequencer.regroupImported(S.plan, XLWeb.song(), orphans);
         savePlan();
     });
 
@@ -1327,8 +1332,8 @@
     function summary(c) {
         if (!c.rows.length) return '<i>no lights yet</i>';
         const parts = c.rows.slice(0, 4).map(r => {
-            const e = Effects.get(r.effect);
-            const trig = r.trigger && r.trigger !== 'span' ? ` (${(Sequencer.TRIGGERS.find(t => t.id === r.trigger) || {}).label || r.trigger})` : '';
+            const e = r.trigger === 'fixed' ? { label: (r.xl && r.xl.name) || 'xLights' } : Effects.get(r.effect);
+            const trig = r.trigger === 'fixed' ? ' (imported)' : r.trigger && r.trigger !== 'span' ? ` (${(Sequencer.TRIGGERS.find(t => t.id === r.trigger) || {}).label || r.trigger})` : '';
             const tg = r.targets.length ? r.targets.slice(0, 2).join(', ') + (r.targets.length > 2 ? ` +${r.targets.length - 2}` : '') : 'no lights chosen';
             return `<span class="chip"><b>${esc(e ? e.label : r.effect)}</b>${esc(trig)} · ${esc(tg)}</span>`;
         });
@@ -1503,7 +1508,61 @@
         body.appendChild(foot);
     }
 
+    // An imported xLights row: it keeps the original settings; here it can go to
+    // other lights, get other colors, be muted, duplicated or removed.
+    function importedRowEditor(r, c) {
+        const el = document.createElement('div');
+        el.className = 'plan-row imported';
+        el.dataset.row = r.id;
+        const xl = r.xl || { items: [] };
+        const open = S.rowOpen.has(r.id);
+        const soloed = S.solo.has(r.id), muted = S.mute.has(r.id);
+        el.classList.toggle('open', open);
+        el.classList.toggle('dim', !!(muted || (S.solo.size && !soloed)));
+        el.classList.toggle('kept', !!r.keep);
+        const tShort = r.targets.length ? r.targets.slice(0, 3).join(', ') + (r.targets.length > 3 ? ` +${r.targets.length - 3}` : '') : 'no lights chosen';
+        const where = `layer ${xl.layer + 1}${xl.strand != null ? `, strand ${xl.strand + 1}` : ''}${xl.node != null ? `, node ${xl.node + 1}` : ''}`;
+        const changed = r.xl.colors0 && r.colors.join() !== r.xl.colors0.join();
+        el.innerHTML = `
+            <div class="row-line">
+              <input type="checkbox" class="rkeep" ${r.keep ? '' : 'checked'} title="Ticked: randomizing may replace this row. Untick to keep it as it is.">
+              <button type="button" class="rtw" aria-expanded="${open}">${open ? '▾' : '▸'}</button>
+              <span class="rl-text"><b>${esc(xl.name)}</b> · ${esc(tShort)} · <span class="muted" title="Imported from xLights: exported back exactly as it was (${esc(where)})">imported · ${xl.items.length} effect${xl.items.length === 1 ? '' : 's'}</span></span>
+              <span class="rl-sw">${r.colors.map(col => `<i style="background:${col}"></i>`).join('')}</span>
+              <button type="button" class="btn tiny solo${soloed ? ' on' : ''}" aria-pressed="${soloed}" title="Solo: show only this row in the preview">Solo</button>
+              <button type="button" class="btn tiny mute${muted ? ' on' : ''}" aria-pressed="${muted}" title="Mute: hide this row in the preview (it is still saved)">Mute</button>
+            </div>
+            <div class="row-detail" ${open ? '' : 'hidden'}>
+              <p class="muted small">From the imported sequence: ${xl.items.length} ${esc(xl.name)} effect${xl.items.length === 1 ? '' : 's'} on ${esc(where)}, with all their xLights settings. They go back into the exported sequence exactly as they were, except for the lights and colors you change here.</p>
+              <div class="pr-targets"><button type="button" class="btn small pick">Lights…</button> <span class="tlist">${r.targets.map(esc).join(', ') || '<i>no lights chosen</i>'}</span></div>
+              <div class="pr-fx">
+                <span class="swatches">${r.colors.map((col, i) => `<input type="color" value="${col}" data-i="${i}" aria-label="Color ${i + 1}">`).join('')}</span>
+                ${changed ? '<button type="button" class="btn tiny resetc" title="Back to the colors it came with">Original colors</button>' : ''}
+                <span class="row-btns"><button type="button" class="btn small dup" title="Duplicate (e.g. to put the same effects on other lights)">Duplicate</button><button type="button" class="btn small del" title="Remove">Remove</button></span>
+              </div>
+            </div>`;
+        const flip = () => { if (S.rowOpen.has(r.id)) S.rowOpen.delete(r.id); else S.rowOpen.add(r.id); renderPlan(); };
+        el.querySelector('.rtw').addEventListener('click', flip);
+        el.querySelector('.rl-text').addEventListener('click', flip);
+        el.querySelector('.rkeep').addEventListener('change', e => commit(() => { if (!e.target.checked) r.keep = true; else delete r.keep; }, { render: false }));
+        el.querySelector('.solo').addEventListener('click', () => { if (soloed) S.solo.delete(r.id); else S.solo.add(r.id); renderPlan(); regenerate(); });
+        el.querySelector('.mute').addEventListener('click', () => { if (muted) S.mute.delete(r.id); else S.mute.add(r.id); renderPlan(); regenerate(); });
+        el.addEventListener('mouseenter', () => setHighlight(r.targets));
+        el.addEventListener('mouseleave', () => setHighlight(null));
+        el.querySelector('.pick').addEventListener('click', () => openPicker(r, 'targets', 'Choose lights'));
+        el.querySelectorAll('input[type=color]').forEach(inp => {
+            inp.addEventListener('input', e => { beginEdit(); r.colors[+e.target.dataset.i] = e.target.value.toUpperCase(); regenerate(); });
+            inp.addEventListener('change', () => { endEdit(); renderPlan(); });
+        });
+        const rc2 = el.querySelector('.resetc');
+        if (rc2) rc2.addEventListener('click', () => commit(() => { r.colors = r.xl.colors0.slice(); }));
+        el.querySelector('.del').addEventListener('click', () => commit(() => { c.rows = c.rows.filter(x => x !== r); }));
+        el.querySelector('.dup').addEventListener('click', () => commit(() => { c.rows.splice(c.rows.indexOf(r) + 1, 0, Sequencer.cloneRows([r])[0]); }));
+        return el;
+    }
+
     function rowEditor(r, c) {
+        if (r.trigger === 'fixed') return importedRowEditor(r, c);
         const el = document.createElement('div');
         el.className = 'plan-row';
         el.dataset.row = r.id;
@@ -1942,6 +2001,10 @@
             for (const id of ids) {
                 const dst = container(id);
                 const rows = Sequencer.cloneRows(src.rows);
+                const song = XLWeb.song();
+                const dsec = song.sections.find(s => s.id === id);
+                const shift = dsec ? Math.round((dsec.s - copyFrom.s) * 1000) : 0;
+                for (const r of rows) if (r.trigger === 'fixed' && r.xl) r.xl = { ...r.xl, items: r.xl.items.map(it => ({ ...it, s: it.s + shift, e: it.e + shift })) };
                 dst.rows = mode === 'add' ? dst.rows.concat(rows) : rows;
                 if (mode !== 'add') dst.pool = src.pool.slice();
             }
@@ -2748,6 +2811,20 @@
 
     window.XLSeq = {
         S, regenerate, useShow,
+        // Replace the plan with an imported xLights sequence (see Sequencer.importXsq).
+        importXsq: text => {
+            const song = XLWeb.song();
+            const res = Sequencer.importXsq(text, song);
+            if (S.plan) { S.history.push(snapshot()); S.future = []; }
+            res.plan.ideaScheme = S.plan && S.plan.ideaScheme;
+            S.plan = res.plan;
+            savePlan();
+            setPlan(res.plan, true);
+            const props = new Set(), missing = new Set();
+            for (const c of Object.values(res.plan.sections)) for (const r of c.rows) for (const t of r.targets) (Show.hasTarget(S.show, t) ? props : missing).add(t);
+            document.dispatchEvent(new CustomEvent('xl:changed'));
+            return { effects: res.effects, rows: res.rows, props: props.size, missing: [...missing], media: res.media };
+        },
         // project files
         getPlan: () => S.plan ? JSON.parse(JSON.stringify(S.plan)) : null,
         setPlan: p => { S.plan = p; savePlan(); if (S.show) setPlan(p); },

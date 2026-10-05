@@ -593,6 +593,14 @@ const Effects = (() => {
             },
         },
         {
+            // Imported xLights effects the preview has no drawing for: a dim glow in
+            // their first color, so you can see where they are. (Never offered in menus.)
+            id: 'glow', label: 'xLights effect', xl: 'On', use: [],
+            options: {},
+            settings: () => '',
+            render(p, N, out) { for (let k = 0; k < N.n; k++) palPick(p.pal, 0, out, 3 * k, 0.45); },
+        },
+        {
             id: 'faces', label: 'Singing face', xl: 'Faces', use: ['vocal'], needsFace: true,
             options: { face: '' },
             settings: (o, ctx) => `E_CHECKBOX_Faces_Outline=1,E_CHOICE_Faces_EyeBlinkFrequency=Normal,E_CHOICE_Faces_Eyes=Auto,E_CHOICE_Faces_FaceDefinition=${o.face},E_CHOICE_Faces_TimingTrack=${ctx.lyricTrack},T_TEXTCTRL_Fadein=.2,T_TEXTCTRL_Fadeout=.3`,
@@ -843,6 +851,87 @@ const Effects = (() => {
         return out;
     }
 
+    // ---------- imported xLights effects ----------
+
+    const kvOf = str => { const o = {}; for (const part of String(str || '').split(',')) { const i = part.indexOf('='); if (i > 0) o[part.slice(0, i)] = part.slice(i + 1); } return o; };
+    // The colors an xLights palette string has ticked, in order.
+    function palColors(str) {
+        const kv = kvOf(str), out = [];
+        for (let i = 1; i <= 8; i++) {
+            if (kv['C_CHECKBOX_Palette' + i] !== '1') continue;
+            const v = kv['C_BUTTON_Palette' + i] || '';
+            const hex = /#[0-9a-f]{6}/i.exec(v);
+            out.push(hex ? hex[0].toUpperCase() : '#FFFFFF');
+        }
+        return out.length ? out : ['#FFFFFF'];
+    }
+    // The same palette with its ticked colors replaced by `colors` (in order, repeating).
+    function recolorPal(str, colors) {
+        const parts = String(str || '').split(',');
+        let j = 0;
+        const ticked = new Set();
+        for (const part of parts) { const m = /^C_CHECKBOX_Palette(\d)=1$/.exec(part); if (m) ticked.add(m[1]); }
+        const order = [...ticked].sort();
+        const map = new Map(order.map(n => [n, colors[(j++) % colors.length]]));
+        return parts.map(part => { const m = /^C_BUTTON_Palette(\d)=/.exec(part); return m && map.has(m[1]) ? `C_BUTTON_Palette${m[1]}=${map.get(m[1])}` : part; }).join(',');
+    }
+    const MIXES = { Additive: 'add', Max: 'add', 'Highlight Vibrant': 'add', '1 is Unmask': 'unmask', '1 is True Unmask': 'unmask', '1 is Mask': 'mask', Layered: 'layered' };
+    // How the preview draws an imported effect: the closest effect here, its main
+    // settings read from xLights' own, plus brightness, fades, blend and buffer.
+    // The exported sequence always gets the original settings, untouched.
+    function fromXl(name, settings, pal) {
+        const S = kvOf(settings);
+        const num = (keys, d) => { for (const k of [].concat(keys)) { const v = parseFloat(S[k]); if (!isNaN(v)) return v; } return d; };
+        const str = (k, d) => (S[k] != null && S[k] !== '' ? S[k] : d);
+        const pick = (v, list, d) => (list.includes(v) ? v : d);
+        let id = 'glow', o = {};
+        switch (name) {
+            case 'On': id = 'on'; o = { start: num('E_TEXTCTRL_Eff_On_Start', 100), end: num('E_TEXTCTRL_Eff_On_End', 100) }; break;
+            case 'Color Wash': id = 'wash'; o = { cycles: num('E_TEXTCTRL_ColorWash_Cycles', 1) }; break;
+            case 'SingleStrand': id = 'chase'; o = { direction: pick(str('E_CHOICE_Chase_Type1'), CHASE_DIRS, /Right/.test(str('E_CHOICE_Chase_Type1', '')) ? 'Right-Left' : 'Left-Right'), chases: num('E_SLIDER_Number_Chases', 1), rotations: num('E_TEXTCTRL_Chase_Rotations', 1), size: num('E_SLIDER_Color_Mix1', 33) }; break;
+            case 'Bars': id = 'bars'; o = { direction: pick(str('E_CHOICE_Bars_Direction'), ['up', 'down', 'Left', 'Right', 'expand', 'compress'], 'up'), bars: num('E_SLIDER_Bars_BarCount', 1), cycles: num('E_TEXTCTRL_Bars_Cycles', 1), look3d: num('E_CHECKBOX_Bars_3D', 0) }; break;
+            case 'Spirals': id = 'spirals'; o = { count: num('E_SLIDER_Spirals_Count', 1), rotation: num('E_SLIDER_Spirals_Rotation', 20), thickness: num('E_SLIDER_Spirals_Thickness', 50), look3d: num('E_CHECKBOX_Spirals_3D', 0) }; break;
+            case 'Pinwheel': id = 'pinwheel'; o = { arms: num('E_SLIDER_Pinwheel_Arms', 3), speed: num('E_SLIDER_Pinwheel_Speed', 10), twist: num('E_SLIDER_Pinwheel_Twist', 0), look: pick(str('E_CHOICE_Pinwheel_3D'), LOOKS, 'None') }; break;
+            case 'Twinkle': id = 'twinkle'; o = { count: num('E_SLIDER_Twinkle_Count', 3), steps: num('E_SLIDER_Twinkle_Steps', 30) }; break;
+            case 'Shockwave': id = 'shockwave'; o = { width: num('E_SLIDER_Shockwave_End_Width', 10) }; break;
+            case 'Marquee': id = 'marquee'; o = { band: num('E_SLIDER_Marquee_Band_Size', 3), skip: num('E_SLIDER_Marquee_Skip_Size', 0), speed: num('E_SLIDER_Marquee_Speed', 3) }; break;
+            case 'Butterfly': id = 'butterfly'; o = { speed: num('E_SLIDER_Butterfly_Speed', 10) }; break;
+            case 'Fan': id = 'fan'; o = { blades: num('E_SLIDER_Fan_Num_Blades', 3), width: num('E_SLIDER_Fan_Blade_Width', 50), turns: num('E_SLIDER_Fan_Revolutions', 720) / 360, twist: num('E_SLIDER_Fan_Blade_Angle', 90), reverse: num('E_CHECKBOX_Fan_Reverse', 0), grow: num('E_SLIDER_Fan_Duration', 80) }; break;
+            case 'Ripple': id = 'ripple'; o = { shape: pick(str('E_CHOICE_Ripple_Object_To_Draw'), ['Circle', 'Square', 'Triangle', 'Star', 'Snow Flake'], 'Circle'), movement: str('E_CHOICE_Ripple_Movement', 'Explode'), thickness: num('E_SLIDER_Ripple_Thickness', 3), cycles: num('E_TEXTCTRL_Ripple_Cycles', 1) }; break;
+            case 'Spirograph': id = 'spirograph'; o = { R: num('E_SLIDER_Spirograph_R', 20), r: num('E_SLIDER_Spirograph_r', 10), d: num('E_SLIDER_Spirograph_d', 30), speed: num(['E_TEXTCTRL_Spirograph_Speed', 'E_SLIDER_Spirograph_Speed'], 10), animate: num(['E_TEXTCTRL_Spirograph_Animate', 'E_SLIDER_Spirograph_Animate'], 0), length: num(['E_TEXTCTRL_Spirograph_Length', 'E_SLIDER_Spirograph_Length'], 20), width: num(['E_TEXTCTRL_Spirograph_Width', 'E_SLIDER_Spirograph_Width'], 1) }; break;
+            case 'Wave': id = 'wave'; o = { type: pick(str('E_CHOICE_Wave_Type'), ['Sine', 'Triangle'], 'Sine'), waves: num('E_SLIDER_Number_Waves', 900) / 360, height: num('E_SLIDER_Wave_Height', 50), thickness: num('E_SLIDER_Thickness_Percentage', 5), speed: num(['E_TEXTCTRL_Wave_Speed', 'E_SLIDER_Wave_Speed'], 10), direction: str('E_CHOICE_Wave_Direction', 'Right to Left') }; break;
+            case 'Meteors': id = 'meteors'; o = { direction: pick(str('E_CHOICE_Meteors_Effect'), ['Down', 'Up', 'Left', 'Right'], 'Down'), count: num('E_SLIDER_Meteors_Count', 10), length: num('E_SLIDER_Meteors_Length', 25), speed: num('E_SLIDER_Meteors_Speed', 10) }; break;
+            case 'Curtain': id = 'curtain'; o = { effect: str('E_CHOICE_Curtain_Effect', 'open'), edge: str('E_CHOICE_Curtain_Edge', 'left'), times: num('E_TEXTCTRL_Curtain_Speed', 1) }; break;
+            case 'Morph': {
+                id = 'morph';
+                const sy = num('E_SLIDER_Morph_Start_Y1', 0), ey = num('E_SLIDER_Morph_End_Y1', 100), sx = num('E_SLIDER_Morph_Start_X1', 0), ex = num('E_SLIDER_Morph_End_X1', 0);
+                o = { direction: Math.abs(ey - sy) >= Math.abs(ex - sx) ? (ey >= sy ? 'up' : 'down') : (ex >= sx ? 'right' : 'left'), sweep: num('E_SLIDER_MorphDuration', 20) };
+                break;
+            }
+            case 'Snowflakes': id = 'snowflakes'; o = { count: num('E_SLIDER_Snowflakes_Count', 5), speed: num('E_SLIDER_Snowflakes_Speed', 10) }; break;
+            case 'Strobe': id = 'strobe'; o = { count: num('E_SLIDER_Number_Strobes', 3), duration: num('E_SLIDER_Strobe_Duration', 10) }; break;
+            case 'Off': id = 'off'; break;
+            case 'Faces': id = 'faces'; o = { face: str('E_CHOICE_Faces_FaceDefinition', '') }; break;
+            case 'VU Meter': {
+                const t = str('E_CHOICE_VUMeter_Type', '');
+                if (/Timing Event .*Sweep/.test(t)) { id = 'vumeter'; o = { type: 'sweep', track: str('E_CHOICE_VUMeter_TimingTrack', ''), size: num('E_SLIDER_VUMeter_Bars', 6) }; }
+                else if (/Timing Event Pulse/.test(t)) { id = 'vumeter'; o = { type: 'flash', track: str('E_CHOICE_VUMeter_TimingTrack', ''), size: num('E_SLIDER_VUMeter_Bars', 8) }; }
+                break;
+            }
+        }
+        const eff = BY_ID.get(id) || BY_ID.get('glow');
+        const colors = palColors(pal);
+        const tr = v => (v === 'Wipe' ? 'wipe' : v === 'Circle Explode' ? 'circle' : null);
+        return {
+            eff, o: { ...eff.options, ...o }, colors, pal: colors.map(hexToRgb),
+            mix: MIXES[str('T_CHOICE_LayerMethod', 'Normal')] || 'normal',
+            level: Math.max(0, Math.min(100, num('C_SLIDER_Brightness', 100))),
+            fadeIn: Math.max(0, num('T_TEXTCTRL_Fadein', 0)), fadeOut: Math.max(0, num('T_TEXTCTRL_Fadeout', 0)),
+            inTr: tr(str('T_CHOICE_In_Transition_Type', '')), outTr: tr(str('T_CHOICE_Out_Transition_Type', '')),
+            perModel: /Per Model|Overlay/.test(str('B_CHOICE_BufferStyle', '')),
+        };
+    }
+
     const resetMovingHeads = () => { mhState = {}; };
     const movingHeadState = () => mhState;
 
@@ -850,6 +939,6 @@ const Effects = (() => {
         LIST, get: id => BY_ID.get(id), resetMovingHeads, movingHeadState, MH_PATTERNS,
         get SCHEMES() { return schemes; },
         DEFAULT_SCHEMES, setSchemes, resetSchemes, randomScheme,
-        hexToRgb, paletteString, ADD, BLENDS, flip, curveAt, curveString, hash,
+        hexToRgb, paletteString, ADD, BLENDS, flip, curveAt, curveString, hash, fromXl, palColors, recolorPal,
     };
 })();

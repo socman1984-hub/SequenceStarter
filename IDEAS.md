@@ -362,6 +362,17 @@ show); 7 the test hooks stay on purpose (harmless, used for testing); 8 not need
 
 ## Done
 
+- **2026-10-05:** Import xLights sequences (owner's choice: keep effects exact). `Sequencer.importXsq`
+  turns an .xsq into *imported* rows (trigger `fixed`, effect `xl`) per part / prop / layer /
+  effect type, with items {s, e, r, p} indexing `plan.imported.db` / `.pals`; timing tracks,
+  version and row order kept in `plan.imported`. Export writes raw settings and palettes, imported
+  layers under ours, strands/nodes, original timing XML, version stamp and element order.
+  Round trip of *A Christmas Storm 2024* renders byte-identical (before keeping the version, every
+  channel differed: xLights migrates old settings by version). Preview via `Effects.fromXl`
+  (closest effect + brightness, fades, blend, buffer); ~0.6–0.9 brightness of xLights, faces 0.98.
+  Open: preview fidelity for imported effects (value curves, transforms, more settings), an
+  "imported" filter/bulk actions, and converting an imported part into editable tool rows.
+
 - **2026-10-05:** Discord feedback round: Halloween schemes (Halloween, Orange & purple, Green &
   purple, Red & orange; new built-ins are merged into saved scheme lists via
   `xlweb-schemes-seen`); a *Randomize the whole sequence* bar above the parts (Suggest for every

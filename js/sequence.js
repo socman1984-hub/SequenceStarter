@@ -74,6 +74,10 @@ const Sequencer = (() => {
     //         inTr / outTr: 'wipe' | 'circle' (how its first / last effect comes in / goes;
     //         lasts startFade / endFade, or inTrTime / outTrTime seconds), spin: turns of the
     //         whole picture over each effect }
+    // An imported row (trigger 'fixed', effect 'xl') carries xLights effects exactly:
+    //   xl: { name, layer, strand?, node?, items: [{ s, e (ms), r, p }], colors0 }
+    // r / p index plan.imported.db / .pals (the original settings and palette
+    // strings); plan.imported.timings keeps the sequence's own timing tracks.
 
     const emptyPlan = () => ({ version: 2, whole: { rows: [] }, sections: {} });
     const newId = () => Math.random().toString(36).slice(2, 9);
@@ -105,11 +109,119 @@ const Sequencer = (() => {
         return rows.map(r => ({ ...JSON.parse(JSON.stringify(r)), id: newId() }));
     }
 
+    // ---------- importing an xLights sequence ----------
+
+    const sectionAt = (song, ms) => {
+        let k = 0;
+        for (let i = 0; i < song.sections.length; i++) if (song.sections[i].s * 1000 <= ms + 1) k = i;
+        return song.sections[k];
+    };
+
+    // A plan holding every effect of an .xsq exactly as it is, grouped per part of
+    // the song, per prop, per layer and per effect type.
+    function importXsq(text, song) {
+        const doc = new DOMParser().parseFromString(text, 'application/xml');
+        if (doc.querySelector('parsererror') || !doc.querySelector('xsequence')) throw new Error("this file isn't an xLights sequence (.xsq)");
+        const db0 = [...doc.querySelectorAll('EffectDB > Effect')].map(e => e.textContent);
+        const pal0 = [...doc.querySelectorAll('ColorPalettes > ColorPalette')].map(e => e.textContent);
+        // order: the sequence's rows, top to bottom (xLights renders them in that order)
+        const X = { db: [], pals: [], timings: [], order: [] };
+        const dbI = new Map(), palI = new Map();
+        const intern = (map, list, v) => { if (!map.has(v)) { map.set(v, list.length); list.push(v); } return map.get(v); };
+        const plan = emptyPlan();
+        plan.imported = X;
+        for (const sec of song.sections) plan.sections[sec.id] = { rows: [], pool: [] };
+        const groups = new Map();
+        let effects = 0;
+        const add = (target, layer, el, strand, node) => {
+            const name = el.getAttribute('name') || 'On';
+            const s = Math.round(+el.getAttribute('startTime')), e = Math.round(+el.getAttribute('endTime'));
+            if (!(e > s)) return;
+            const r = intern(dbI, X.db, db0[+el.getAttribute('ref')] || '');
+            const p = intern(palI, X.pals, pal0[+el.getAttribute('palette')] || '');
+            const sec = sectionAt(song, s);
+            const key = [sec.id, target, layer, name, strand ?? '', node ?? ''].join('|');
+            let row = groups.get(key);
+            if (!row) {
+                const xl = { name, layer, items: [] };
+                if (strand != null) xl.strand = strand;
+                if (node != null) xl.node = node;
+                row = { id: newId(), trigger: 'fixed', targets: [target], effect: 'xl', keep: true, xl, colors: [], scheme: 'custom' };
+                groups.set(key, row);
+                plan.sections[sec.id].rows.push(row);
+            }
+            row.xl.items.push({ s, e, r, p });
+            effects++;
+        };
+        const kids = (el, tag) => [...el.children].filter(c => c.tagName === tag);
+        const ee = doc.querySelector('ElementEffects');
+        for (const el of ee ? kids(ee, 'Element') : []) {
+            const type = el.getAttribute('type'), name = el.getAttribute('name');
+            if (type === 'timing') { X.timings.push({ name, xml: new XMLSerializer().serializeToString(el) }); continue; }
+            if (type !== 'model' || !name) continue;
+            X.order.push(name);
+            let li = 0;
+            const subLayer = new Map();
+            for (const ch of el.children) {
+                if (ch.tagName === 'EffectLayer') { for (const e of kids(ch, 'Effect')) add(name, li, e); li++; }
+                else if (ch.tagName === 'SubModelEffectLayer') {
+                    const sn = ch.getAttribute('name');
+                    const k = subLayer.get(sn) || 0;
+                    subLayer.set(sn, k + 1);
+                    for (const e of kids(ch, 'Effect')) add(name + '/' + sn, k, e);
+                } else if (ch.tagName === 'Strand') {
+                    const si = +ch.getAttribute('index');
+                    for (const e of kids(ch, 'Effect')) add(name, 0, e, si);
+                    for (const nd of kids(ch, 'Node')) for (const e of kids(nd, 'Effect')) add(name, 0, e, si, +nd.getAttribute('index'));
+                }
+            }
+        }
+        for (const c of Object.values(plan.sections)) for (const r of c.rows) {
+            r.xl.items.sort((a, b) => a.s - b.s);
+            r.colors = Effects.palColors(X.pals[r.xl.items[0].p]);
+            r.xl.colors0 = r.colors.slice();
+        }
+        const media = (doc.querySelector('head > mediaFile') || {}).textContent || '';
+        // xLights upgrades old effect settings on load by the file's version, so the
+        // export must say the version they were written for or they render differently
+        X.version = ((doc.querySelector('head > version') || {}).textContent || '').trim();
+        return { plan, effects, rows: groups.size, media };
+    }
+
+    // After parts are split, joined or reset, every imported effect moves to the
+    // part it now falls in (rows keep their own settings; a row split across
+    // parts becomes one row per part). extra: imported rows from removed parts.
+    function regroupImported(plan, song, extra = []) {
+        if (!plan || !plan.imported) return;
+        const rows = extra.slice();
+        for (const c of Object.values(plan.sections)) {
+            rows.push(...c.rows.filter(r => r.trigger === 'fixed'));
+            c.rows = c.rows.filter(r => r.trigger !== 'fixed');
+        }
+        for (const r of rows) {
+            const by = new Map();
+            for (const it of (r.xl && r.xl.items) || []) {
+                const id = sectionAt(song, it.s).id;
+                if (!by.has(id)) by.set(id, []);
+                by.get(id).push(it);
+            }
+            let first = true;
+            for (const [id, items] of by) {
+                const c = plan.sections[id] = plan.sections[id] || { rows: [], pool: [] };
+                c.rows.push({ ...r, id: first ? r.id : newId(), xl: { ...r.xl, items } });
+                first = false;
+            }
+        }
+    }
+
     // ---------- generation ----------
 
     // Marks of the exported timing tracks the beat meter can follow.
-    function trackMarks(name, song) {
+    function trackMarks(name, song, imported) {
         const g = song.grid;
+        // a timing track that came with an imported sequence
+        const own = imported && imported.timings && imported.timings.find(t => t.name === name);
+        if (own) return [...own.xml.matchAll(/startTime="(\d+)"\s+endTime="(\d+)"/g)].map(m => ({ s: +m[1] / 1000, e: +m[2] / 1000 })).sort((a, b) => a.s - b.s);
         if (name === 'Bars') return g.bars.map(b => ({ s: b.s, e: b.e }));
         if (name === 'Note Onsets') return marksFor('onsets', song);
         return g.beats.map(b => ({ s: b.s, e: b.e }));
@@ -154,7 +266,55 @@ const Sequencer = (() => {
         for (const c of containers) for (const row of c.rows) jobs.push({ c, row });
         jobs.sort((a, b) => ((a.row.trigger || 'span') === 'span' ? 0 : 1) - ((b.row.trigger || 'span') === 'span' ? 0 : 1));
 
+        // Imported effects keep their own layers (below anything made here), their
+        // exact times and their original settings.
+        const X = plan.imported;
+        const pvCache = new Map();
+        const placeImp = (target, fx) => {
+            let r = rows.get(target);
+            if (!r) { r = { layers: [] }; rows.set(target, r); }
+            if (fx.strand != null) {
+                r.strands = r.strands || new Map();
+                let st = r.strands.get(fx.strand);
+                if (!st) r.strands.set(fx.strand, st = { fx: [], nodes: new Map() });
+                if (fx.node != null) { if (!st.nodes.has(fx.node)) st.nodes.set(fx.node, []); st.nodes.get(fx.node).push(fx); }
+                else st.fx.push(fx);
+                return;
+            }
+            r.imp = r.imp || [];
+            for (let k = 0; ; k++) {
+                const key = fx.xlLayer + k * 0.001;
+                let L = r.imp.find(x => x.key === key);
+                if (!L) { L = { key, fx: [] }; r.imp.push(L); }
+                if (!L.fx.some(o => o.sMs < fx.eMs && fx.sMs < o.eMs)) { L.fx.push(fx); return; }
+            }
+        };
+        for (const { row } of jobs) {
+            if (row.trigger !== 'fixed' || !X || !row.xl) continue;
+            const recolor = row.colors && row.xl.colors0 && row.colors.join() !== row.xl.colors0.join();
+            for (const it of row.xl.items) {
+                const settings = X.db[it.r] || '';
+                const palStr = recolor ? Effects.recolorPal(X.pals[it.p] || '', row.colors) : (X.pals[it.p] || '');
+                const ck = it.r + '|' + palStr + '|' + row.xl.name;
+                let pv = pvCache.get(ck);
+                if (!pv) { pv = Effects.fromXl(row.xl.name, settings, palStr); pvCache.set(ck, pv); }
+                for (const target of row.targets) {
+                    if (!Show.hasTarget(show, target)) { missing.add(target); continue; }
+                    const isGroup = show.groups.has(target);
+                    placeImp(target, {
+                        sMs: it.s, eMs: it.e, eff: pv.eff, o: pv.o, colors: pv.colors, pal: pv.pal, index: 0, rowId: row.id, isGroup,
+                        perModel: isGroup && pv.perModel, level: pv.level, startFade: pv.fadeIn, endFade: pv.fadeOut, inTr: pv.inTr, outTr: pv.outTr,
+                        sparkles: 0, spin: 0, target, mix: pv.mix, xlLayer: row.xl.layer, strand: row.xl.strand, node: row.xl.node,
+                        marks: pv.eff.id === 'vumeter' ? trackMarks(pv.o.track, song, X) : null,
+                        raw: { name: row.xl.name, settings, pal: palStr },
+                    });
+                    count++;
+                }
+            }
+        }
+
         for (const { c, row } of jobs) {
+            if (row.trigger === 'fixed') continue;
             const eff = Effects.get(row.effect);
             if (!eff || !row.targets || !row.targets.length) continue;
             const colors = row.colors && row.colors.length ? row.colors : ['#FFFFFF'];
@@ -180,7 +340,7 @@ const Sequencer = (() => {
             else spans = marks(trig).filter(m => m.s >= ws - 0.001 && m.s < we).map(m => ({ s: m.s, e: Math.min(m.e, we) }));
             const barIndex = t => { const bs = song.grid.bars; let lo = 0, hi = bs.length - 1; while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (bs[mid].s <= t + 0.01) lo = mid; else hi = mid - 1; } return lo; };
             const alt = row.chop ? row.alt || '' : '';
-            const vuMarks = eff.id === 'vumeter' ? trackMarks(opts.track, song) : null;
+            const vuMarks = eff.id === 'vumeter' ? trackMarks(opts.track, song, X) : null;
             spans.forEach((sp, n) => {
                 const index = row.colourBy === 'bar' ? barIndex(sp.s) : n;
                 const sMs = snap(sp.s), eMs = snap(sp.e);
@@ -236,8 +396,10 @@ const Sequencer = (() => {
         for (const r of rows.values()) {
             for (let i = 0; i < r.layers.length; i++) if (!r.layers[i]) r.layers[i] = [];
             for (const l of r.layers) l.sort((a, b) => a.sMs - b.sMs);
+            if (r.imp) { r.imp.sort((a, b) => a.key - b.key); for (const L of r.imp) L.fx.sort((a, b) => a.sMs - b.sMs); }
+            if (r.strands) for (const st of r.strands.values()) { st.fx.sort((a, b) => a.sMs - b.sMs); for (const l of st.nodes.values()) l.sort((a, b) => a.sMs - b.sMs); }
         }
-        return { rows, count, problems, missing: [...missing] };
+        return { rows, count, problems, missing: [...missing], imported: X || null };
     }
 
     // The last two bars of a part (a build-up into the next one), or its first beat.
@@ -273,7 +435,9 @@ const Sequencer = (() => {
             const m = show.models.get(name);
             if (m) { N.w = NM.w = Math.max(8, m.bufW); N.h = NM.h = Math.max(8, m.bufH); }
             else if (!show.groups.has(name) && list[0].bw) { N.w = list[0].bw; N.h = list[0].bh; }
-            targets.push({ name, N, NM, model: m || null, layers: r.layers.filter(Boolean), tmp: new Float32Array(3 * n), acc: new Float32Array(3 * n) });
+            // imported layers first (xLights' last layer is the bottom), then the ones made here
+            const imp = (r.imp || []).slice().sort((a, b) => b.key - a.key).map(x => x.fx);
+            targets.push({ name, N, NM, model: m || null, layers: imp.concat(r.layers.filter(Boolean)), tmp: new Float32Array(3 * n), acc: new Float32Array(3 * n) });
         }
         return { targets, total: offset, colors: new Float32Array(3 * offset) };
     }
@@ -377,6 +541,9 @@ const Sequencer = (() => {
         for (let k = 0; k < n; k++) {
             const i = 3 * k;
             const fv = Math.min(255, Math.max(top[i], top[i + 1], top[i + 2]));
+            // Normal: a lit pixel covers what is under it; Layered: shows only where nothing is lit below
+            if (mode === 'normal') { if (fv > 0) { acc[i] = top[i]; acc[i + 1] = top[i + 1]; acc[i + 2] = top[i + 2]; } continue; }
+            if (mode === 'layered') { if (Math.max(acc[i], acc[i + 1], acc[i + 2]) <= 0) { acc[i] = top[i]; acc[i + 1] = top[i + 1]; acc[i + 2] = top[i + 2]; } continue; }
             if (mode === 'mask') { if (fv > 0) acc[i] = acc[i + 1] = acc[i + 2] = 0; continue; }
             if (fv <= 0) { acc[i] = acc[i + 1] = acc[i + 2] = 0; continue; }
             const r = Math.min(255, acc[i]), g = Math.min(255, acc[i + 1]), b = Math.min(255, acc[i + 2]);
@@ -426,9 +593,10 @@ const Sequencer = (() => {
                 if (fx.inTr && p.sec < fx.startFade) reveal(fx.inTr, base, tmp, p.sec / fx.startFade, false);
                 if (fx.outTr && p.dur - p.sec < fx.endFade) reveal(fx.outTr, base, tmp, 1 - (p.dur - p.sec) / fx.endFade, true);
                 if (fx.sparkles > 0) sparkle(tmp, N, ms, fx.music ? Math.round(fx.sparkles * loudAt(song, t)) : fx.sparkles);
-                if (fx.blend) {
+                const mode = fx.blend || (fx.raw && fx.mix !== 'add' ? fx.mix : null);
+                if (mode) {
                     if (!any) { acc.fill(0); any = true; }
-                    blendInto(fx.blend, acc, tmp, N.n);
+                    blendInto(mode, acc, tmp, N.n);
                 } else if (!any) { acc.set(tmp); any = true; }
                 else for (let i = 0; i < tmp.length; i++) acc[i] += tmp[i];
             }
@@ -465,6 +633,11 @@ const Sequencer = (() => {
             return overlayCache.get(name);
         };
         const refOf = fx => {
+            if (fx.raw) {
+                // an imported effect: its own settings, byte for byte
+                if (!dbIdx.has(fx.raw.settings)) { dbIdx.set(fx.raw.settings, db.length); db.push(fx.raw.settings); }
+                return dbIdx.get(fx.raw.settings);
+            }
             let s = fx.eff.settings(fx.o, { ...ctx, fx, show });
             // A group row's buffer has to be stated, or xLights uses the group's
             // default layout and the effect lands somewhere else than the preview shows.
@@ -483,6 +656,7 @@ const Sequencer = (() => {
             return dbIdx.get(s);
         };
         const palOf = fx => {
+            if (fx.raw) { if (!palIdx.has(fx.raw.pal)) { palIdx.set(fx.raw.pal, pals.length); pals.push(fx.raw.pal); } return palIdx.get(fx.raw.pal); }
             const s = Effects.paletteString(fx.eff.hitColour && fx.colors.length > 1 ? [fx.colors[fx.index % fx.colors.length]] : fx.colors, fx.sparkles ? { sparkles: fx.sparkles, music: fx.music } : null);
             if (!palIdx.has(s)) { palIdx.set(s, pals.length); pals.push(s); }
             return palIdx.get(s);
@@ -501,16 +675,27 @@ const Sequencer = (() => {
             // xLights blends from its last layer up to layer 0, and a lit pixel on a
             // Normal layer hides what is under it. Steady rows go at the bottom and
             // hits above them, adding on top, as the preview shows them.
-            const layers = r.layers.filter(Boolean).reverse();
-            layers.forEach((l, i) => { for (const fx of l) fx.above = i < layers.length - 1; });
-            if (sub) el.subs.set(sub, layers); else el.layers = layers;
+            const ours = r.layers.filter(Boolean).reverse();
+            // imported layers keep their order and sit under everything made here
+            const imp = (r.imp || []).map(x => x.fx);
+            ours.forEach((l, i) => { for (const fx of l) fx.above = i < ours.length - 1 || imp.length > 0; });
+            const layers = ours.concat(imp);
+            if (sub) el.subs.set(sub, layers); else { el.layers = layers; el.strands = r.strands || null; }
         }
 
+        // an imported sequence keeps its own row order; new rows follow it
+        const order = gen.imported && gen.imported.order;
+        if (order && order.length) {
+            const pos = new Map(order.map((n, i) => [n, i]));
+            const sorted = [...elements].sort((a, b) => (pos.has(a[0]) ? pos.get(a[0]) : 1e9) - (pos.has(b[0]) ? pos.get(b[0]) : 1e9));
+            elements.clear();
+            for (const [k, v] of sorted) elements.set(k, v);
+        }
         const L = [];
         L.push('<?xml version="1.0" encoding="UTF-8"?>');
         L.push('<xsequence BaseChannel="0" ChanCtrlBasic="0" ChanCtrlColor="0" FixedPointTiming="1" ModelBlending="true">');
         L.push('  <head>');
-        const head = [['version', meta.version || '2025.09'], ['author', ''], ['author-email', ''], ['author-website', ''],
+        const head = [['version', (gen.imported && gen.imported.version) || meta.version || '2025.09'], ['author', ''], ['author-email', ''], ['author-website', ''],
             ['song', meta.song || ''], ['artist', meta.artist || ''], ['album', ''], ['MusicURL', ''], ['comment', 'Made with Lights Auto Sequencer'],
             ['sequenceTiming', FRAME_MS + ' ms'], ['sequenceType', 'Media'], ['mediaFile', meta.mediaFile || ''],
             ['sequenceDuration', song.model.duration.toFixed(3)], ['imageDir', '']];
@@ -521,10 +706,11 @@ const Sequencer = (() => {
 
         // effects (collect refs first so the DB is complete)
         const body = [];
+        const effectXml = (fx, indent) => `${indent}<Effect ref="${refOf(fx)}" name="${esc(fx.raw ? fx.raw.name : fx.eff.xl)}" startTime="${fx.sMs}" endTime="${fx.eMs}" palette="${palOf(fx)}"/>`;
         const layerXml = (fxs, indent, tag = 'EffectLayer', attrs = '') => {
             if (!fxs.length) { body.push(`${indent}<${tag}${attrs}/>`); return; }
             body.push(`${indent}<${tag}${attrs}>`);
-            for (const fx of fxs) body.push(`${indent}  <Effect ref="${refOf(fx)}" name="${esc(fx.eff.xl)}" startTime="${fx.sMs}" endTime="${fx.eMs}" palette="${palOf(fx)}"/>`);
+            for (const fx of fxs) body.push(effectXml(fx, indent + '  '));
             body.push(`${indent}</${tag}>`);
         };
         for (const [name, el] of elements) {
@@ -532,6 +718,16 @@ const Sequencer = (() => {
             const layers = el.layers && el.layers.length ? el.layers : [[]];
             for (const l of layers) layerXml(l, '      ');
             for (const [sub, sl] of el.subs) for (const l of sl) layerXml(l, '      ', 'SubModelEffectLayer', ` name="${esc(sub)}"`);
+            if (el.strands) for (const [si, st] of [...el.strands].sort((a, b) => a[0] - b[0])) {
+                body.push(`      <Strand index="${si}">`);
+                for (const fx of st.fx) body.push(effectXml(fx, '        '));
+                for (const [ni, nf] of [...st.nodes].sort((a, b) => a[0] - b[0])) {
+                    body.push(`        <Node index="${ni}">`);
+                    for (const fx of nf) body.push(effectXml(fx, '          '));
+                    body.push('        </Node>');
+                }
+                body.push('      </Strand>');
+            }
             body.push('    </Element>');
         }
         const timing = (name, layers) => {
@@ -565,7 +761,12 @@ const Sequencer = (() => {
                 song.lyr.phonemes.map(x => ({ s: x.s, e: x.e, label: x.text })),
             ]]);
         }
+        const impTimings = (gen.imported && gen.imported.timings) || [];
+        const taken = new Set(impTimings.map(t => t.name));
+        for (let i = timings.length - 1; i >= 0; i--) if (taken.has(timings[i][0])) timings.splice(i, 1);
         for (const [name, layers] of timings) timing(name, layers);
+        for (const t of impTimings) body.push('    ' + t.xml.replace(/ xmlns="[^"]*"/, ''));
+        for (const t of impTimings) timings.push([t.name, []]);
 
         L.push('  <ColorPalettes>');
         for (const p of pals) L.push(`    <ColorPalette>${p}</ColorPalette>`);
@@ -591,5 +792,5 @@ const Sequencer = (() => {
         return L.join('\n') + '\n';
     }
 
-    return { TRIGGERS, EVENTS, kindOf, emptyPlan, migrate, cloneRows, newId, generate, prepare, renderFrame, toXsq, LYRIC_TRACK };
+    return { TRIGGERS, EVENTS, kindOf, emptyPlan, migrate, cloneRows, newId, generate, prepare, renderFrame, toXsq, LYRIC_TRACK, importXsq, regroupImported };
 })();

@@ -2,10 +2,11 @@
 
 Release notes for Lights Auto Sequencer, newest first. The same list is in the app under **✨ What's new**.
 
-## 2026.10.05 — Halloween colors and per-part colors
+## 2026.10.05 — Import xLights sequences, Halloween colors and per-part colors
 
 _2026-10-05_
 
+- **New:** Import xLights sequences: File › Import xLights sequence (.xsq) brings in a sequence made in xLights with every effect exactly as it was. Change its lights or colors, mute or remove rows, or add new lights on top; the export gives back everything you didn't change, untouched (checked: a 3,619-effect sequence comes back byte-for-byte the same in xLights).
 - **New:** Halloween color schemes: Halloween (orange, purple, green), Orange & purple, Green & purple, Red & orange. They're added to your list even if you've edited your schemes.
 - **New:** 🎲 Randomize the whole sequence: a button above the parts that gives every part new lights at once (each part's own 🎲 Randomize still changes just that part).
 - **Fixed:** A part's 🎲 Randomize went back to the palette in Idea settings even after you changed that part's colors. A part you recolor (its 🎨, or by editing its rows' colors) now keeps its own colors for new ideas, shown as "own colors" on its card; ✕ goes back to the main palette.
