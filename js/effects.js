@@ -66,6 +66,15 @@ const Effects = (() => {
             }
             case 'Saw Tooth': { const n = Math.max(1, Math.round(c.p3)); const x = frac(t * n); return x < 0.5 ? lerp(c.p1, c.p2, x * 2) : lerp(c.p2, c.p1, (x - 0.5) * 2); }
             case 'Sine': return lerp(c.min, c.max, 0.5 + 0.5 * Math.sin(2 * Math.PI * t * Math.max(1, c.p3 || 1)));
+            case 'Custom': {
+                // Values=x:y;... with y 0..1 of min..max
+                const v = c.values || [];
+                if (!v.length) return c.min;
+                if (t <= v[0][0]) return lerp(c.min, c.max, v[0][1]);
+                for (let i = 1; i < v.length; i++) if (t <= v[i][0]) { const [x0, y0] = v[i - 1], [x1, y1] = v[i]; return lerp(c.min, c.max, y0 + (y1 - y0) * ((t - x0) / ((x1 - x0) || 1))); }
+                return lerp(c.min, c.max, v[v.length - 1][1]);
+            }
+            case 'Flat': return c.p1;
         }
         return c.p1;
     }
@@ -105,6 +114,62 @@ const Effects = (() => {
             case 'Snow Flake': return star(6, 0.2);
             default: return () => 1;
         }
+    }
+
+    // Snowflake shapes (SnowflakesEffect types 1-9): [dx, dy, colour (1 centre, 2 edge)]
+    const FLAKES = [
+        [[0, 0, 1]],
+        [[0, 0, 1], [-1, 0, 2], [1, 0, 2], [0, -1, 2], [0, 1, 2]],
+        [[0, 0, 1], [-1, 0, 2], [1, 0, 2]],
+        [[0, 0, 1], [-1, 0, 2], [1, 0, 2], [0, -1, 2], [0, 1, 2], [-2, 0, 2], [2, 0, 2], [0, -2, 2], [0, 2, 2]],
+        [[0, 0, 1], [-1, 0, 2], [1, 0, 2], [0, -1, 2], [0, 1, 2], [-1, 2, 2], [1, 2, 2], [-1, -2, 2], [1, -2, 2], [2, -1, 2], [2, 1, 2], [-2, -1, 2], [-2, 1, 2]],
+        [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]],
+        [[0, 0, 1], [1, 0, 1], [0, 1, 1]],
+        [[0, 0, 1], [-1, -1, 2], [1, 1, 2], [-1, 1, 2], [1, -1, 2]],
+        [[0, 0, 1], [0, -1, 2], [0, 1, 2], [0, -2, 2], [0, 2, 2]],
+    ];
+    const flakeCache = new Map();
+    function flakeGrid(W, H, count, type) {
+        const key = `${W}x${H}|${count}|${type}`;
+        let g = flakeCache.get(key);
+        if (g) return g;
+        g = new Uint8Array(W * H);
+        const dh = Math.max(1, Math.floor(H / 4));
+        for (let n = 0; n < count; n++) {
+            const x = Math.floor(hash(n * 2 + 11) * W), y = Math.min(H - 1, (n % 4) * dh + Math.floor(hash(n * 2 + 12) * dh));
+            const shape = FLAKES[type === 0 ? Math.floor(hash(n * 3 + 5) * 9) : Math.max(0, Math.min(8, type - 1))];
+            for (const [dx, dy, c] of shape) { const xx = x + dx, yy = y + dy; if (xx >= 0 && xx < W && yy >= 0 && yy < H) g[yy * W + xx] = c; }
+        }
+        if (flakeCache.size > 64) flakeCache.clear();
+        flakeCache.set(key, g);
+        return g;
+    }
+
+    // Pictures (imported effects): images are loaded by the page (setPictureLoader)
+    // and kept as small RGBA arrays.
+    const pictures = new Map();
+    let pictureLoader = null;
+    const setPictureLoader = fn => { pictureLoader = fn; };
+    function pictureFor(path) {
+        if (!path) return null;
+        let e = pictures.get(path);
+        if (e) return e.ready ? e : null;
+        e = { ready: false };
+        pictures.set(path, e);
+        if (pictureLoader) Promise.resolve(pictureLoader(path)).then(src => new Promise((ok, no) => {
+            if (!src) return no();
+            const img = new Image();
+            img.onload = () => ok(img); img.onerror = no;
+            img.src = src;
+        })).then(img => {
+            const c = document.createElement('canvas');
+            const sc = Math.min(1, 256 / Math.max(img.width, img.height));
+            c.width = Math.max(1, Math.round(img.width * sc)); c.height = Math.max(1, Math.round(img.height * sc));
+            const g = c.getContext('2d');
+            g.drawImage(img, 0, 0, c.width, c.height);
+            Object.assign(e, { ready: true, w: c.width, h: c.height, data: g.getImageData(0, 0, c.width, c.height).data, nw: img.width, nh: img.height });
+        }).catch(() => { e.failed = true; });
+        return null;
     }
 
     // The Spirograph line for one frame on a W x H buffer (palette index + 1 per cell).
@@ -150,11 +215,12 @@ const Effects = (() => {
         {
             id: 'on', label: 'Solid color', xl: 'On', use: ['part', 'hit'],
             // start/end: brightness at the start and end of the effect (a ramp when they differ)
-            options: { fadeIn: 0, fadeOut: 0, start: 100, end: 100 },
+            options: { fadeIn: 0, fadeOut: 0, start: 100, end: 100, cycles: 1, transparency: 0 },
             settings: o => `E_TEXTCTRL_Eff_On_End=${o.end ?? 100},E_TEXTCTRL_Eff_On_Start=${o.start ?? 100}` + fades(o),
             render(p, N, out) {
                 const s0 = p.o.start ?? 100, s1 = p.o.end ?? 100;
-                const b = fadeOf(p, p.o.fadeIn, p.o.fadeOut) * (s0 + (s1 - s0) * p.t) / 100;
+                const x = (p.o.cycles || 1) > 1 ? frac(p.t * p.o.cycles) : p.t;
+                const b = fadeOf(p, p.o.fadeIn, p.o.fadeOut) * (s0 + (s1 - s0) * x) / 100 * (1 - Math.max(0, Math.min(100, p.o.transparency || 0)) / 100);
                 for (let k = 0; k < N.n; k++) palPick(p.pal, 0, out, 3 * k, b);
             },
         },
@@ -170,10 +236,13 @@ const Effects = (() => {
         },
         {
             id: 'wash', label: 'Color wash', xl: 'Color Wash', use: ['part'],
-            options: { cycles: 1 },
-            settings: o => `E_TEXTCTRL_ColorWash_Cycles=${(+o.cycles).toFixed(1)}`,
+            options: { cycles: 1, circular: 0 },
+            settings: o => `E_TEXTCTRL_ColorWash_Cycles=${(+o.cycles).toFixed(1)}` + (o.circular ? ',E_CHECKBOX_ColorWash_CircularPalette=1' : ''),
+            // ColorWashEffect + GetMultiColorBlend: once through the colors per cycle,
+            // ending on the last one (round to the first again only when circular)
             render(p, N, out) {
-                const f = p.t * p.o.cycles * p.pal.length;
+                const n = p.pal.length, pos = Math.min(0.99999, frac(p.t * Math.max(0.1, +p.o.cycles || 1)));
+                const f = n <= 1 ? 0 : p.o.circular ? pos * n : pos * (n - 1);
                 for (let k = 0; k < N.n; k++) palBlend(p.pal, f, out, 3 * k);
             },
         },
@@ -246,25 +315,27 @@ const Effects = (() => {
         },
         {
             id: 'pinwheel', label: 'Pinwheel', xl: 'Pinwheel', use: ['part'],
-            options: { arms: 3, speed: 10, twist: 0, look: '3D', armMove: 'steady' },
+            options: { arms: 3, speed: 10, twist: 0, look: '3D', armMove: 'steady', size: 100, thickness: 20, cw: 0, offset: 0, xc: 0, yc: 0 },
             choices: { look: LOOKS, armMove: Object.keys(PW_ARMS) },
-            labels: { look: 'Look', armMove: 'Arms' },
-            settings: o => { const c = PW_ARMS[o.armMove]; return `E_CHECKBOX_Pinwheel_Rotation=0,E_CHOICE_Pinwheel_3D=${LOOKS.includes(o.look) ? o.look : '3D'},E_CHOICE_Pinwheel_Style=New Render Method,E_SLIDER_PinwheelXC=0,E_SLIDER_PinwheelYC=0,E_SLIDER_Pinwheel_ArmSize=100,E_SLIDER_Pinwheel_Arms=${o.arms},E_SLIDER_Pinwheel_Offset=0,E_SLIDER_Pinwheel_Speed=${o.speed},E_SLIDER_Pinwheel_Thickness=20,E_SLIDER_Pinwheel_Twist=${o.twist}` + (c ? ',' + curveString('E', 'Pinwheel_ArmSize', { ...c, min: 0, max: 400 }) : ''); },
+            labels: { look: 'Look', armMove: 'Arms', size: 'Arm length %', thickness: 'Arm width %', cw: 'Clockwise (0/1)', offset: 'Start angle', xc: 'Center left/right', yc: 'Center up/down' },
+            settings: o => { const c = PW_ARMS[o.armMove]; return `E_CHECKBOX_Pinwheel_Rotation=${o.cw ? 1 : 0},E_CHOICE_Pinwheel_3D=${LOOKS.includes(o.look) ? o.look : '3D'},E_CHOICE_Pinwheel_Style=New Render Method,E_SLIDER_PinwheelXC=${Math.round(o.xc || 0)},E_SLIDER_PinwheelYC=${Math.round(o.yc || 0)},E_SLIDER_Pinwheel_ArmSize=${Math.round(o.size ?? 100)},E_SLIDER_Pinwheel_Arms=${o.arms},E_SLIDER_Pinwheel_Offset=${Math.round(o.offset || 0)},E_SLIDER_Pinwheel_Speed=${o.speed},E_SLIDER_Pinwheel_Thickness=${Math.round(o.thickness ?? 20)},E_SLIDER_Pinwheel_Twist=${o.twist}` + (c ? ',' + curveString('E', 'Pinwheel_ArmSize', { ...c, min: 0, max: 400 }) : ''); },
             render(p, N, out) {
                 const o = p.o;
-                const rot = p.sec * o.speed / 10;
+                const rot = (o.cw ? -1 : 1) * p.sec * o.speed / 10 + (o.offset || 0) / 360;
                 const c = PW_ARMS[o.armMove];
-                // arms reach half the buffer's diagonal at 100%
-                const reach = 0.7072 * (c ? curveAt(c, p.t) : 100) / 100;
+                // arms reach half the buffer's diagonal at 100% (ArmSize goes to 400%)
+                const reach = 0.7072 * (c ? curveAt(c, p.t) : (o.size ?? 100)) / 100;
+                // an arm is about Pinwheel_Thickness % of its share of the circle (a
+                // little more on small buffers; tuned against xLights renders)
+                const band = Math.min(1, Math.max(0.02, (o.thickness ?? 20) / 100 * 1.2));
+                const cx = 0.5 + (o.xc || 0) / 200, cy = 0.5 + (o.yc || 0) / 200;
                 for (let k = 0; k < N.n; k++) {
-                    const dx = N.u[k] - 0.5, dy = N.v[k] - 0.5;
+                    const dx = N.u[k] - cx, dy = N.v[k] - cy;
                     const r = Math.hypot(dx, dy);
                     if (r > reach) continue;
                     const a = (Math.atan2(dy, dx) / (2 * Math.PI) + rot + r * o.twist / 100) * o.arms;
                     const w = frac(a);
-                    // an arm is about Pinwheel_Thickness (20%) of its share of the circle,
-                    // a little more on small buffers (tuned against xLights renders)
-                    if (w < 0.24) palPick(p.pal, Math.floor(a), out, 3 * k, shade3d(o.look || '3D', w / 0.24));
+                    if (w < band) palPick(p.pal, Math.floor(a), out, 3 * k, shade3d(o.look || '3D', w / band));
                 }
             },
         },
@@ -286,18 +357,28 @@ const Effects = (() => {
         },
         {
             id: 'shockwave', label: 'Shockwave', xl: 'Shockwave', use: ['hit', 'part'], hitColour: true,
-            options: { width: 30, move: 'still' },
+            options: { width: 30, move: 'still', cx: 50, r0: 1, r1: 100, w0: null },
             choices: { move: Object.keys(SW_MOVE) },
             labels: { move: 'Centre moves' },
             settings: o => { const c = SW_MOVE[o.move]; return `E_CHECKBOX_Shockwave_Blend_Edges=1,E_CHECKBOX_Shockwave_Scale=1,E_NOTEBOOK_Shockwave=Position,E_SLIDER_Shockwave_Accel=0,E_SLIDER_Shockwave_CenterX=50,E_SLIDER_Shockwave_CenterY=50,E_SLIDER_Shockwave_Cycles=1,E_SLIDER_Shockwave_End_Radius=100,E_SLIDER_Shockwave_End_Width=${o.width},E_SLIDER_Shockwave_Start_Radius=1,E_SLIDER_Shockwave_Start_Width=${o.width}` + (c ? ',' + curveString('E', 'Shockwave_CenterY', { ...c, min: 0, max: 100 }) : ''); },
             render(p, N, out) {
-                const w = Math.max(0.05, p.o.width / 100) * 0.7, R = p.t * 0.75;
-                const c = SW_MOVE[p.o.move];
-                const cy = c ? curveAt(c, p.t) / 100 : 0.5;
+                // ShockwaveEffect::Render (Scale to Buffer on): radius r -> r/200 and width w -> w/100
+                // of the buffer's longer side; the ring's edges fade; imported ones blend through
+                // their palette as the ring grows (made-here hits take one color each)
+                const o = p.o, w0 = o.w0 == null ? o.width : o.w0;
+                const R = ((o.r0 ?? 1) + ((o.r1 ?? 100) - (o.r0 ?? 1)) * p.t) / 200;
+                const half = Math.max(0.002, (w0 + (o.width - w0) * p.t) / 200);
+                const c = SW_MOVE[o.move];
+                const cy = c ? curveAt(c, p.t) / 100 : (o.cy ?? 50) / 100, cx = (o.cx ?? 50) / 100;
+                const n = p.pal.length, col = [0, 0, 0];
+                if (o.palBlend) palBlend(p.pal, Math.min(n - 1, p.t * (n - 1)), col, 0); else palPick(p.pal, p.index, col, 0);
                 for (let k = 0; k < N.n; k++) {
-                    const r = Math.hypot(N.u[k] - 0.5, N.v[k] - cy);
-                    const b = clamp01(1 - Math.abs(r - R) / w);
-                    palPick(p.pal, p.index, out, 3 * k, b);
+                    const W = N.bw ? N.bw[k] : N.w, H = N.bh ? N.bh[k] : N.h, M = Math.max(W, H);
+                    const d = Math.hypot((N.u[k] - cx) * W, (N.v[k] - cy) * H) / M;
+                    const e = Math.abs(d - R);
+                    if (e > half) continue;
+                    const b = 1 - e / half;
+                    out[3 * k] = col[0] * b; out[3 * k + 1] = col[1] * b; out[3 * k + 2] = col[2] * b;
                 }
             },
         },
@@ -515,19 +596,22 @@ const Effects = (() => {
         {
             // SnowflakesEffect: flakes drifting down.
             id: 'snowflakes', label: 'Snowflakes (falling)', xl: 'Snowflakes', use: ['part'],
-            options: { count: 10, speed: 10 },
-            labels: { count: 'How many', speed: 'Speed' },
-            settings: o => `E_CHOICE_Falling=Driving,E_SLIDER_Snowflakes_Count=${Math.round(o.count)},E_SLIDER_Snowflakes_Speed=${Math.round(o.speed)},E_SLIDER_Snowflakes_Type=1`,
+            options: { count: 10, speed: 10, type: 1 },
+            labels: { count: 'How many', speed: 'Speed', type: 'Flake shape (0-9, 0 = mixed)' },
+            settings: o => `E_CHOICE_Falling=Driving,E_SLIDER_Snowflakes_Count=${Math.round(o.count)},E_SLIDER_Snowflakes_Speed=${Math.round(o.speed)},E_SLIDER_Snowflakes_Type=${Math.round(o.type ?? 1)}`,
+            // SnowflakesEffect, Driving: a fixed set of flakes, drawn twice and scrolled
+            // diagonally (one copy each way, the second half a buffer lower)
             render(p, N, out) {
-                const o = p.o, nc = p.pal.length, frames = p.sec * 40;
+                const o = p.o;
+                const mv = Math.floor(Math.round(p.sec * 40) * o.speed / 2);
                 for (let k = 0; k < N.n; k++) {
                     const W = Math.max(2, Math.round(N.bw ? N.bw[k] : N.w)), H = Math.max(2, Math.round(N.bh ? N.bh[k] : N.h));
+                    const g = flakeGrid(W, H, Math.round(o.count), Math.round(o.type ?? 1));
                     const x = Math.round(N.u[k] * (W - 1)), y = Math.round(N.v[k] * (H - 1));
-                    // flakes per column ~ count spread over the buffer, falling speed/20 rows a frame
-                    const per = Math.max(1, W * H / Math.max(1, o.count * 4));
-                    const fall = y + frames * o.speed / 20 + hash(x * 977 + 5) * per;
-                    const cell = Math.floor(fall / per);
-                    if (Math.floor(fall) % Math.max(1, Math.round(per)) === 0 && hash(x * 131 + cell * 7) < 0.6) palPick(p.pal, Math.floor(hash(cell + x) * nc), out, 3 * k);
+                    const ny = (y + Math.floor(mv / 10)) % H;
+                    let c = g[ny * W + ((x + Math.floor(mv / 20)) % W)];
+                    if (!c) c = g[((ny + Math.floor(H / 2)) % H) * W + (((x - Math.floor(mv / 20)) % W) + W) % W];
+                    if (c) palPick(p.pal, c - 1, out, 3 * k);
                 }
             },
         },
@@ -593,12 +677,45 @@ const Effects = (() => {
             },
         },
         {
+            // Imported Pictures: the image from the show folder, fitted to the buffer
+            // (Scale To Fit / Keep Aspect Ratio / No Scaling). Glows until it has loaded.
+            id: 'pictures', label: 'Picture', xl: 'Pictures', use: [],
+            options: { file: '', scaling: 'Scale To Fit' },
+            settings: () => '',
+            render(p, N, out) {
+                const img = pictureFor(p.o.file);
+                if (!img) { for (let k = 0; k < N.n; k++) palPick(p.pal, 0, out, 3 * k, 0.3); return; }
+                for (let k = 0; k < N.n; k++) {
+                    const W = N.bw ? N.bw[k] : N.w, H = N.bh ? N.bh[k] : N.h;
+                    let fx, fy;
+                    if (p.o.scaling === 'Scale To Fit') { fx = N.u[k]; fy = 1 - N.v[k]; }
+                    else {
+                        const s = p.o.scaling === 'No Scaling' ? 1 : Math.min(W / img.nw, H / img.nh);
+                        const iw = img.nw * s, ih = img.nh * s;
+                        fx = (N.u[k] * W - (W - iw) / 2) / iw; fy = ((1 - N.v[k]) * H - (H - ih) / 2) / ih;
+                    }
+                    if (fx < 0 || fx >= 1 || fy < 0 || fy >= 1) continue;
+                    const i = 4 * (Math.floor(fy * img.h) * img.w + Math.floor(fx * img.w));
+                    const a = img.data[i + 3] / 255;
+                    out[3 * k] = img.data[i] * a; out[3 * k + 1] = img.data[i + 1] * a; out[3 * k + 2] = img.data[i + 2] * a;
+                }
+            },
+        },
+        {
+            id: 'nothing', label: 'Nothing', xl: 'Off', use: [], options: {}, settings: () => '', render() { },
+        },
+        {
             // Imported xLights effects the preview has no drawing for: a dim glow in
             // their first color, so you can see where they are. (Never offered in menus.)
             id: 'glow', label: 'xLights effect', xl: 'On', use: [],
             options: {},
             settings: () => '',
-            render(p, N, out) { for (let k = 0; k < N.n; k++) palPick(p.pal, 0, out, 3 * k, 0.45); },
+            // a sparse shimmer (about a quarter of the lights at a time), not a solid fill:
+            // these effects rarely light everything
+            render(p, N, out) {
+                const step = Math.floor(p.sec * 8);
+                for (let k = 0; k < N.n; k++) if (hash(N.seed[k] * 31 + step * 7919) < 0.25) palPick(p.pal, (N.seed[k] >>> 3) % p.pal.length, out, 3 * k, 0.8);
+            },
         },
         {
             id: 'faces', label: 'Singing face', xl: 'Faces', use: ['vocal'], needsFace: true,
@@ -875,60 +992,120 @@ const Effects = (() => {
         const map = new Map(order.map(n => [n, colors[(j++) % colors.length]]));
         return parts.map(part => { const m = /^C_BUTTON_Palette(\d)=/.exec(part); return m && map.has(m[1]) ? `C_BUTTON_Palette${m[1]}=${map.get(m[1])}` : part; }).join(',');
     }
-    const MIXES = { Additive: 'add', Max: 'add', 'Highlight Vibrant': 'add', '1 is Unmask': 'unmask', '1 is True Unmask': 'unmask', '1 is Mask': 'mask', Layered: 'layered' };
+    const MIXES = { Additive: 'add', Max: 'add', 'Highlight Vibrant': 'add', '1 is Unmask': 'unmask', '1 is True Unmask': 'unmask', '1 is Mask': 'mask', Layered: 'layered', Average: 'average' };
     // How the preview draws an imported effect: the closest effect here, its main
     // settings read from xLights' own, plus brightness, fades, blend and buffer.
     // The exported sequence always gets the original settings, untouched.
+    // Imported effect settings the preview reads: option <- [xLights setting, default, scale].
+    // Each may also come as a value curve (E_VALUECURVE_<setting>), followed over the effect.
+    const XL_NUM = {
+        On: ['on', { start: ['Eff_On_Start', 100], end: ['Eff_On_End', 100], cycles: ['On_Cycles', 1], transparency: ['On_Transparency', 0] }],
+        'Color Wash': ['wash', { cycles: ['ColorWash_Cycles', 1], circular: ['ColorWash_CircularPalette', 0] }],
+        SingleStrand: ['chase', { chases: ['Number_Chases', 1], rotations: ['Chase_Rotations', 1], size: ['Color_Mix1', 33] }],
+        Bars: ['bars', { bars: ['Bars_BarCount', 1], cycles: ['Bars_Cycles', 1], look3d: ['Bars_3D', 0] }],
+        Spirals: ['spirals', { count: ['Spirals_Count', 1], rotation: ['Spirals_Rotation', 20], thickness: ['Spirals_Thickness', 50], look3d: ['Spirals_3D', 0] }],
+        Pinwheel: ['pinwheel', { arms: ['Pinwheel_Arms', 3], speed: ['Pinwheel_Speed', 10], twist: ['Pinwheel_Twist', 0], size: ['Pinwheel_ArmSize', 100], thickness: ['Pinwheel_Thickness', 0], cw: ['Pinwheel_Rotation', 0], offset: ['Pinwheel_Offset', 0], xc: ['PinwheelXC', 0], yc: ['PinwheelYC', 0] }],
+        Twinkle: ['twinkle', { count: ['Twinkle_Count', 3], steps: ['Twinkle_Steps', 30] }],
+        Shockwave: ['shockwave', { width: ['Shockwave_End_Width', 10], w0: ['Shockwave_Start_Width', 5], cx: ['Shockwave_CenterX', 50], cy: ['Shockwave_CenterY', 50], r0: ['Shockwave_Start_Radius', 1], r1: ['Shockwave_End_Radius', 10] }],
+        Marquee: ['marquee', { band: ['Marquee_Band_Size', 3], skip: ['Marquee_Skip_Size', 0], speed: ['Marquee_Speed', 3] }],
+        Butterfly: ['butterfly', { speed: ['Butterfly_Speed', 10] }],
+        Fan: ['fan', { blades: ['Fan_Num_Blades', 3], width: ['Fan_Blade_Width', 50], turns: ['Fan_Revolutions', 720, 1 / 360], twist: ['Fan_Blade_Angle', 90], reverse: ['Fan_Reverse', 0], grow: ['Fan_Duration', 80] }],
+        Ripple: ['ripple', { thickness: ['Ripple_Thickness', 3], cycles: ['Ripple_Cycles', 1] }],
+        Spirograph: ['spirograph', { R: ['Spirograph_R', 20], r: ['Spirograph_r', 10], d: ['Spirograph_d', 30], speed: ['Spirograph_Speed', 10], animate: ['Spirograph_Animate', 0], length: ['Spirograph_Length', 20], width: ['Spirograph_Width', 1] }],
+        Wave: ['wave', { waves: ['Number_Waves', 900, 1 / 360], height: ['Wave_Height', 50], thickness: ['Thickness_Percentage', 5], speed: ['Wave_Speed', 10] }],
+        Meteors: ['meteors', { count: ['Meteors_Count', 10], length: ['Meteors_Length', 25], speed: ['Meteors_Speed', 10] }],
+        Curtain: ['curtain', { times: ['Curtain_Speed', 1] }],
+        Morph: ['morph', { sweep: ['MorphDuration', 20] }],
+        Snowflakes: ['snowflakes', { count: ['Snowflakes_Count', 5], speed: ['Snowflakes_Speed', 10], type: ['Snowflakes_Type', 1] }],
+        Strobe: ['strobe', { count: ['Number_Strobes', 3], duration: ['Strobe_Duration', 10] }],
+    };
+    const PREFIXES = ['E_SLIDER_', 'E_TEXTCTRL_', 'E_CHECKBOX_', 'E_SPINCTRL_'];
+    function parseCurve(v) {
+        if (!/Active=TRUE/.test(v || '')) return null;
+        const f = {};
+        for (const part of v.split('|')) { const i = part.indexOf('='); if (i > 0) f[part.slice(0, i)] = part.slice(i + 1); }
+        const c = { type: f.Type || 'Flat', min: parseFloat(f.Min) || 0, max: parseFloat(f.Max) || 100, p1: parseFloat(f.P1) || 0, p2: parseFloat(f.P2) || 0, p3: parseFloat(f.P3) || 0 };
+        if (f.Values) c.values = f.Values.split(';').map(x => x.split(':').map(Number)).filter(x => x.length === 2 && !isNaN(x[0]));
+        if (!f.RV) { const span = c.max - c.min; c.p1 = c.min + span * c.p1 / 100; c.p2 = c.min + span * c.p2 / 100; }
+        return c;
+    }
+    // An option's value at t (0..1 through the effect) when it follows a curve.
+    function optionsAt(o, t) {
+        if (!o.__curves) return o;
+        const out = { ...o };
+        for (const [k, c] of Object.entries(o.__curves)) out[k] = curveAt(c, t) * (c.scale || 1);
+        return out;
+    }
+    const TRANSFORMS = new Set(['Rotate CC 90', 'Rotate CW 90', 'Rotate 180', 'Flip Horizontal', 'Flip Vertical', 'Rotate CC 90 and Flip', 'Rotate CW 90 and Flip']);
+    // How the preview draws an imported effect: the closest effect here, its main
+    // settings (and their value curves) read from xLights' own, plus brightness,
+    // fades, blend, buffer, transform and rotation. The exported sequence always
+    // gets the original settings, untouched.
     function fromXl(name, settings, pal) {
         const S = kvOf(settings);
-        const num = (keys, d) => { for (const k of [].concat(keys)) { const v = parseFloat(S[k]); if (!isNaN(v)) return v; } return d; };
         const str = (k, d) => (S[k] != null && S[k] !== '' ? S[k] : d);
         const pick = (v, list, d) => (list.includes(v) ? v : d);
         let id = 'glow', o = {};
+        const curves = {};
+        const tbl = XL_NUM[name];
+        if (tbl) {
+            id = tbl[0];
+            for (const [key, [set, def, scale = 1]] of Object.entries(tbl[1])) {
+                let v = def;
+                for (const pre of PREFIXES) { const x = parseFloat(S[pre + set]); if (!isNaN(x)) { v = x; break; } }
+                o[key] = v * scale;
+                const c = parseCurve(S['E_VALUECURVE_' + set]);
+                if (c) { c.scale = scale; curves[key] = c; }
+            }
+        }
         switch (name) {
-            case 'On': id = 'on'; o = { start: num('E_TEXTCTRL_Eff_On_Start', 100), end: num('E_TEXTCTRL_Eff_On_End', 100) }; break;
-            case 'Color Wash': id = 'wash'; o = { cycles: num('E_TEXTCTRL_ColorWash_Cycles', 1) }; break;
-            case 'SingleStrand': id = 'chase'; o = { direction: pick(str('E_CHOICE_Chase_Type1'), CHASE_DIRS, /Right/.test(str('E_CHOICE_Chase_Type1', '')) ? 'Right-Left' : 'Left-Right'), chases: num('E_SLIDER_Number_Chases', 1), rotations: num('E_TEXTCTRL_Chase_Rotations', 1), size: num('E_SLIDER_Color_Mix1', 33) }; break;
-            case 'Bars': id = 'bars'; o = { direction: pick(str('E_CHOICE_Bars_Direction'), ['up', 'down', 'Left', 'Right', 'expand', 'compress'], 'up'), bars: num('E_SLIDER_Bars_BarCount', 1), cycles: num('E_TEXTCTRL_Bars_Cycles', 1), look3d: num('E_CHECKBOX_Bars_3D', 0) }; break;
-            case 'Spirals': id = 'spirals'; o = { count: num('E_SLIDER_Spirals_Count', 1), rotation: num('E_SLIDER_Spirals_Rotation', 20), thickness: num('E_SLIDER_Spirals_Thickness', 50), look3d: num('E_CHECKBOX_Spirals_3D', 0) }; break;
-            case 'Pinwheel': id = 'pinwheel'; o = { arms: num('E_SLIDER_Pinwheel_Arms', 3), speed: num('E_SLIDER_Pinwheel_Speed', 10), twist: num('E_SLIDER_Pinwheel_Twist', 0), look: pick(str('E_CHOICE_Pinwheel_3D'), LOOKS, 'None') }; break;
-            case 'Twinkle': id = 'twinkle'; o = { count: num('E_SLIDER_Twinkle_Count', 3), steps: num('E_SLIDER_Twinkle_Steps', 30) }; break;
-            case 'Shockwave': id = 'shockwave'; o = { width: num('E_SLIDER_Shockwave_End_Width', 10) }; break;
-            case 'Marquee': id = 'marquee'; o = { band: num('E_SLIDER_Marquee_Band_Size', 3), skip: num('E_SLIDER_Marquee_Skip_Size', 0), speed: num('E_SLIDER_Marquee_Speed', 3) }; break;
-            case 'Butterfly': id = 'butterfly'; o = { speed: num('E_SLIDER_Butterfly_Speed', 10) }; break;
-            case 'Fan': id = 'fan'; o = { blades: num('E_SLIDER_Fan_Num_Blades', 3), width: num('E_SLIDER_Fan_Blade_Width', 50), turns: num('E_SLIDER_Fan_Revolutions', 720) / 360, twist: num('E_SLIDER_Fan_Blade_Angle', 90), reverse: num('E_CHECKBOX_Fan_Reverse', 0), grow: num('E_SLIDER_Fan_Duration', 80) }; break;
-            case 'Ripple': id = 'ripple'; o = { shape: pick(str('E_CHOICE_Ripple_Object_To_Draw'), ['Circle', 'Square', 'Triangle', 'Star', 'Snow Flake'], 'Circle'), movement: str('E_CHOICE_Ripple_Movement', 'Explode'), thickness: num('E_SLIDER_Ripple_Thickness', 3), cycles: num('E_TEXTCTRL_Ripple_Cycles', 1) }; break;
-            case 'Spirograph': id = 'spirograph'; o = { R: num('E_SLIDER_Spirograph_R', 20), r: num('E_SLIDER_Spirograph_r', 10), d: num('E_SLIDER_Spirograph_d', 30), speed: num(['E_TEXTCTRL_Spirograph_Speed', 'E_SLIDER_Spirograph_Speed'], 10), animate: num(['E_TEXTCTRL_Spirograph_Animate', 'E_SLIDER_Spirograph_Animate'], 0), length: num(['E_TEXTCTRL_Spirograph_Length', 'E_SLIDER_Spirograph_Length'], 20), width: num(['E_TEXTCTRL_Spirograph_Width', 'E_SLIDER_Spirograph_Width'], 1) }; break;
-            case 'Wave': id = 'wave'; o = { type: pick(str('E_CHOICE_Wave_Type'), ['Sine', 'Triangle'], 'Sine'), waves: num('E_SLIDER_Number_Waves', 900) / 360, height: num('E_SLIDER_Wave_Height', 50), thickness: num('E_SLIDER_Thickness_Percentage', 5), speed: num(['E_TEXTCTRL_Wave_Speed', 'E_SLIDER_Wave_Speed'], 10), direction: str('E_CHOICE_Wave_Direction', 'Right to Left') }; break;
-            case 'Meteors': id = 'meteors'; o = { direction: pick(str('E_CHOICE_Meteors_Effect'), ['Down', 'Up', 'Left', 'Right'], 'Down'), count: num('E_SLIDER_Meteors_Count', 10), length: num('E_SLIDER_Meteors_Length', 25), speed: num('E_SLIDER_Meteors_Speed', 10) }; break;
-            case 'Curtain': id = 'curtain'; o = { effect: str('E_CHOICE_Curtain_Effect', 'open'), edge: str('E_CHOICE_Curtain_Edge', 'left'), times: num('E_TEXTCTRL_Curtain_Speed', 1) }; break;
+            case 'SingleStrand': o.direction = pick(str('E_CHOICE_Chase_Type1'), CHASE_DIRS, /Right/.test(str('E_CHOICE_Chase_Type1', '')) ? 'Right-Left' : 'Left-Right'); break;
+            case 'Bars': o.direction = pick(str('E_CHOICE_Bars_Direction'), ['up', 'down', 'Left', 'Right', 'expand', 'compress'], 'up'); break;
+            case 'Pinwheel': o.look = pick(str('E_CHOICE_Pinwheel_3D'), LOOKS, 'None'); break;
+            case 'Shockwave': o.palBlend = 1; break;
+            case 'Ripple': o.shape = pick(str('E_CHOICE_Ripple_Object_To_Draw'), ['Circle', 'Square', 'Triangle', 'Star', 'Snow Flake'], 'Circle'); o.movement = str('E_CHOICE_Ripple_Movement', 'Explode'); break;
+            case 'Wave': o.type = pick(str('E_CHOICE_Wave_Type'), ['Sine', 'Triangle'], 'Sine'); o.direction = str('E_CHOICE_Wave_Direction', 'Right to Left'); break;
+            case 'Meteors': o.direction = pick(str('E_CHOICE_Meteors_Effect'), ['Down', 'Up', 'Left', 'Right'], 'Down'); break;
+            case 'Curtain': o.effect = str('E_CHOICE_Curtain_Effect', 'open'); o.edge = str('E_CHOICE_Curtain_Edge', 'left'); break;
             case 'Morph': {
-                id = 'morph';
-                const sy = num('E_SLIDER_Morph_Start_Y1', 0), ey = num('E_SLIDER_Morph_End_Y1', 100), sx = num('E_SLIDER_Morph_Start_X1', 0), ex = num('E_SLIDER_Morph_End_X1', 0);
-                o = { direction: Math.abs(ey - sy) >= Math.abs(ex - sx) ? (ey >= sy ? 'up' : 'down') : (ex >= sx ? 'right' : 'left'), sweep: num('E_SLIDER_MorphDuration', 20) };
+                const n = k => parseFloat(S['E_SLIDER_' + k]);
+                const sy = n('Morph_Start_Y1') || 0, ey = isNaN(n('Morph_End_Y1')) ? 100 : n('Morph_End_Y1'), sx = n('Morph_Start_X1') || 0, ex = n('Morph_End_X1') || 0;
+                o.direction = Math.abs(ey - sy) >= Math.abs(ex - sx) ? (ey >= sy ? 'up' : 'down') : (ex >= sx ? 'right' : 'left');
                 break;
             }
-            case 'Snowflakes': id = 'snowflakes'; o = { count: num('E_SLIDER_Snowflakes_Count', 5), speed: num('E_SLIDER_Snowflakes_Speed', 10) }; break;
-            case 'Strobe': id = 'strobe'; o = { count: num('E_SLIDER_Number_Strobes', 3), duration: num('E_SLIDER_Strobe_Duration', 10) }; break;
-            case 'Off': id = 'off'; break;
+            case 'Off': id = /Transparent/.test(str('E_CHOICE_Off_Style', 'Black')) ? 'nothing' : 'off'; break;
+            // these only bend or mirror the layers under them; they draw nothing themselves
+            case 'Warp': case 'Kaleidoscope': id = 'nothing'; break;
             case 'Faces': id = 'faces'; o = { face: str('E_CHOICE_Faces_FaceDefinition', '') }; break;
+            case 'Pictures': id = 'pictures'; o = { file: str('E_FILEPICKER_Pictures_Filename', ''), scaling: str('E_CHOICE_Scaling', 'Scale To Fit') }; break;
             case 'VU Meter': {
                 const t = str('E_CHOICE_VUMeter_Type', '');
-                if (/Timing Event .*Sweep/.test(t)) { id = 'vumeter'; o = { type: 'sweep', track: str('E_CHOICE_VUMeter_TimingTrack', ''), size: num('E_SLIDER_VUMeter_Bars', 6) }; }
-                else if (/Timing Event Pulse/.test(t)) { id = 'vumeter'; o = { type: 'flash', track: str('E_CHOICE_VUMeter_TimingTrack', ''), size: num('E_SLIDER_VUMeter_Bars', 8) }; }
+                if (/Timing Event .*Sweep/.test(t)) { id = 'vumeter'; o = { type: 'sweep', track: str('E_CHOICE_VUMeter_TimingTrack', ''), size: parseFloat(S.E_SLIDER_VUMeter_Bars) || 6 }; }
+                else if (/Timing Event Pulse/.test(t)) { id = 'vumeter'; o = { type: 'flash', track: str('E_CHOICE_VUMeter_TimingTrack', ''), size: parseFloat(S.E_SLIDER_VUMeter_Bars) || 8 }; }
                 break;
             }
         }
         const eff = BY_ID.get(id) || BY_ID.get('glow');
         const colors = palColors(pal);
         const tr = v => (v === 'Wipe' ? 'wipe' : v === 'Circle Explode' ? 'circle' : null);
+        const num = (k, d) => { const v = parseFloat(S[k]); return isNaN(v) ? d : v; };
+        const opts = { ...eff.options, ...o };
+        if (Object.keys(curves).length) opts.__curves = curves;
+        // the whole picture turning (RotoZoom): turns over the effect, or a fixed angle
+        const rotCurve = parseCurve(S.B_VALUECURVE_Rotation);
+        const turns = num('B_SLIDER_Rotations', 0) / 10;
         return {
-            eff, o: { ...eff.options, ...o }, colors, pal: colors.map(hexToRgb),
+            eff, o: opts, colors, pal: colors.map(hexToRgb),
             mix: MIXES[str('T_CHOICE_LayerMethod', 'Normal')] || 'normal',
             level: Math.max(0, Math.min(100, num('C_SLIDER_Brightness', 100))),
             fadeIn: Math.max(0, num('T_TEXTCTRL_Fadein', 0)), fadeOut: Math.max(0, num('T_TEXTCTRL_Fadeout', 0)),
             inTr: tr(str('T_CHOICE_In_Transition_Type', '')), outTr: tr(str('T_CHOICE_Out_Transition_Type', '')),
             perModel: /Per Model|Overlay/.test(str('B_CHOICE_BufferStyle', '')),
+            // a group's "Per Preview" buffer vs its own (Default) one
+            ppv: /^Per Preview/.test(str('B_CHOICE_BufferStyle', 'Default')),
+            transform: TRANSFORMS.has(str('B_CHOICE_BufferTransform', '')) ? str('B_CHOICE_BufferTransform', '') : null,
+            spin: rotCurve && turns > 0 ? turns * Math.abs((rotCurve.p2 - rotCurve.p1) / 100 || 1) : 0,
+            rot0: !rotCurve ? num('B_SLIDER_Rotation', 0) / 100 : 0,
         };
     }
 
@@ -939,6 +1116,6 @@ const Effects = (() => {
         LIST, get: id => BY_ID.get(id), resetMovingHeads, movingHeadState, MH_PATTERNS,
         get SCHEMES() { return schemes; },
         DEFAULT_SCHEMES, setSchemes, resetSchemes, randomScheme,
-        hexToRgb, paletteString, ADD, BLENDS, flip, curveAt, curveString, hash, fromXl, palColors, recolorPal,
+        hexToRgb, paletteString, ADD, BLENDS, flip, curveAt, curveString, hash, fromXl, palColors, recolorPal, optionsAt, setPictureLoader,
     };
 })();

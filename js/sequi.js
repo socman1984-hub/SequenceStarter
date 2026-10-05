@@ -2809,6 +2809,15 @@
         return `${m}:${s.toFixed(1).padStart(4, '0')}`;
     }
 
+    // Pictures in imported effects come from the show folder (or, when testing, the
+    // served show folder: the path after "Show").
+    Effects.setPictureLoader(async path => {
+        if (!S.show) return null;
+        if (S.show.folder) { const f = await Show.pictureIn(S.show.folder, path); return f ? URL.createObjectURL(f) : null; }
+        if (S.showBase) { const tail = String(path).split(/[\\/]show[\\/]/i).pop().replace(/\\/g, '/'); return S.showBase + tail.split('/').map(encodeURIComponent).join('/'); }
+        return null;
+    });
+
     window.XLSeq = {
         S, regenerate, useShow,
         // Replace the plan with an imported xLights sequence (see Sequencer.importXsq).
@@ -2837,6 +2846,7 @@
         const rgb = await (await fetch(base + 'xlights_rgbeffects.xml')).text();
         const show = Show.parse(rgb, '');
         show.folderName = 'test';
+        S.showBase = base;
         show.backgroundUrl = base + show.backgroundName;
         for (const m of show.models.values()) if (m.image && m.image.path && !/^[a-z]:|^[\\/]/i.test(m.image.path)) m.image.url = base + m.image.path.replace(/\\/g, '/');
         return show;

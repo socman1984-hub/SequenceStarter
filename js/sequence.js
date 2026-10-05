@@ -304,7 +304,7 @@ const Sequencer = (() => {
                     placeImp(target, {
                         sMs: it.s, eMs: it.e, eff: pv.eff, o: pv.o, colors: pv.colors, pal: pv.pal, index: 0, rowId: row.id, isGroup,
                         perModel: isGroup && pv.perModel, level: pv.level, startFade: pv.fadeIn, endFade: pv.fadeOut, inTr: pv.inTr, outTr: pv.outTr,
-                        sparkles: 0, spin: 0, target, mix: pv.mix, xlLayer: row.xl.layer, strand: row.xl.strand, node: row.xl.node,
+                        sparkles: 0, spin: pv.spin, rot0: pv.rot0, transform: pv.transform, ppv: pv.ppv, target, mix: pv.mix, xlLayer: row.xl.layer, strand: row.xl.strand, node: row.xl.node,
                         marks: pv.eff.id === 'vumeter' ? trackMarks(pv.o.track, song, X) : null,
                         raw: { name: row.xl.name, settings, pal: palStr },
                     });
@@ -433,11 +433,30 @@ const Sequencer = (() => {
                 NM.u[i] = t.mu; NM.v[i] = t.mv; NM.k[i] = t.i; NM.bw[i] = Math.max(1, t.bw || 1); NM.bh[i] = Math.max(1, t.bh || 1);
             });
             const m = show.models.get(name);
+            const grp = show.groups.get(name);
             if (m) { N.w = NM.w = Math.max(8, m.bufW); N.h = NM.h = Math.max(8, m.bufH); }
-            else if (!show.groups.has(name) && list[0].bw) { N.w = list[0].bw; N.h = list[0].bh; }
+            else if (!grp && list[0].bw) { N.w = list[0].bw; N.h = list[0].bh; }
+            else if (grp) {
+                // A group's own buffer (xLights ModelGroup, "minimalGrid"): its members' spread on
+                // the layout, scaled down so the longer side is at most GridSize. "Per Preview"
+                // uses the spread unscaled (NP).
+                let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+                for (const t of list) { const p = t.model.nodes[t.i].pts[0]; if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y; }
+                const W = Math.max(8, x1 - x0 + 1), H = Math.max(8, y1 - y0 + 1), gs = grp.gridSize || 400;
+                const sc = W < gs && H < gs ? 1 : Math.min(gs / W, gs / H);
+                N.w = Math.max(8, Math.round(W * sc)); N.h = Math.max(8, Math.round(H * sc));
+                N.pw = Math.round(W); N.ph = Math.round(H);
+            }
             // imported layers first (xLights' last layer is the bottom), then the ones made here
             const imp = (r.imp || []).slice().sort((a, b) => b.key - a.key).map(x => x.fx);
-            targets.push({ name, N, NM, model: m || null, layers: imp.concat(r.layers.filter(Boolean)), tmp: new Float32Array(3 * n), acc: new Float32Array(3 * n) });
+            targets.push({ name, N, NM, NP: N.pw ? { ...N, w: N.pw, h: N.ph } : N, model: m || null, layers: imp.concat(r.layers.filter(Boolean)), tmp: new Float32Array(3 * n), acc: new Float32Array(3 * n) });
+        }
+        // an imported sequence's rows render in their order (a later row's Off hides earlier ones)
+        const order = gen.imported && gen.imported.order;
+        if (order && order.length) {
+            const pos = new Map(order.map((n2, i) => [n2, i]));
+            const at = t => (pos.has(t.name) ? pos.get(t.name) : pos.has(t.name.split('/')[0]) ? pos.get(t.name.split('/')[0]) + 0.5 : 1e9);
+            targets.sort((a, b) => at(a) - at(b));
         }
         return { targets, total: offset, colors: new Float32Array(3 * offset) };
     }
@@ -488,10 +507,34 @@ const Sequencer = (() => {
 
     // Buffer rotation (RotoZoom): the picture turns about the centre. A node shows
     // the pixel that rotated onto it; nodes nothing reaches go dark (out[k]).
-    function spun(tgt, N, turns) {
-        const key = N === tgt.NM ? 'spinM' : 'spinN';
+    // Buffer transforms (B_CHOICE_BufferTransform): the effect drawn turned or mirrored.
+    function transformed(tgt, N, kind) {
+        const key = 'tf:' + kind + (N === tgt.NM ? ':M' : ':N');
         let R = tgt[key];
-        if (!R) R = tgt[key] = { ...N, u: new Float32Array(N.n), v: new Float32Array(N.n), out: new Uint8Array(N.n) };
+        if (R) return R;
+        R = tgt[key] = { ...N, u: new Float32Array(N.n), v: new Float32Array(N.n) };
+        if (N.bw) { R.bw = new Float32Array(N.n); R.bh = new Float32Array(N.n); }
+        const swap = /90/.test(kind);
+        if (swap && !N.bw) { R.w = N.h; R.h = N.w; }
+        for (let k = 0; k < N.n; k++) {
+            let u = N.u[k], v = N.v[k];
+            switch (kind) {
+                case 'Rotate CC 90': [u, v] = [v, 1 - u]; break;
+                case 'Rotate CW 90': [u, v] = [1 - v, u]; break;
+                case 'Rotate 180': [u, v] = [1 - u, 1 - v]; break;
+                case 'Flip Horizontal': u = 1 - u; break;
+                case 'Flip Vertical': v = 1 - v; break;
+                case 'Rotate CC 90 and Flip': [u, v] = [1 - v, 1 - u]; break;
+                case 'Rotate CW 90 and Flip': [u, v] = [v, u]; break;
+            }
+            R.u[k] = u; R.v[k] = v;
+            if (N.bw) { R.bw[k] = swap ? N.bh[k] : N.bw[k]; R.bh[k] = swap ? N.bw[k] : N.bh[k]; }
+        }
+        return R;
+    }
+    function spun(tgt, N, turns) {
+        let R = N.__spun;
+        if (!R) R = N.__spun = { ...N, u: new Float32Array(N.n), v: new Float32Array(N.n), out: new Uint8Array(N.n) };
         const a = 2 * Math.PI * (turns % 1), c = Math.cos(a), s = Math.sin(a);
         for (let k = 0; k < N.n; k++) {
             const W = N.bw ? N.bw[k] : N.w, H = N.bh ? N.bh[k] : N.h;
@@ -543,6 +586,7 @@ const Sequencer = (() => {
             const fv = Math.min(255, Math.max(top[i], top[i + 1], top[i + 2]));
             // Normal: a lit pixel covers what is under it; Layered: shows only where nothing is lit below
             if (mode === 'normal') { if (fv > 0) { acc[i] = top[i]; acc[i + 1] = top[i + 1]; acc[i + 2] = top[i + 2]; } continue; }
+            if (mode === 'average') { const bv = Math.max(acc[i], acc[i + 1], acc[i + 2]); if (fv > 0) { if (bv > 0) { acc[i] = (acc[i] + top[i]) / 2; acc[i + 1] = (acc[i + 1] + top[i + 1]) / 2; acc[i + 2] = (acc[i + 2] + top[i + 2]) / 2; } else { acc[i] = top[i]; acc[i + 1] = top[i + 1]; acc[i + 2] = top[i + 2]; } } continue; }
             if (mode === 'layered') { if (Math.max(acc[i], acc[i + 1], acc[i + 2]) <= 0) { acc[i] = top[i]; acc[i + 1] = top[i + 1]; acc[i + 2] = top[i + 2]; } continue; }
             if (mode === 'mask') { if (fv > 0) acc[i] = acc[i + 1] = acc[i + 2] = 0; continue; }
             if (fv <= 0) { acc[i] = acc[i + 1] = acc[i + 2] = 0; continue; }
@@ -563,12 +607,12 @@ const Sequencer = (() => {
         const word = song.lyr ? itemAt(song.lyr.words, t) : null;
         for (const tgt of prep.targets) {
             const N = tgt.N, acc = tgt.acc, tmp = tgt.tmp;
-            let any = false;
+            let any = false, blackout = false;
             for (let li = 0; li < tgt.layers.length; li++) {
                 const fx = activeAt(tgt.layers[li], ms);
                 if (!fx) continue;
                 const p = { t: (ms - fx.sMs) / (fx.eMs - fx.sMs), sec: (ms - fx.sMs) / 1000, dur: (fx.eMs - fx.sMs) / 1000, pal: fx.pal, o: fx.o, index: fx.index, word: word && word.text, abs: t, start: fx.sMs / 1000, marks: fx.marks };
-                if (fx.eff.blackout) { acc.fill(0); any = true; continue; }
+                if (fx.eff.blackout) { acc.fill(0); any = true; blackout = true; continue; }
                 if (fx.eff.id === 'faces') {
                     if (!any) acc.fill(0);
                     any = true;
@@ -582,10 +626,13 @@ const Sequencer = (() => {
                     continue;
                 }
                 tmp.fill(0);
-                const base = fx.perModel ? tgt.NM : N;
-                const NN = fx.spin ? spun(tgt, base, fx.spin * p.t) : base;
+                let base = fx.perModel ? tgt.NM : fx.ppv === false ? N : tgt.NP;
+                if (fx.transform) base = transformed(tgt, base, fx.transform);
+                const turn = (fx.spin || 0) * p.t + (fx.rot0 || 0);
+                const NN = turn ? spun(tgt, base, turn) : base;
+                if (fx.o.__curves) p.o = Effects.optionsAt(fx.o, p.t);
                 fx.eff.render(p, NN, tmp);
-                if (fx.spin) for (let k = 0; k < NN.n; k++) if (NN.out[k]) tmp[3 * k] = tmp[3 * k + 1] = tmp[3 * k + 2] = 0;
+                if (turn) for (let k = 0; k < NN.n; k++) if (NN.out[k]) tmp[3 * k] = tmp[3 * k + 1] = tmp[3 * k + 2] = 0;
                 let gain = fx.level / 100;
                 if (fx.endFade > 0 && !fx.outTr) gain *= Math.max(0, Math.min(1, (p.dur - p.sec) / fx.endFade));
                 if (fx.startFade > 0 && !fx.inTr) gain *= Math.max(0, Math.min(1, p.sec / fx.startFade));
@@ -605,6 +652,8 @@ const Sequencer = (() => {
                 const g = 3 * N.g[k];
                 // layers add, but a bulb saturates
                 const r = Math.min(255, acc[3 * k]), gg = Math.min(255, acc[3 * k + 1]), b = Math.min(255, acc[3 * k + 2]);
+                // a row with an Off playing covers the rows before it
+                if (blackout) { out[g] = r; out[g + 1] = gg; out[g + 2] = b; continue; }
                 if (r > out[g]) out[g] = r;
                 if (gg > out[g + 1]) out[g + 1] = gg;
                 if (b > out[g + 2]) out[g + 2] = b;

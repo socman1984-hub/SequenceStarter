@@ -149,7 +149,7 @@ const Show = (() => {
             const name = el.getAttribute('name');
             if (!name) return;
             const members = (el.getAttribute('models') || '').split(',').map(s => s.trim()).filter(Boolean);
-            show.groups.set(name, { name, members });
+            show.groups.set(name, { name, members, gridSize: parseInt(el.getAttribute('GridSize'), 10) || 400 });
         };
         for (const el of doc.querySelectorAll('models > model')) {
             const a = {};
@@ -867,5 +867,5 @@ const Show = (() => {
         return [];
     }
 
-    return { canPickFolder, pickFolder, savedFolder, permission, loadFromFolder, loadFromFiles, parse, resolveTarget, hasTarget, movingHeadsIn, kvGet, kvPut };
+    return { canPickFolder, pickFolder, savedFolder, permission, loadFromFolder, loadFromFiles, parse, resolveTarget, hasTarget, movingHeadsIn, kvGet, kvPut, pictureIn };
 })();

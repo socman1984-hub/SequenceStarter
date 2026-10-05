@@ -10,7 +10,9 @@
       ["fixed", "A part's 🎲 Randomize went back to the palette in Idea settings even after you changed that part's colors. A part you recolor (its 🎨, or by editing its rows' colors) now keeps its own colors for new ideas, shown as \"own colors\" on its card; ✕ goes back to the main palette."],
       ["fixed", "The 🎨 color window now opens on the scheme the part last had applied, instead of always the same one."],
       ["better", "Props named in French, Spanish, German or Dutch (étoile, sapin, flocon, maison, estrella, Stern, sneeuwvlok…) are now recognized, so ideas use them without adding them by hand."],
-      ["better", "In the Prop mix, props you added yourself now say \"added by you\" with a Remove button (the old ✕ looked like the prop was crossed out), and the window explains what to do with props it can't recognize."]
+      ["better", "In the Prop mix, props you added yourself now say \"added by you\" with a Remove button (the old ✕ looked like the prop was crossed out), and the window explains what to do with props it can't recognize."],
+      ["better", "Imported sequences look much closer to xLights in the preview: moving settings (value curves), full-size pinwheels, driving snowflakes, pictures from your show folder, rotated, flipped and spinning effects, transparent On and Off, the Average blend, group sizes and row order. On a test sequence, bulbs xLights lights that the preview missed went from 17% to 7%."],
+      ["fixed", "Color Wash in the preview now goes through its colors once (as xLights does) instead of wrapping back to the first; Shockwave rings use xLights' exact size and width."]
     ]
   },
   {

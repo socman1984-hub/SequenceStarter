@@ -362,6 +362,20 @@ show); 7 the test hooks stay on purpose (harmless, used for testing); 8 not need
 
 ## Done
 
+- **2026-10-05:** Imported-sequence preview fidelity (owner: "missing a lot of stuff"). Measured bulb
+  by bulb on *A Christmas Storm* (xLights render vs preview, every 0.5 s): lit-in-xLights-but-dark
+  went 17% -> 7%, total mismatches -34%. Fixes: value curves (incl. Custom) on mapped settings;
+  Pinwheel ArmSize/Thickness/Rotation/Offset/XC/YC; Snowflakes Driving pattern (two scrolled
+  copies, 9 shapes); Pictures from the show folder (`Effects.setPictureLoader`, Show.pictureIn);
+  buffer transforms; RotoZoom spin/static rotation; On transparency/cycles; Off Transparent;
+  Average blend; group buffers = members' spread scaled to GridSize (Per Preview = unscaled);
+  rows render in the sequence's order and a row with an Off covers earlier rows; Color Wash is
+  non-circular (also fixes the tool's own washes); Shockwave radius/width per xLights (r/200,
+  w/100 of the longer side, palette blend for imported); unknown effects shimmer sparsely; Warp /
+  Kaleidoscope draw nothing. Own-plan render check unchanged (0.85-1.02 per prop).
+  Still open: Galaxy, Shape, Liquid, Fire, Lines, Shader drawings; Pictures zoom/scroll; chase
+  FX modes; the matrix and mega tree remain the least exact.
+
 - **2026-10-05:** Import xLights sequences (owner's choice: keep effects exact). `Sequencer.importXsq`
   turns an .xsq into *imported* rows (trigger `fixed`, effect `xl`) per part / prop / layer /
   effect type, with items {s, e, r, p} indexing `plan.imported.db` / `.pals`; timing tracks,
