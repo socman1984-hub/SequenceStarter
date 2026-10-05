@@ -2313,10 +2313,14 @@
     function openRecolour(ids) {
         const song = XLWeb.song();
         if (!song || !S.plan) return;
+        const chosen = ids || ['whole', ...song.sections.map(s => s.id)];
+        // start on the scheme these parts were last given, when they share one
+        const applied = [...new Set(chosen.filter(id => id !== 'whole').map(id => (S.plan.sections[id] || {}).scheme).filter(Boolean))];
+        const start = applied.length === 1 && Effects.SCHEMES.some(s => s.id === applied[0]) ? applied[0] : S.plan.ideaScheme;
         rc = {
             before: snapshot(),
-            scheme: (Effects.SCHEMES.find(s => s.id === S.plan.ideaScheme) || Effects.SCHEMES[0]).id,
-            ids: new Set(ids || ['whole', ...song.sections.map(s => s.id)]),
+            scheme: (Effects.SCHEMES.find(s => s.id === start) || Effects.SCHEMES[0]).id,
+            ids: new Set(chosen),
             applied: false,
         };
         drawRecolour();
