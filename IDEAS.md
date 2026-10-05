@@ -35,6 +35,40 @@ moves to **Done** with the date.
 - Moving heads: hits on the beat (dimmer pulses or snaps to a new position), and an option for
   heads that hang upside down (the preview assumes tilt 0 = pointing straight up).
 
+### Lessons from pro sequences (xTreme Sequences study, 2026-10-04)
+
+Studied three xTreme Sequences files the owner bought (Fight Song 2026, A Holly Jolly
+Christmas 2024, Toy Sack; 880–1,927 effects each). Their licence forbids copying effects into
+other sequences, so only general technique is taken, never settings. What they do that we don't:
+
+1. **Effects on groups, almost never on single props** (62–85% of effects on groups). One
+   group effect makes all props of a kind move as one.
+2. **Overlay - Centered buffer** on groups (the most used buffer style in all three): every
+   prop in the group shows the same pattern, centered on itself. We only write Per Model
+   Default / Per Preview.
+3. **Groups of prop parts** (Toy Sack): "flake outer legs", "flake centers", "spinner spokes",
+   "drum stick left/right" — effects aimed at the same part across every prop of a kind.
+   Needs submodel groups; we could build them from submodel names in the layout.
+4. **Lots of short hits on spinners and flakes:** Shockwave and On of 0.45–0.9 s, hundreds per
+   song (Toy Sack: 849 Shockwaves). Our hit layer is one row per part; theirs is a dense
+   rhythm vocabulary on round props.
+5. **Fades on almost every effect** (Holly Jolly: 81% fade out, 62% fade in). Ours: only the
+   end fade and build-ups.
+6. **Masks and reveals on big props**, not just Additive: matrices and mega trees use
+   *Unmask*, *Reveals*, *Shadow on*, *Average* (Fight Song matrix: 8 layers, 21% not Normal).
+   A shape effect on one layer cuts or reveals the effect under it.
+7. **Effects we don't offer:** Fan (in all three, on every prop kind), Spirograph (Toy Sack's
+   2nd most used), Ripple, Morph, VU Meter, Warp, Curtain, Shader, Pictures, Kaleidoscope,
+   Candle, Wave.
+8. **Matrices and mega trees are the busiest props:** matrix 7–8 layers stacked, long effects
+   (≈ 23 s) carrying the look while small props do the short hits.
+9. **Value curves** mainly in the newest one (Fight Song, 20%): Pinwheel twist, Shockwave
+   centre moving, Fan centre moving.
+
+**Status:** findings only; nothing built. Suggested order: Fan + Ripple + Spirograph effects,
+fades on rows, Overlay - Centered for round-prop groups, dense short hits on spinners/flakes,
+then masks on matrices and part groups.
+
 ### Using the empty space under the preview (wide screens)
 
 The preview column ends where the preview does, while the plan keeps scrolling beside it.
