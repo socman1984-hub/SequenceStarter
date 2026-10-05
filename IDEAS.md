@@ -107,10 +107,12 @@ Scripts and full reports: `~/.claude/skills/xlights-sequence/reference/survey/te
    saturation adjust on ~5%.
 10. **Blends:** 90% Normal; Layered 2%, 2 is Unmask 2%, Average 1.3% (masks are used, rarely).
 
-**Suggested order:** (1) beat-chopped rows with direction/colour flips, (2) 3D defaults,
-(3) sparkles, (4) Wave, Meteors, Curtain, Morph, Snowflakes, Strobe, Off and VU-Meter timing
-pulses, (5) value curves on pinwheel/spirals/shockwave, (6) wipe / circle-explode part
-entrances, (7) buffer rotation, (8) melody-notes trigger.
+**Status (2026-10-04): all 8 built** (see Done). Still open: Pictures/Video, Shader, Shape,
+Warp, Garlands, Galaxy; blur and zoom; more transition types (Zoom, Fold, Blinds...); Layered
+and Average blends; brightness/contrast/saturation adjust. Preview gaps found: Strobe is near
+invisible on sparse custom buffers in xLights too (mini trees: 115x368 cells for 100 bulbs),
+so ideas only use it on the mega tree and stars; Meteors and chopped chases are random/phase
+approximations (brightness 0.7-0.9 of xLights).
 
 ### Using the empty space under the preview (wide screens)
 
@@ -351,6 +353,19 @@ show); 7 the test hooks stay on purpose (harmless, used for testing); 8 not need
   or whether a prop suits the moment, so a high score is a good start, not a verdict.
 
 ## Done
+
+- **2026-10-04:** Everything from the show-folder survey. Effects Wave, Meteors, Curtain, Morph,
+  Snowflakes, Strobe, Off (placed on its own top Normal layer so it hides what is under it) and
+  Beat meter (VU Meter *Timing Event Pulse* / *Alternate Timed Sweep* on Beats / Bars / Note
+  Onsets). Row options: restart every beat/bar with direction/colour alternation, palette
+  sparkles (+ music), in/out Wipe / Circle Explode transitions, Spin (B_SLIDER_Rotations +
+  Rotation ramp curve). 3D looks on Pinwheel/Spirals/Bars; value curves (Pinwheel ArmSize,
+  Spirals Rotation, Shockwave CenterY). Triggers: hats, onsets, sung notes; Note Onsets timing
+  track. Ideas use all of it in his proportions; transitions gain *Wipe in* / *Circle burst in*.
+  xLights renders on Dusty Bibles (xLights / preview brightness): curtain 0.98, wave 1.05, off
+  0.99, sparkles 1.00, circle-out 0.99, colour-chop 1.00, rising shockwave 0.88, beat-meter
+  sweep 0.87, pinwheel 3D grow 1.04, spin + wipe 0.93, meteors 0.87; a full idea plan (4,917
+  effects) 0.85-1.02 on most props (matrix 1.37).
 
 - **2026-10-04:** Pro techniques from the xTreme study. New effects Fan, Ripple, Spirograph
   (previews ported from xLights' render code). Row *Mix*: add, mask (*1 is Unmask*) or cut-out

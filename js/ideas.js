@@ -113,22 +113,22 @@ const Ideas = (() => {
     // Effect shares per prop class, from his sequences (survey of 44 songs), plus
     // Fan / Ripple / Spirograph, which pro sequences use on every kind of prop.
     const WEIGHTS = {
-        arch: { chase: 51, wash: 38, bars: 5, shockwave: 6, fan: 5 },
-        roof: { chase: 63, shockwave: 10, wash: 10, twinkle: 8, on: 9, fan: 4 },
-        cane: { chase: 46, on: 15, shockwave: 9, wash: 7, bars: 5, spirals: 4 },
-        minitree: { shockwave: 28, chase: 21, on: 21, twinkle: 10, spirals: 5, fan: 5 },
-        megatree: { shockwave: 18, chase: 17, spirals: 10, pinwheel: 9, butterfly: 8, bars: 8, twinkle: 8, fan: 9, spirograph: 4, ripple: 4 },
-        spinner: { chase: 28, shockwave: 22, pinwheel: 17, spirals: 8, twinkle: 5, wash: 5, fan: 14, ripple: 6, spirograph: 4 },
-        snowflake: { shockwave: 44, on: 20, twinkle: 15, pinwheel: 12, spirals: 6, wash: 8, fan: 10, ripple: 9 },
-        matrix: { shockwave: 30, pinwheel: 16, butterfly: 15, chase: 11, bars: 10, fan: 10, ripple: 8, spirograph: 10 },
+        arch: { chase: 51, wash: 38, bars: 5, shockwave: 6, fan: 5, vumeter: 3, wave: 2 },
+        roof: { chase: 63, shockwave: 10, wash: 10, twinkle: 8, on: 9, fan: 4, morph: 3, meteors: 3, vumeter: 2 },
+        cane: { chase: 46, on: 15, shockwave: 9, wash: 7, bars: 5, spirals: 4, vumeter: 4 },
+        minitree: { shockwave: 28, chase: 21, on: 21, twinkle: 10, spirals: 5, fan: 5, vumeter: 3, snowflakes: 3, morph: 3, wave: 2 },
+        megatree: { shockwave: 18, chase: 17, spirals: 10, pinwheel: 9, butterfly: 8, bars: 8, twinkle: 8, fan: 9, spirograph: 4, ripple: 4, wave: 5, morph: 4, curtain: 4, snowflakes: 4, meteors: 4, strobe: 1 },
+        spinner: { chase: 28, shockwave: 22, pinwheel: 17, spirals: 8, twinkle: 5, wash: 5, fan: 14, ripple: 6, spirograph: 4, wave: 3, curtain: 2 },
+        snowflake: { shockwave: 44, on: 20, twinkle: 15, pinwheel: 12, spirals: 6, wash: 8, fan: 10, ripple: 9, curtain: 2 },
+        matrix: { shockwave: 30, pinwheel: 16, butterfly: 15, chase: 11, bars: 10, fan: 10, ripple: 8, spirograph: 10, curtain: 4, meteors: 4, snowflakes: 3, wave: 3 },
         cross: { shockwave: 30, chase: 20, pinwheel: 11, on: 10, ripple: 5 },
-        peace: { chase: 49, shockwave: 14, on: 10 },
+        peace: { chase: 49, shockwave: 14, on: 10, wave: 5 },
         window: { marquee: 41, chase: 17, on: 15, wash: 10 },
-        flood: { on: 56, wash: 14 },
-        star: { twinkle: 30, on: 30, shockwave: 20, pinwheel: 8, ripple: 8, fan: 6 },
+        flood: { on: 56, wash: 14, vumeter: 3, morph: 2 },
+        star: { twinkle: 30, on: 30, shockwave: 20, pinwheel: 8, ripple: 8, fan: 6, strobe: 2, curtain: 2 },
         wreath: { chase: 30, pinwheel: 20, shockwave: 20, wash: 15, twinkle: 10, fan: 12, ripple: 6 },
         movinghead: { moving: 1 },
-        generic: { chase: 20, wash: 20, twinkle: 15, bars: 10, on: 10, shockwave: 10, spirals: 5, butterfly: 5, fan: 5, ripple: 4 },
+        generic: { chase: 20, wash: 20, twinkle: 15, bars: 10, on: 10, shockwave: 10, spirals: 5, butterfly: 5, fan: 5, ripple: 4, wave: 3, morph: 2 },
     };
     // Round props: in a group, every one of them shows the same picture (Overlay),
     // and in loud parts they carry a fast rhythm of short hits.
@@ -153,7 +153,7 @@ const Ideas = (() => {
     ];
 
     const CALM = new Set(['wash', 'twinkle', 'on']);
-    const BUSY = new Set(['shockwave', 'pinwheel', 'bars', 'spirals', 'chase', 'fan', 'ripple']);
+    const BUSY = new Set(['shockwave', 'pinwheel', 'bars', 'spirals', 'chase', 'fan', 'ripple', 'meteors', 'morph', 'strobe', 'vumeter', 'curtain']);
 
     // ---------- candidates ----------
 
@@ -214,14 +214,22 @@ const Ideas = (() => {
                 rotations: Math.max(1, Math.round(bars / pick(rng, [1, 2, 4]) * fast)),
                 size: ibetween(rng, 20, 50),
             };
-            case 'bars': return { direction: pick(rng, ['up', 'down', 'expand', 'compress', 'Left', 'Right']), bars: ibetween(rng, 2, 4), cycles: Math.max(1, Math.round(bars / 2 * fast)) };
-            case 'spirals': return { count: ibetween(rng, 2, 4), rotation: (rng() < 0.5 ? -1 : 1) * ibetween(rng, 10, 30), thickness: ibetween(rng, 30, 60) };
-            case 'pinwheel': return { arms: ibetween(rng, 2, 6), speed: Math.round((rng() < 0.5 ? -1 : 1) * between(rng, 6, 22) * fast), twist: pick(rng, [0, 0, 100, -100]) };
+            // 3D looks and moving value curves in the proportions his sequences use them
+            case 'bars': return { direction: pick(rng, ['up', 'up', 'up', 'down', 'expand', 'compress', 'Left', 'Right']), bars: ibetween(rng, 2, 4), cycles: Math.max(1, Math.round(bars / 2 * fast)), look3d: rng() < 0.8 ? 1 : 0 };
+            case 'spirals': return { count: ibetween(rng, 2, 4), rotation: (rng() < 0.5 ? -1 : 1) * ibetween(rng, 10, 30), thickness: ibetween(rng, 30, 60), look3d: rng() < 0.77 ? 1 : 0, twistMove: weighted(rng, { steady: 8, 'twist up': 1, wobble: 1 }) };
+            case 'pinwheel': return { arms: ibetween(rng, 2, 6), speed: Math.round((rng() < 0.5 ? -1 : 1) * between(rng, 6, 22) * fast), twist: pick(rng, [0, 0, 100, -100]), look: weighted(rng, { '3D': 5, None: 3, '3D Inverted': 1, Sweep: 1 }), armMove: weighted(rng, { steady: 7, grow: 1, shrink: 1, pulse: 1 }) };
+            case 'wave': return { type: rng() < 0.83 ? 'Sine' : 'Triangle', waves: pick(rng, [1, 2, 2.5, 3]), height: ibetween(rng, 40, 80), thickness: ibetween(rng, 10, 40), speed: Math.round(between(rng, 10, 40) * fast), direction: pick(rng, ['Right to Left', 'Left to Right']) };
+            case 'meteors': return { direction: weighted(rng, { Down: 6, Up: 2, Left: 1, Right: 1 }), count: ibetween(rng, 15, 40), length: ibetween(rng, 15, 35), speed: Math.max(4, Math.round(between(rng, 6, 16) * fast)) };
+            case 'curtain': return { effect: weighted(rng, { open: 6, 'open then close': 2, close: 2 }), edge: pick(rng, ['left', 'right', 'center', 'top', 'bottom']), times: ctx.hit ? 1 : Math.max(1, Math.round(bars / pick(rng, [2, 4]))) };
+            case 'morph': return { direction: weighted(rng, { up: 5, down: 2, left: 1, right: 1 }), sweep: ibetween(rng, 15, 40) };
+            case 'snowflakes': return { count: ibetween(rng, 8, 20), speed: ibetween(rng, 6, 14) };
+            case 'strobe': return { count: ibetween(rng, 2, 6), duration: ibetween(rng, 4, 12) };
+            case 'vumeter': return { type: weighted(rng, { sweep: 2, flash: 1 }), track: energy > 0.7 ? 'Beats' : pick(rng, ['Beats', 'Bars']), size: ibetween(rng, 3, 8) };
             case 'twinkle': return { count: Math.round(between(rng, 10, 25) + energy * 25), steps: ibetween(rng, 20, 50) };
             case 'wash': return { cycles: Math.max(1, Math.round(between(rng, 0.5, 2) * Math.max(1, bars / 8))) };
             case 'marquee': return { band: ibetween(rng, 2, 4), skip: ibetween(rng, 1, 3), speed: Math.round(between(rng, 2, 6) * fast) };
             case 'butterfly': return { speed: Math.round(between(rng, 5, 18) * fast) };
-            case 'shockwave': return { width: ibetween(rng, 20, 50) };
+            case 'shockwave': return { width: ibetween(rng, 20, 50), move: weighted(rng, { still: 17, rise: 1, fall: 1, bounce: 1 }) };
             case 'fan': return ctx.hit
                 ? { blades: ibetween(rng, 2, 5), width: ibetween(rng, 40, 80), turns: pick(rng, [0.5, 1, 1]), twist: pick(rng, [0, 90, -90]), reverse: rng() < 0.5 ? 1 : 0, grow: 40 }
                 : { blades: ibetween(rng, 2, 6), width: ibetween(rng, 30, 70), turns: Math.max(1, Math.min(10, Math.round(bars / pick(rng, [2, 4]) * fast))), twist: pick(rng, [0, 0, 90, -90, 180]), reverse: rng() < 0.5 ? 1 : 0, grow: 100 };
@@ -292,14 +300,7 @@ const Ideas = (() => {
     const schemeTag = (colors, scheme) => colors.join() === scheme.colors.join() ? scheme.id : 'custom';
 
     // A small change between phrases of a long part: things that move turn round.
-    function flipOptions(effect, o) {
-        const swap = { 'Left-Right': 'Right-Left', 'Right-Left': 'Left-Right', 'From Middle': 'To Middle', 'To Middle': 'From Middle', up: 'down', down: 'up', expand: 'compress', compress: 'expand', Left: 'Right', Right: 'Left' };
-        const out = { ...o };
-        if (out.direction && swap[out.direction]) out.direction = swap[out.direction];
-        if (effect === 'pinwheel' && out.speed) out.speed = -out.speed;
-        if (effect === 'spirals' && out.rotation) out.rotation = -out.rotation;
-        return out;
-    }
+    const flipOptions = (effect, o) => Effects.flip(effect, o);
 
     // The parts a kind of prop is made of, from its submodels: numbered ones
     // ("Spoke 1".."Spoke 8") count as one part. A part must be on most of the
@@ -355,6 +356,20 @@ const Ideas = (() => {
         // melt in, loud ones land hard; everything lets go gently
         if (ctx.energy < 0.6) row.softIn = Math.round((0.2 + (0.6 - ctx.energy) * 1.2) * 20) / 20;
         row.softOut = Math.round((0.25 + rng() * 0.25) * 20) / 20;
+        // Lively parts: like his sequences, the look restarts every beat (or bar),
+        // chases turning round and solids changing colour each time.
+        const CHOP = { chase: ['beat', 'dir', 0.6], on: ['beat', 'colour', 0.45], wash: ['beat', 'colour', 0.35], bars: ['bar', 'dir', 0.3], pinwheel: ['bar', 'dir', 0.3], morph: ['beat', 'dir', 0.5], curtain: ['beat', 'dir', 0.5], fan: ['bar', 'dir', 0.25] };
+        const ch = CHOP[effect];
+        if (ch && ctx.style >= 0.55 && rng() < ch[2]) {
+            row.chop = ch[0]; row.alt = ch[1];
+            if (ch[1] === 'colour' && row.colors.length < 2) { row.colors = [...new Set([row.colors[0], ...(ctx.cp.hit || []), ctx.cp.accent].filter(Boolean))].slice(0, 2); row.scheme = schemeTag(row.colors, ctx.scheme); }
+            delete row.softIn; row.softOut = 0.1;
+        }
+        // sparkles on about one row in seven (more when magical), some following the music
+        const sp = ctx.feel && ctx.feel.mul && ctx.feel.mul.twinkle > 2 ? 0.4 : 0.15;
+        if (ctx.energy >= 0.3 && rng() < sp) { row.sparkles = pick(rng, [50, 62, 62, 100]); if (rng() < 0.5) row.musicSparkles = true; }
+        // the whole picture turning, on big screens
+        if (['matrix', 'megatree', 'spinner'].includes(cls) && ['pinwheel', 'spirals', 'bars', 'wave', 'fan', 'butterfly'].includes(effect) && rng() < 0.12) row.spin = pick(rng, [1, 1, 2]);
         return row;
     }
 
@@ -679,6 +694,18 @@ const Ideas = (() => {
                 for (const r of rows) if (r.trigger === 'span' && (r.targets[0] === t || r.of === t) && r.level != null && !dimmed.has(r) && !r.blend) { r.level = Math.round(r.level * 0.6 / 5) * 5; dimmed.add(r); }
             });
         }
+        // Melody: a small prop flashes on each sung note while someone sings, or on
+        // the music's own hits (note onsets) in instrumental stretches.
+        {
+            const mr = rngFrom(seed ^ 0x3c6ef372);
+            const small = [...new Set(chosen.flatMap(e => e.targets))].filter(t => ['star', 'minitree', 'snowflake', 'peace', 'cross'].includes(classify(show, t)) && !rows.some(r => r.trigger !== 'span' && r.targets.includes(t)));
+            const sung = song.lyr && song.lyr.notes && song.lyr.notes.filter(x => x.s >= section.s && x.s < section.e).length >= bars;
+            if (small.length && energy >= 0.3 && mr() < 0.35) {
+                const t = pick(mr, small);
+                const trig = sung ? 'notes' : (song.model.onsets.all || []).length ? 'onsets' : null;
+                if (trig) rows.push({ id: Sequencer.newId(), trigger: trig, targets: [t], effect: 'pulse', options: {}, colors: [ctx.cp.accent || ctx.cp.hit[0]], scheme: 'custom', level: 80 });
+            }
+        }
         // Loud parts: the whole house hits together over a dimmer base. One prop
         // flashing barely moves the show; the same hit on every prop is what reads
         // as punch. Each hit takes the next colour, so red and green alternate.
@@ -746,6 +773,8 @@ const Ideas = (() => {
         ['colourhit', 'Colour hit'],
         ['crossfade', 'Crossfade'],
         ['build', 'Build & land (dark, then flash)'],
+        ['wipe', 'Wipe in'],
+        ['circlein', 'Circle burst in'],
     ];
 
     // The props transitions use: the big ones for ramps and sweeps, the ones
@@ -767,7 +796,7 @@ const Ideas = (() => {
             c.rows = c.rows.filter(r => r.tr !== tag);
             for (const r of c.rows) {
                 if (r.trOut === tag) { delete r.endFade; delete r.trOut; }
-                if (r.trIn === tag) { delete r.startFade; delete r.trIn; }
+                if (r.trIn === tag) { delete r.startFade; delete r.trIn; delete r.inTr; delete r.inTrTime; }
             }
         }
         if (ca && ca.dipFor === tag) { delete ca.dip; delete ca.dipFor; }
@@ -812,6 +841,11 @@ const Ideas = (() => {
             case 'colourhit':
                 // the new part lands with a flash in its own colour
                 if (sb && lit().length) add(cb, { trigger: 'first', targets: lit(), effect: 'pulse', colors: [colour], level: 70 });
+                break;
+            case 'wipe':
+            case 'circlein':
+                // the new part's lights wipe in from the top, or open out from the centre
+                if (sb) for (const r of cb.rows) if (r.trigger === 'span' && r.effect !== 'faces' && r.effect !== 'moving' && (!r.bars || r.bars[0] === 0)) { r.inTr = move === 'wipe' ? 'wipe' : 'circle'; r.inTrTime = Math.min(barLen, (B.e - B.s) / 3); r.trIn = tag; }
                 break;
             case 'crossfade': {
                 // one look melts into the next over about a bar
@@ -894,7 +928,7 @@ const Ideas = (() => {
                 if (p.kind === 'drop') move = 'crossfade';
                 else if (p === biggest && p.jump >= 0.3) move = 'build';
                 else {
-                    const opts = p.jump >= 0.35 ? ['ramp', 'sweep', 'burst'] : p.jump >= 0.2 ? ['ramp', 'sweep', 'burst', 'colourhit'] : ['crossfade', 'colourhit', 'sweep', 'ramp'];
+                    const opts = p.jump >= 0.35 ? ['ramp', 'sweep', 'burst', 'circlein'] : p.jump >= 0.2 ? ['ramp', 'sweep', 'burst', 'colourhit', 'wipe', 'circlein'] : ['crossfade', 'colourhit', 'sweep', 'ramp', 'wipe'];
                     const fresh = opts.filter(o => o !== prev && (o !== 'burst' || props.bursty.length) && ((o !== 'ramp' && o !== 'sweep') || props.big.length));
                     move = pick(trng, fresh.length ? fresh : opts);
                 }

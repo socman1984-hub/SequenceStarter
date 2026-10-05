@@ -165,6 +165,12 @@ Ctrl+Z undoes. Edits are kept per song (keyed by word position + word), survive
   mega trees often get a mask (a colourful bed seen through moving blades, spirals or a
   ring), and props built from parts (rings, spokes, star on top) sometimes light each part
   differently, the same part on every prop together.
+- Ideas also follow the owner's own sequences (a survey of 56 of them): in lively parts
+  steady rows restart every beat or bar, chases turning round and solids changing colour;
+  3D looks by default; sparkles on about one row in seven; the new effects where he uses
+  them (Wave on the mega tree and peace stakes, Curtain on the tree and matrix, beat meters
+  on canes and mini trees, Morph and Meteors on lines); a small prop flashing on the sung
+  notes or the music's hits; parts that wipe or burst in.
 - A long part changes with its energy: where the music gets clearly louder or quieter
   inside it, ideas split it into phrases (same props, more or fewer lit, the other colour,
   moving things turned round). Light rows can be limited to *Bars* from / to.
@@ -199,7 +205,8 @@ it. The page warns before closing with unsaved changes. Work is also kept in the
 between visits, but the project file is the copy to trust.
 - **Effects** (`js/effects.js`): Solid, Flash-and-fade, Colour wash, Chase, Bars,
   Spirals, Pinwheel, Twinkle, Shockwave, Marquee, Butterfly, Fan, Ripple, Spirograph,
-  Moving head, Singing face (Faces, driven by the Lyrics track), Show the words (Text on a
+  Wave, Meteors, Curtain, Morph, Snowflakes, Strobe, Off, Beat meter (VU Meter timing-event
+  flash / sweep on the Beats, Bars or Note Onsets track), Moving head, Singing face (Faces, driven by the Lyrics track), Show the words (Text on a
   matrix, driven by the Lyrics track). Each has a browser renderer for the preview and an
   xLights settings string taken from working effects in real sequences (Fan, Ripple and
   Spirograph previews are ports of xLights' own render code). On group rows the buffer is
@@ -208,6 +215,12 @@ between visits, but the project file is the copy to trust.
 - **Layers**: rows on the same lights stack. Upper rows add light (*Additive*), or act as a
   mask (*1 is Unmask*: the shape shows the colours below; *1 is Mask*: the shape cuts them
   out). Rows can fade in and out on every effect.
+- **Row extras** (written as xLights' own settings): restart every beat / bar with the
+  direction or colour changing each time; palette sparkles (optionally music-driven); wipe /
+  circle-explode in and out transitions; buffer rotation (*Spin*); 3D looks on Pinwheel,
+  Spirals and Bars; value curves for pinwheel arms, spiral twist and a moving shockwave
+  centre. Triggers include hi-hats, the music's note onsets and each sung note; the export
+  adds a *Note Onsets* timing track.
 - **Preview accuracy**: rendering the exported sequence with xLights headless and
   comparing bulb by bulb at four moments, 76–82% of bulbs agree on/off; solids, faces,
   words on the matrix (95–97%) and washes match; chases and marquees have the right

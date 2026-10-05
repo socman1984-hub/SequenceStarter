@@ -18,6 +18,9 @@ const Sequencer = (() => {
         { id: 'downbeats', label: 'First beat of each bar' },
         { id: 'kick', label: 'Kick drum hits' },
         { id: 'snare', label: 'Snare hits' },
+        { id: 'hats', label: 'Hi-hat hits' },
+        { id: 'onsets', label: 'Music hits (note onsets)' },
+        { id: 'notes', label: 'Each sung note', vocal: true },
         { id: 'singing', label: 'While someone sings', vocal: true },
         { id: 'lines', label: 'Each sung line', vocal: true },
         { id: 'words', label: 'Each sung word', vocal: true },
@@ -41,6 +44,9 @@ const Sequencer = (() => {
             case 'downbeats': return g.bars.map(b => ({ s: b.s, e: Math.min(b.e, b.s + T * 2) }));
             case 'kick': return onsets(m.onsets.kick);
             case 'snare': return onsets(m.onsets.snare);
+            case 'hats': return onsets(m.onsets.hat || []);
+            case 'onsets': return onsets(m.onsets.all || []);
+            case 'notes': return L && L.notes ? L.notes.map(x => ({ s: x.s, e: x.e })) : [];
             case 'singing': return L ? L.vseg.map(x => ({ s: x.s, e: x.e })) : [];
             case 'lines': return L ? L.lines.map(x => ({ s: x.s, e: x.e })) : [];
             case 'words': return L ? L.words.map(x => ({ s: x.s, e: x.e })) : [];
@@ -62,7 +68,12 @@ const Sequencer = (() => {
     //         colourBy: 'bar' (hits change colour each bar rather than each hit),
     //         softIn / softOut: seconds every effect of the row fades in / out,
     //         blend: 'unmask' | 'mask' (how it mixes with the layers below; default adds),
-    //         overlay: on a group, every prop shows the same thing (xLights' Overlay buffer) }
+    //         overlay: on a group, every prop shows the same thing (xLights' Overlay buffer),
+    //         chop: 'beat' | 'bar' (a steady row restarts on each), alt: 'dir' | 'colour' | 'both'
+    //         (what changes at each restart), sparkles: 0..200 (+ musicSparkles),
+    //         inTr / outTr: 'wipe' | 'circle' (how its first / last effect comes in / goes;
+    //         lasts startFade / endFade, or inTrTime / outTrTime seconds), spin: turns of the
+    //         whole picture over each effect }
 
     const emptyPlan = () => ({ version: 2, whole: { rows: [] }, sections: {} });
     const newId = () => Math.random().toString(36).slice(2, 9);
@@ -96,6 +107,14 @@ const Sequencer = (() => {
 
     // ---------- generation ----------
 
+    // Marks of the exported timing tracks the beat meter can follow.
+    function trackMarks(name, song) {
+        const g = song.grid;
+        if (name === 'Bars') return g.bars.map(b => ({ s: b.s, e: b.e }));
+        if (name === 'Note Onsets') return marksFor('onsets', song);
+        return g.beats.map(b => ({ s: b.s, e: b.e }));
+    }
+
     function generate(plan, song, show) {
         const rows = new Map();       // target -> { layers: [[fx]] }
         const snap = s => Math.round(s * 1000 / FRAME_MS) * FRAME_MS;
@@ -128,6 +147,8 @@ const Sequencer = (() => {
             const c = plan.sections && plan.sections[sec.id];
             if (c && c.rows.length) containers.push({ s: sec.s, e: Math.max(sec.s + 0.1, sec.e - (c.dip > 0 ? c.dip * song.grid.T : 0)), rows: c.rows, sectionId: sec.id, bars: song.grid.bars.filter(b => b.s >= sec.s - 0.05 && b.s < sec.e - 0.05) });
         }
+        // Off rows go on a layer above everything else on their lights (placed last)
+        const offs = [];
         // span rows take the bottom layers; event rows stack above them
         const jobs = [];
         for (const c of containers) for (const row of c.rows) jobs.push({ c, row });
@@ -150,21 +171,34 @@ const Sequencer = (() => {
                 if (we - ws < 0.05) continue;
             }
             let spans;
-            if (!isEvent) spans = [{ s: ws, e: we }];
+            if (!isEvent && (row.chop === 'beat' || row.chop === 'bar')) {
+                const list = row.chop === 'bar' ? song.grid.bars : song.grid.beats;
+                spans = list.filter(b => b.s >= ws - 0.001 && b.s < we - 0.05).map(b => ({ s: b.s, e: Math.min(b.e, we) }));
+                if (spans.length && spans[0].s > ws + 0.05) spans.unshift({ s: ws, e: spans[0].s });
+            } else if (!isEvent) spans = [{ s: ws, e: we }];
             else if (PART_TRIGGERS.has(trig)) spans = partSpans(trig, c, song);
             else spans = marks(trig).filter(m => m.s >= ws - 0.001 && m.s < we).map(m => ({ s: m.s, e: Math.min(m.e, we) }));
             const barIndex = t => { const bs = song.grid.bars; let lo = 0, hi = bs.length - 1; while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (bs[mid].s <= t + 0.01) lo = mid; else hi = mid - 1; } return lo; };
+            const alt = row.chop ? row.alt || '' : '';
+            const vuMarks = eff.id === 'vumeter' ? trackMarks(opts.track, song) : null;
             spans.forEach((sp, n) => {
                 const index = row.colourBy === 'bar' ? barIndex(sp.s) : n;
                 const sMs = snap(sp.s), eMs = snap(sp.e);
                 if (eMs - sMs < MIN_MS) return;
+                // a chopped row: every other restart turned round, and / or the next colour
+                const flipNow = (alt === 'dir' || alt === 'both') && n % 2 === 1;
+                const spanOpts = flipNow ? Effects.flip(eff.id, opts) : opts;
+                const recolour = (alt === 'colour' || alt === 'both') && colors.length > 1;
+                const spanColors = recolour ? [colors[n % colors.length]] : colors;
+                const spanPal = recolour ? [pal[n % pal.length]] : pal;
+                const first = n === 0, last = n === spans.length - 1;
                 for (const target of row.targets) {
                     if (!Show.hasTarget(show, target)) { missing.add(target); continue; }
                     if (eff.needsFace) {
                         const m = show.models.get(target);
                         if (!m || !m.faces.length) { if (!problems.includes(target)) problems.push(target); continue; }
                     }
-                    const o = eff.needsFace ? { ...opts, face: opts.face || show.models.get(target).faces[0].name } : opts;
+                    const o = eff.needsFace ? { ...spanOpts, face: spanOpts.face || show.models.get(target).faces[0].name } : spanOpts;
                     const isGroup = show.groups.has(target);
                     const perModel = isGroup && (eff.dmx || (row.perModel ?? eff.perModel));
                     const level = row.level != null ? Math.max(0, Math.min(100, row.level)) : 100;
@@ -180,10 +214,24 @@ const Sequencer = (() => {
                     const heads = headCache.get(target);
                     if (eff.dmx ? !heads : (heads && show.models.has(target) && show.models.get(target).mh)) { if (!problems.includes(target)) problems.push(target); continue; }
                     const blend = !eff.dmx && (row.blend === 'unmask' || row.blend === 'mask') ? row.blend : null;
-                    place(target, { sMs, eMs, eff, o, colors, pal, index, rowId: row.id, isGroup, perModel: perModel || (isGroup && !!row.overlay && !eff.dmx), overlay: isGroup && !!row.overlay && !eff.dmx, blend, level: eff.dmx ? 100 : level, endFade: eff.dmx ? 0 : endFade || softOut, startFade: eff.dmx ? 0 : startFade, target }, isEvent || blend ? 1 : 0);
+                    const len2 = (eMs - sMs) / 1000;
+                    const inTr = !eff.dmx && first && (row.inTr === 'wipe' || row.inTr === 'circle') ? row.inTr : null;
+                    const outTr = !eff.dmx && last && (row.outTr === 'wipe' || row.outTr === 'circle') ? row.outTr : null;
+                    let sf = eff.dmx ? 0 : startFade, ef = eff.dmx ? 0 : endFade || softOut;
+                    if (inTr) sf = Math.min(len2 * 0.6, sf || row.inTrTime || song.grid.T * 2);
+                    if (outTr) ef = Math.min(len2 * 0.6, ef || row.outTrTime || song.grid.T * 2);
+                    const fx = { sMs, eMs, eff, o, colors: spanColors, pal: spanPal, index, rowId: row.id, isGroup, perModel: perModel || (isGroup && !!row.overlay && !eff.dmx), overlay: isGroup && !!row.overlay && !eff.dmx, blend, level: eff.dmx ? 100 : level, endFade: ef, startFade: sf, target,
+                        inTr, outTr, sparkles: eff.dmx ? 0 : Math.max(0, Math.min(200, +row.sparkles || 0)), music: !!row.musicSparkles, spin: eff.dmx ? 0 : Math.max(0, Math.min(20, +row.spin || 0)), marks: vuMarks };
+                    if (eff.blackout) { offs.push(fx); count++; return; }
+                    place(target, fx, isEvent || blend ? 1 : 0);
                     count++;
                 }
             });
+        }
+        const top = new Map();
+        for (const fx of offs) {
+            if (!top.has(fx.target)) top.set(fx.target, rows.has(fx.target) ? rows.get(fx.target).layers.length : 0);
+            place(fx.target, fx, top.get(fx.target));
         }
         for (const r of rows.values()) {
             for (let i = 0; i < r.layers.length; i++) if (!r.layers[i]) r.layers[i] = [];
@@ -274,6 +322,54 @@ const Sequencer = (() => {
         lit(mouth + '2', c1);
     }
 
+    // Buffer rotation (RotoZoom): the picture turns about the centre. A node shows
+    // the pixel that rotated onto it; nodes nothing reaches go dark (out[k]).
+    function spun(tgt, N, turns) {
+        const key = N === tgt.NM ? 'spinM' : 'spinN';
+        let R = tgt[key];
+        if (!R) R = tgt[key] = { ...N, u: new Float32Array(N.n), v: new Float32Array(N.n), out: new Uint8Array(N.n) };
+        const a = 2 * Math.PI * (turns % 1), c = Math.cos(a), s = Math.sin(a);
+        for (let k = 0; k < N.n; k++) {
+            const W = N.bw ? N.bw[k] : N.w, H = N.bh ? N.bh[k] : N.h;
+            const x = (N.u[k] - 0.5) * W, y = (N.v[k] - 0.5) * H;
+            const u = (c * x + s * y) / W + 0.5, v = (-s * x + c * y) / H + 0.5;
+            R.u[k] = u; R.v[k] = v;
+            R.out[k] = u < 0 || u > 1 || v < 0 || v > 1 ? 1 : 0;
+        }
+        return R;
+    }
+    // In / out transitions (PixelBuffer createWipeMask / createCircleExplodeMask):
+    // the wipe runs top to bottom (xLights' default adjust 50); the circle opens from
+    // the centre. f: 0..1 through the transition; out: the picture goes away.
+    function reveal(kind, N, tmp, f, out) {
+        for (let k = 0; k < N.n; k++) {
+            let shown;
+            if (kind === 'circle') { const r = Math.hypot(N.u[k] - 0.5, N.v[k] - 0.5) / 0.7072; shown = out ? r > f : r < f; }
+            else shown = out ? N.v[k] < 1 - f : N.v[k] > 1 - f;
+            if (!shown) tmp[3 * k] = tmp[3 * k + 1] = tmp[3 * k + 2] = 0;
+        }
+    }
+    // Palette sparkles (ApplySparkles): each lit light flashes white for a few
+    // frames every (208 - count) frames, at its own phase.
+    function sparkle(tmp, N, ms, count) {
+        if (count <= 0) return;
+        const frame = Math.round(ms / FRAME_MS), period = Math.max(8, 208 - count);
+        for (let k = 0; k < N.n; k++) {
+            const i = 3 * k;
+            if (tmp[i] + tmp[i + 1] + tmp[i + 2] <= 0) continue;
+            const m = (Math.floor(Effects.hash(N.g[k] * 2654435761 + 7) * 10000) + frame) % period;
+            const b = m === 4 ? 255 : m === 2 || m === 6 ? 135 : m === 3 || m === 5 ? 191 : -1;
+            if (b >= 0) tmp[i] = tmp[i + 1] = tmp[i + 2] = b;
+        }
+    }
+    // 0..1: how loud the song is at t against its loudest (music sparkles follow it).
+    function loudAt(song, t) {
+        const m = song.model, L = m.loudness, step = m.loudStep || 0.05;
+        if (!L || !L.length) return 1;
+        if (!m._loudMax) { let mx = 0; for (const v of L) if (v > mx) mx = v; m._loudMax = mx || 1; }
+        return Math.max(0, Math.min(1, (L[Math.min(L.length - 1, Math.floor(t / step))] || 0) / m._loudMax));
+    }
+
     // xLights' mask blends (PixelBuffer mixColors), this layer `top` over `acc`:
     // unmask keeps the colour below where top is lit, at top's brightness (a dark
     // pixel below turns grey, as in xLights); mask blacks out where top is lit.
@@ -304,7 +400,8 @@ const Sequencer = (() => {
             for (let li = 0; li < tgt.layers.length; li++) {
                 const fx = activeAt(tgt.layers[li], ms);
                 if (!fx) continue;
-                const p = { t: (ms - fx.sMs) / (fx.eMs - fx.sMs), sec: (ms - fx.sMs) / 1000, dur: (fx.eMs - fx.sMs) / 1000, pal: fx.pal, o: fx.o, index: fx.index, word: word && word.text };
+                const p = { t: (ms - fx.sMs) / (fx.eMs - fx.sMs), sec: (ms - fx.sMs) / 1000, dur: (fx.eMs - fx.sMs) / 1000, pal: fx.pal, o: fx.o, index: fx.index, word: word && word.text, abs: t, start: fx.sMs / 1000, marks: fx.marks };
+                if (fx.eff.blackout) { acc.fill(0); any = true; continue; }
                 if (fx.eff.id === 'faces') {
                     if (!any) acc.fill(0);
                     any = true;
@@ -318,11 +415,17 @@ const Sequencer = (() => {
                     continue;
                 }
                 tmp.fill(0);
-                fx.eff.render(p, fx.perModel ? tgt.NM : N, tmp);
+                const base = fx.perModel ? tgt.NM : N;
+                const NN = fx.spin ? spun(tgt, base, fx.spin * p.t) : base;
+                fx.eff.render(p, NN, tmp);
+                if (fx.spin) for (let k = 0; k < NN.n; k++) if (NN.out[k]) tmp[3 * k] = tmp[3 * k + 1] = tmp[3 * k + 2] = 0;
                 let gain = fx.level / 100;
-                if (fx.endFade > 0) gain *= Math.max(0, Math.min(1, (p.dur - p.sec) / fx.endFade));
-                if (fx.startFade > 0) gain *= Math.max(0, Math.min(1, p.sec / fx.startFade));
+                if (fx.endFade > 0 && !fx.outTr) gain *= Math.max(0, Math.min(1, (p.dur - p.sec) / fx.endFade));
+                if (fx.startFade > 0 && !fx.inTr) gain *= Math.max(0, Math.min(1, p.sec / fx.startFade));
                 if (gain !== 1) for (let i = 0; i < tmp.length; i++) tmp[i] *= gain;
+                if (fx.inTr && p.sec < fx.startFade) reveal(fx.inTr, base, tmp, p.sec / fx.startFade, false);
+                if (fx.outTr && p.dur - p.sec < fx.endFade) reveal(fx.outTr, base, tmp, 1 - (p.dur - p.sec) / fx.endFade, true);
+                if (fx.sparkles > 0) sparkle(tmp, N, ms, fx.music ? Math.round(fx.sparkles * loudAt(song, t)) : fx.sparkles);
                 if (fx.blend) {
                     if (!any) { acc.fill(0); any = true; }
                     blendInto(fx.blend, acc, tmp, N.n);
@@ -369,13 +472,18 @@ const Sequencer = (() => {
             if (fx.level !== 100) s += `,C_SLIDER_Brightness=${Math.round(fx.level)}`;
             if (fx.endFade > 0 && !/T_TEXTCTRL_Fadeout=/.test(s)) s += `,T_TEXTCTRL_Fadeout=${fx.endFade.toFixed(2)}`;
             if (fx.startFade > 0 && !/T_TEXTCTRL_Fadein=/.test(s)) s += `,T_TEXTCTRL_Fadein=${fx.startFade.toFixed(2)}`;
-            if (fx.blend && Effects.BLENDS[fx.blend]) s += `,T_CHOICE_LayerMethod=${Effects.BLENDS[fx.blend].xl}`;
+            if (fx.inTr) s += `,T_CHOICE_In_Transition_Type=${fx.inTr === 'circle' ? 'Circle Explode' : 'Wipe'},T_SLIDER_In_Transition_Adjust=50`;
+            if (fx.outTr) s += `,T_CHOICE_Out_Transition_Type=${fx.outTr === 'circle' ? 'Circle Explode' : 'Wipe'},T_SLIDER_Out_Transition_Adjust=50`;
+            if (fx.spin) s += `,B_SLIDER_Rotations=${Math.round(fx.spin * 10)},` + Effects.curveString('B', 'Rotation', { type: 'Ramp', min: 0, max: 100, p1: 0, p2: 100 });
+            // Off has to sit on top as a Normal layer to hide what is under it
+            if (fx.eff.blackout) { /* Normal */ }
+            else if (fx.blend && Effects.BLENDS[fx.blend]) s += `,T_CHOICE_LayerMethod=${Effects.BLENDS[fx.blend].xl}`;
             else if (fx.above) s += Effects.ADD;
             if (!dbIdx.has(s)) { dbIdx.set(s, db.length); db.push(s); }
             return dbIdx.get(s);
         };
         const palOf = fx => {
-            const s = Effects.paletteString(fx.eff.hitColour && fx.colors.length > 1 ? [fx.colors[fx.index % fx.colors.length]] : fx.colors);
+            const s = Effects.paletteString(fx.eff.hitColour && fx.colors.length > 1 ? [fx.colors[fx.index % fx.colors.length]] : fx.colors, fx.sparkles ? { sparkles: fx.sparkles, music: fx.music } : null);
             if (!palIdx.has(s)) { palIdx.set(s, pals.length); pals.push(s); }
             return palIdx.get(s);
         };
@@ -447,6 +555,8 @@ const Sequencer = (() => {
             ['Song Parts', [song.sections.map(s => ({ s: s.s, e: s.e, label: s.name }))]],
             ['Beats', [g.beats.map(b => ({ s: b.s, e: b.e, label: String(b.n) }))]],
             ['Bars', [g.bars.map(b => ({ s: b.s, e: b.e, label: String(b.n) }))]],
+            // the music's own hits, for beat meters and for hand sequencing in xLights
+            ['Note Onsets', [marksFor('onsets', song).map(m => ({ s: m.s, e: m.e, label: '' }))]],
         ];
         if (song.lyr) {
             timings.push([LYRIC_TRACK, [

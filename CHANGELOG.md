@@ -2,17 +2,19 @@
 
 Release notes for Lights Auto Sequencer, newest first. The same list is in the app under **✨ What's new**.
 
-## 2026.10.04.3 — New effects and layered looks
+## 2026.10.04.3 — New effects, layered looks and pro techniques
 
 _2026-10-04_
 
-- **New:** Three new effects: Fan (spinning blades), Ripple (a circle, star, square or snowflake that grows out or shrinks in) and Spirograph (line patterns). Checked against xLights' own render.
-- **New:** Masks: a row can be a moving shape that shows the colours of the row under it only where it's lit, or cuts them out. Ideas often use one on the matrix and mega tree.
-- **New:** On a group: "Every prop the same" makes every spinner, snowflake or wreath show exactly the same picture (xLights' Overlay). Ideas use it for round props.
-- **New:** Fade in / Fade out on every light row; ideas now soften nearly every effect.
-- **Better:** Loud parts give spinners and snowflakes a fast run of short hits on the kick and snare.
-- **Better:** Props made of parts (rings, spokes, the star on a mini tree) sometimes get a different look for each part, the same part on every prop together.
-- **Better:** Ideas spread their effects wider, including the new ones, on every kind of prop.
+- **New:** Ten new effects: Fan, Ripple, Spirograph, Wave, Meteors, Curtain, Morph, Snowflakes, Strobe, Off (dark) and a Beat meter that flashes or sweeps on every beat or bar. Checked against xLights' own render.
+- **New:** Restart every beat or bar: a steady row becomes short effects that turn round or change colour each time, the way most pro sequences are built.
+- **New:** Masks: a row can be a moving shape that shows the colours of the row under it only where it's lit, or cuts them out.
+- **New:** On a group: "Every prop the same" makes every spinner, snowflake or wreath show exactly the same picture (xLights' Overlay).
+- **New:** Per row: Fade in / Fade out, Sparkles (optionally with the music), Comes in / Goes (wipe or circle burst), and Spin (the whole picture turns).
+- **New:** Pinwheel, Spirals and Bars get xLights' 3D look; pinwheel arms can grow or pulse, spirals can wobble, shockwaves can rise or fall.
+- **New:** New triggers: hi-hat hits, the music's hits (note onsets) and each sung note. The export adds a Note Onsets timing track.
+- **New:** Parts can now come in with a wipe or a circle burst.
+- **Better:** Ideas learned from 56 of the owner's own sequences and three pro ones: chopped rows in lively parts, 3D looks, sparkles, the new effects on the props they suit, fast hits on spinners and snowflakes, masks on the matrix and mega tree, and props made of parts lit part by part.
 
 ## 2026.10.04.2 — Older xLights versions
 

@@ -1536,6 +1536,9 @@
               ${eff.id !== 'faces' && !eff.dmx ? `<label title="How bright this row is (xLights' Brightness slider)">Brightness % <input type="number" class="lvl" min="0" max="100" step="5" value="${r.level ?? 100}"></label>` : ''}
               ${eff.id !== 'faces' && !eff.dmx && r.trigger === 'span' && eff.id !== 'on' ? `<label title="Fade out over the last seconds of the row (e.g. when the song fades)">Fade at end (s) <input type="number" class="efade" min="0" step="0.5" value="${r.endFade || 0}"></label>` : ''}
               ${eff.id !== 'faces' && !eff.dmx ? `<label title="Every effect of this row fades in over this many seconds">Fade in (s) <input type="number" class="sin" min="0" step="0.05" value="${r.softIn || 0}"></label><label title="Every effect of this row fades out over this many seconds">Fade out (s) <input type="number" class="sout" min="0" step="0.05" value="${r.softOut || 0}"></label>` : ''}
+              ${r.trigger === 'span' && eff.id !== 'faces' && !eff.dmx && !eff.blackout ? `<label title="Restart the effect on every beat or bar, like most pro sequences do">Restart <select class="chop"><option value="" ${!r.chop ? 'selected' : ''}>never</option><option value="beat" ${r.chop === 'beat' ? 'selected' : ''}>every beat</option><option value="bar" ${r.chop === 'bar' ? 'selected' : ''}>every bar</option></select></label>${r.chop ? `<label title="What changes at each restart">Each time <select class="alt"><option value="" ${!r.alt ? 'selected' : ''}>the same</option><option value="dir" ${r.alt === 'dir' ? 'selected' : ''}>turns round</option><option value="colour" ${r.alt === 'colour' ? 'selected' : ''}>next colour</option><option value="both" ${r.alt === 'both' ? 'selected' : ''}>both</option></select></label>` : ''}` : ''}
+              ${eff.id !== 'faces' && !eff.dmx && !eff.blackout ? `<label title="White sparkles on the lit lights (xLights palette sparkles); 0 = none">Sparkles <input type="number" class="spk" min="0" max="200" step="10" value="${r.sparkles || 0}"></label><label class="chk" title="Sparkle more when the music is loud"><input type="checkbox" class="mspk" ${r.musicSparkles ? 'checked' : ''}> with the music</label>` : ''}
+              ${eff.id !== 'faces' && !eff.dmx && !eff.blackout ? `<label title="How the row's first effect comes in (lasts its fade-in time, or 2 beats)">Comes in <select class="intr"><option value="" ${!r.inTr ? 'selected' : ''}>fade</option><option value="wipe" ${r.inTr === 'wipe' ? 'selected' : ''}>wipe</option><option value="circle" ${r.inTr === 'circle' ? 'selected' : ''}>circle burst</option></select></label><label title="How the row's last effect goes away">Goes <select class="outtr"><option value="" ${!r.outTr ? 'selected' : ''}>fade</option><option value="wipe" ${r.outTr === 'wipe' ? 'selected' : ''}>wipe</option><option value="circle" ${r.outTr === 'circle' ? 'selected' : ''}>circle</option></select></label><label title="Turn the whole picture this many times over each effect (0 = still)">Spin <input type="number" class="spin" min="0" max="20" step="0.5" value="${r.spin || 0}"></label>` : ''}
               ${eff.id !== 'faces' && !eff.dmx ? `<label title="How this row mixes with the rows under it on the same lights. Mask: a moving shape (blades, spirals, a ring) shows the colours of the row below only where it is lit.">Mix <select class="blend">${Object.entries(Effects.BLENDS).map(([k, b]) => `<option value="${k}" ${(r.blend || 'add') === k ? 'selected' : ''}>${esc(b.label)}</option>`).join('')}</select></label>` : ''}
               ${r.targets.some(t => S.show.groups.has(t)) && !eff.use.includes('vocal') && !eff.dmx ? `<label title="On a group: one picture across the yard, each prop running the effect on its own, or every prop showing exactly the same picture (xLights' Overlay)">On a group <select class="gstyle"><option value="across" ${!r.overlay && !(r.perModel ?? eff.perModel) ? 'selected' : ''}>Across the yard</option><option value="each" ${!r.overlay && (r.perModel ?? eff.perModel) ? 'selected' : ''}>Each prop on its own</option><option value="same" ${r.overlay ? 'selected' : ''}>Every prop the same</option></select></label>` : ''}
               <span class="row-btns"><button type="button" class="btn small dup" title="Duplicate">Duplicate</button><button type="button" class="btn small del" title="Remove">Remove</button></span>
@@ -1644,6 +1647,17 @@
                 if (v) r[key] = v; else delete r[key];
             }, { render: false }));
         }
+        const setOpt = (cls, key, read) => {
+            const inp = el.querySelector(cls);
+            if (inp) inp.addEventListener('change', () => commit(() => { const v = read(inp); if (v) r[key] = v; else delete r[key]; }, { render: cls === '.chop' }));
+        };
+        setOpt('.chop', 'chop', i => i.value);
+        setOpt('.alt', 'alt', i => i.value);
+        setOpt('.spk', 'sparkles', i => Math.max(0, Math.min(200, parseFloat(i.value) || 0)));
+        setOpt('.mspk', 'musicSparkles', i => i.checked);
+        setOpt('.intr', 'inTr', i => i.value);
+        setOpt('.outtr', 'outTr', i => i.value);
+        setOpt('.spin', 'spin', i => Math.max(0, Math.min(20, parseFloat(i.value) || 0)));
         const bl = el.querySelector('.blend');
         if (bl) bl.addEventListener('change', () => commit(() => { if (bl.value === 'add') delete r.blend; else r.blend = bl.value; }));
         return el;

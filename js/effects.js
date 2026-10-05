@@ -51,6 +51,44 @@ const Effects = (() => {
         return clamp01(b);
     };
 
+    // xLights value curves (ValueCurve::RenderType) in real units (RV=TRUE):
+    // Ramp p1->p2; Ramp Up/Down p1->p2 (middle)->p3; Ramp Up/Down Hold p1->p2,
+    // held for p3% of the middle, ->p1; Saw Tooth p3 times p1->p2->p1; Sine.
+    function curveAt(c, t) {
+        const lerp = (a, b, f) => a + (b - a) * f;
+        t = clamp01(t);
+        switch (c.type) {
+            case 'Ramp': return lerp(c.p1, c.p2, t);
+            case 'Ramp Up/Down': return t < 0.5 ? lerp(c.p1, c.p2, t * 2) : lerp(c.p2, c.p3, (t - 0.5) * 2);
+            case 'Ramp Up/Down Hold': {
+                const a = 0.5 - 0.5 * c.p3 / 100, b = 0.5 + 0.5 * c.p3 / 100;
+                return t < a ? lerp(c.p1, c.p2, a ? t / a : 1) : t <= b ? c.p2 : lerp(c.p2, c.p1, (t - b) / (1 - b || 1));
+            }
+            case 'Saw Tooth': { const n = Math.max(1, Math.round(c.p3)); const x = frac(t * n); return x < 0.5 ? lerp(c.p1, c.p2, x * 2) : lerp(c.p2, c.p1, (x - 0.5) * 2); }
+            case 'Sine': return lerp(c.min, c.max, 0.5 + 0.5 * Math.sin(2 * Math.PI * t * Math.max(1, c.p3 || 1)));
+        }
+        return c.p1;
+    }
+    const f2 = v => (+v).toFixed(2);
+    // E_VALUECURVE_<name>=Active=TRUE|Id=ID_VALUECURVE_<name>|Type=...|Min|Max|P1..|RV=TRUE|
+    function curveString(prefix, name, c) {
+        const ps = ['p1', 'p2', 'p3'].filter(k => c[k] != null && c[k] !== 0).map(k => `|P${k[1]}=${f2(c[k])}`).join('');
+        return `${prefix}_VALUECURVE_${name}=Active=TRUE|Id=ID_VALUECURVE_${name}|Type=${c.type}|Min=${f2(c.min)}|Max=${f2(c.max)}${ps}|RV=TRUE|`;
+    }
+    // Pinwheel 3D styles (PinwheelEffect::adjustColor); x = 0..1 across the arm.
+    const shade3d = (look, x) => look === '3D' ? 1 - Math.abs(x - 0.5) / 0.5 : look === '3D Inverted' ? Math.abs(x - 0.5) / 0.5 : look === 'Sweep' ? x : 1;
+    const LOOKS = ['3D', 'None', '3D Inverted', 'Sweep'];
+    // Moving arms / twist / centre over the effect (value curves).
+    const PW_ARMS = { steady: null, grow: { type: 'Ramp', p1: 10, p2: 100 }, shrink: { type: 'Ramp', p1: 100, p2: 10 }, pulse: { type: 'Ramp Up/Down', p1: 15, p2: 100, p3: 15 } };
+    const SP_TWIST = { steady: null, 'twist up': 'up', wobble: 'wobble' };
+    const SW_MOVE = { still: null, rise: { type: 'Ramp', p1: 0, p2: 100 }, fall: { type: 'Ramp', p1: 100, p2: 0 }, bounce: { type: 'Ramp Up/Down Hold', p1: 0, p2: 50, p3: 40 } };
+    const spCurve = o => {
+        const r = Math.max(-300, Math.min(300, +o.rotation || 20));
+        if (o.twistMove === 'twist up') return { type: 'Ramp', min: -300, max: 300, p1: r, p2: Math.max(-300, Math.min(300, r * 3)) };
+        if (o.twistMove === 'wobble') return { type: 'Saw Tooth', min: -300, max: 300, p1: r, p2: -r, p3: 2 };
+        return null;
+    };
+
     // Fan_Revolutions is in degrees over the whole effect (slider max 3600).
     const fanRevs = o => Math.round(Math.max(0, Math.min(10, +o.turns || 0)) * 360);
 
@@ -166,9 +204,10 @@ const Effects = (() => {
         },
         {
             id: 'bars', label: 'Bars', xl: 'Bars', use: ['part', 'hit'],
-            options: { direction: 'up', bars: 3, cycles: 1 },
+            options: { direction: 'up', bars: 3, cycles: 1, look3d: 1 },
             choices: { direction: ['up', 'down', 'Left', 'Right', 'expand', 'compress'] },
-            settings: o => `E_CHECKBOX_Bars_3D=0,E_CHECKBOX_Bars_Gradient=0,E_CHECKBOX_Bars_Highlight=0,E_CHOICE_Bars_Direction=${o.direction},E_SLIDER_Bars_BarCount=${o.bars},E_TEXTCTRL_Bars_Cycles=${(+o.cycles).toFixed(1)}`,
+            labels: { look3d: '3D look (0/1)' },
+            settings: o => `E_CHECKBOX_Bars_3D=${o.look3d ? 1 : 0},E_CHECKBOX_Bars_Gradient=0,E_CHECKBOX_Bars_Highlight=0,E_CHOICE_Bars_Direction=${o.direction},E_SLIDER_Bars_BarCount=${o.bars},E_TEXTCTRL_Bars_Cycles=${(+o.cycles).toFixed(1)}`,
             render(p, N, out) {
                 const o = p.o, n = p.pal.length, bands = Math.max(1, o.bars) * n;
                 const shift = p.t * o.cycles;
@@ -182,38 +221,50 @@ const Effects = (() => {
                         case 'compress': c = Math.abs(N.v[k] - 0.5) + shift; break;
                         default: c = N.v[k] - shift;
                     }
-                    palPick(p.pal, Math.floor(frac(c) * bands), out, 3 * k);
+                    const f = frac(c) * bands;
+                    palPick(p.pal, Math.floor(f), out, 3 * k, o.look3d ? 1 - frac(f) : 1);
                 }
             },
         },
         {
             id: 'spirals', label: 'Spirals', xl: 'Spirals', use: ['part'],
-            options: { count: 3, rotation: 20, thickness: 40 },
-            settings: o => `E_CHECKBOX_Spirals_3D=0,E_CHECKBOX_Spirals_Blend=0,E_CHECKBOX_Spirals_Grow=0,E_CHECKBOX_Spirals_Shrink=0,E_SLIDER_Spirals_Count=${o.count},E_SLIDER_Spirals_Rotation=${o.rotation},E_SLIDER_Spirals_Thickness=${o.thickness},E_TEXTCTRL_Spirals_Movement=${(o.rotation >= 0 ? 1 : -1).toFixed(1)}`,
+            options: { count: 3, rotation: 20, thickness: 40, look3d: 1, twistMove: 'steady' },
+            choices: { twistMove: Object.keys(SP_TWIST) },
+            labels: { look3d: '3D look (0/1)', twistMove: 'Twist moves' },
+            settings: o => { const c = spCurve(o); return `E_CHECKBOX_Spirals_3D=${o.look3d ? 1 : 0},E_CHECKBOX_Spirals_Blend=0,E_CHECKBOX_Spirals_Grow=0,E_CHECKBOX_Spirals_Shrink=0,E_SLIDER_Spirals_Count=${o.count},E_SLIDER_Spirals_Rotation=${o.rotation},E_SLIDER_Spirals_Thickness=${o.thickness},E_TEXTCTRL_Spirals_Movement=${(o.rotation >= 0 ? 1 : -1).toFixed(1)}` + (c ? ',' + curveString('E', 'Spirals_Rotation', c) : ''); },
             render(p, N, out) {
                 const o = p.o, n = p.pal.length;
-                const twist = o.rotation / 10;
+                const c = spCurve(o);
+                const twist = (c ? curveAt(c, p.t) : o.rotation) / 10;
                 const strands = Math.max(1, o.count) * n;
                 for (let k = 0; k < N.n; k++) {
                     const ph = (N.u[k] + N.v[k] * twist / strands * n) * strands + p.t * strands * Math.sign(o.rotation || 1);
-                    const inBand = frac(ph) < o.thickness / 100 + 0.25;
-                    palPick(p.pal, Math.floor(ph), out, 3 * k, inBand ? 1 : 0);
+                    const band = o.thickness / 100 + 0.25, x = frac(ph);
+                    palPick(p.pal, Math.floor(ph), out, 3 * k, x < band ? (o.look3d ? (o.rotation >= 0 ? 1 - x / band : x / band) : 1) : 0);
                 }
             },
         },
         {
             id: 'pinwheel', label: 'Pinwheel', xl: 'Pinwheel', use: ['part'],
-            options: { arms: 3, speed: 10, twist: 0 },
-            settings: o => `E_CHECKBOX_Pinwheel_Rotation=0,E_CHOICE_Pinwheel_3D=None,E_CHOICE_Pinwheel_Style=New Render Method,E_SLIDER_PinwheelXC=0,E_SLIDER_PinwheelYC=0,E_SLIDER_Pinwheel_ArmSize=100,E_SLIDER_Pinwheel_Arms=${o.arms},E_SLIDER_Pinwheel_Offset=0,E_SLIDER_Pinwheel_Speed=${o.speed},E_SLIDER_Pinwheel_Thickness=20,E_SLIDER_Pinwheel_Twist=${o.twist}`,
+            options: { arms: 3, speed: 10, twist: 0, look: '3D', armMove: 'steady' },
+            choices: { look: LOOKS, armMove: Object.keys(PW_ARMS) },
+            labels: { look: 'Look', armMove: 'Arms' },
+            settings: o => { const c = PW_ARMS[o.armMove]; return `E_CHECKBOX_Pinwheel_Rotation=0,E_CHOICE_Pinwheel_3D=${LOOKS.includes(o.look) ? o.look : '3D'},E_CHOICE_Pinwheel_Style=New Render Method,E_SLIDER_PinwheelXC=0,E_SLIDER_PinwheelYC=0,E_SLIDER_Pinwheel_ArmSize=100,E_SLIDER_Pinwheel_Arms=${o.arms},E_SLIDER_Pinwheel_Offset=0,E_SLIDER_Pinwheel_Speed=${o.speed},E_SLIDER_Pinwheel_Thickness=20,E_SLIDER_Pinwheel_Twist=${o.twist}` + (c ? ',' + curveString('E', 'Pinwheel_ArmSize', { ...c, min: 0, max: 400 }) : ''); },
             render(p, N, out) {
                 const o = p.o;
                 const rot = p.sec * o.speed / 10;
+                const c = PW_ARMS[o.armMove];
+                // arms reach half the buffer's diagonal at 100%
+                const reach = 0.7072 * (c ? curveAt(c, p.t) : 100) / 100;
                 for (let k = 0; k < N.n; k++) {
                     const dx = N.u[k] - 0.5, dy = N.v[k] - 0.5;
                     const r = Math.hypot(dx, dy);
+                    if (r > reach) continue;
                     const a = (Math.atan2(dy, dx) / (2 * Math.PI) + rot + r * o.twist / 100) * o.arms;
                     const w = frac(a);
-                    palPick(p.pal, Math.floor(a), out, 3 * k, w < 0.45 ? 1 - w / 0.45 * 0.6 : 0);
+                    // an arm is about Pinwheel_Thickness (20%) of its share of the circle,
+                    // a little more on small buffers (tuned against xLights renders)
+                    if (w < 0.24) palPick(p.pal, Math.floor(a), out, 3 * k, shade3d(o.look || '3D', w / 0.24));
                 }
             },
         },
@@ -235,12 +286,16 @@ const Effects = (() => {
         },
         {
             id: 'shockwave', label: 'Shockwave', xl: 'Shockwave', use: ['hit', 'part'], hitColour: true,
-            options: { width: 30 },
-            settings: o => `E_CHECKBOX_Shockwave_Blend_Edges=1,E_CHECKBOX_Shockwave_Scale=1,E_NOTEBOOK_Shockwave=Position,E_SLIDER_Shockwave_Accel=0,E_SLIDER_Shockwave_CenterX=50,E_SLIDER_Shockwave_CenterY=50,E_SLIDER_Shockwave_Cycles=1,E_SLIDER_Shockwave_End_Radius=100,E_SLIDER_Shockwave_End_Width=${o.width},E_SLIDER_Shockwave_Start_Radius=1,E_SLIDER_Shockwave_Start_Width=${o.width}`,
+            options: { width: 30, move: 'still' },
+            choices: { move: Object.keys(SW_MOVE) },
+            labels: { move: 'Centre moves' },
+            settings: o => { const c = SW_MOVE[o.move]; return `E_CHECKBOX_Shockwave_Blend_Edges=1,E_CHECKBOX_Shockwave_Scale=1,E_NOTEBOOK_Shockwave=Position,E_SLIDER_Shockwave_Accel=0,E_SLIDER_Shockwave_CenterX=50,E_SLIDER_Shockwave_CenterY=50,E_SLIDER_Shockwave_Cycles=1,E_SLIDER_Shockwave_End_Radius=100,E_SLIDER_Shockwave_End_Width=${o.width},E_SLIDER_Shockwave_Start_Radius=1,E_SLIDER_Shockwave_Start_Width=${o.width}` + (c ? ',' + curveString('E', 'Shockwave_CenterY', { ...c, min: 0, max: 100 }) : ''); },
             render(p, N, out) {
                 const w = Math.max(0.05, p.o.width / 100) * 0.7, R = p.t * 0.75;
+                const c = SW_MOVE[p.o.move];
+                const cy = c ? curveAt(c, p.t) / 100 : 0.5;
                 for (let k = 0; k < N.n; k++) {
-                    const r = Math.hypot(N.u[k] - 0.5, N.v[k] - 0.5);
+                    const r = Math.hypot(N.u[k] - 0.5, N.v[k] - cy);
                     const b = clamp01(1 - Math.abs(r - R) / w);
                     palPick(p.pal, p.index, out, 3 * k, b);
                 }
@@ -349,6 +404,191 @@ const Effects = (() => {
                     const g = spiroGrid(p, W, H);
                     const c = g[Math.round(N.v[k] * (H - 1)) * W + Math.round(N.u[k] * (W - 1))];
                     if (c) palPick(p.pal, c - 1, out, 3 * k);
+                }
+            },
+        },
+        {
+            // WaveEffect (sine / triangle): a band waving across the buffer.
+            id: 'wave', label: 'Wave', xl: 'Wave', use: ['part'],
+            options: { type: 'Sine', waves: 2, height: 60, thickness: 20, speed: 20, direction: 'Right to Left' },
+            choices: { type: ['Sine', 'Triangle'], direction: ['Right to Left', 'Left to Right'] },
+            labels: { type: 'Shape', waves: 'Waves across', height: 'Height %', thickness: 'Thickness %', speed: 'Speed', direction: 'Moves' },
+            settings: o => `E_CHECKBOX_Mirror_Wave=0,E_CHOICE_Fill_Colors=None,E_CHOICE_Wave_Direction=${o.direction},E_CHOICE_Wave_Type=${o.type},E_SLIDER_Number_Waves=${Math.round(Math.max(0.5, +o.waves) * 360)},E_SLIDER_Thickness_Percentage=${Math.round(o.thickness)},E_SLIDER_Wave_Height=${Math.round(o.height)},E_SLIDER_Wave_YOffset=0,E_TEXTCTRL_Wave_Speed=${(+o.speed).toFixed(2)}`,
+            render(p, N, out) {
+                const o = p.o, deg = Math.max(0.5, +o.waves) * 360;
+                const state = Math.round(p.sec * 40) * o.speed * 0.5;
+                const ltr = o.direction === 'Left to Right';
+                for (let k = 0; k < N.n; k++) {
+                    const W = N.bw ? N.bw[k] : N.w, H = N.bh ? N.bh[k] : N.h;
+                    const x = N.u[k] * (W - 1), y = N.v[k] * (H - 1), yc = H / 2;
+                    let ys;
+                    if (o.type === 'Triangle') {
+                        const amp = H * o.height / 100, xx = ltr ? W - x - 1 : x, waves = deg / 180 / 5;
+                        ys = amp ? (H - amp) / 2 + Math.abs(((state / 10 + xx) * waves) % (2 * amp) - amp) : 0;
+                    } else {
+                        const d = x * deg / W + (ltr ? -state : state);
+                        ys = yc * o.height / 100 * Math.sin(d * Math.PI / 180) + yc;
+                    }
+                    const half = Math.max(0.5, yc * o.thickness / 100);
+                    if (y >= ys - half && y <= ys + half) palPick(p.pal, 0, out, 3 * k);
+                }
+            },
+        },
+        {
+            // MeteorsEffect (down / up / left / right): falling streaks with fading tails.
+            id: 'meteors', label: 'Meteors', xl: 'Meteors', use: ['part'],
+            options: { direction: 'Down', count: 25, length: 25, speed: 10 },
+            choices: { direction: ['Down', 'Up', 'Left', 'Right'] },
+            labels: { direction: 'Falling', count: 'How many %', length: 'Tail length %', speed: 'Speed' },
+            settings: o => `E_CHECKBOX_Meteors_UseMusic=0,E_CHOICE_Meteors_Effect=${o.direction},E_CHOICE_Meteors_Type=Palette,E_SLIDER_Meteors_Count=${Math.round(o.count)},E_SLIDER_Meteors_Length=${Math.round(o.length)},E_SLIDER_Meteors_Speed=${Math.round(o.speed)},E_SLIDER_Meteors_Swirl_Intensity=0`,
+            render(p, N, out) {
+                const o = p.o, nc = p.pal.length, vert = o.direction === 'Down' || o.direction === 'Up';
+                const frames = p.sec * 40;
+                for (let k = 0; k < N.n; k++) {
+                    const W = N.bw ? N.bw[k] : N.w, H = N.bh ? N.bh[k] : N.h;
+                    const lane = Math.round((vert ? N.u[k] * (W - 1) : N.v[k] * (H - 1)));
+                    const L = vert ? H : W;
+                    let pos = (vert ? N.v[k] : N.u[k]) * (L - 1);
+                    if (o.direction === 'Down' || o.direction === 'Left') pos = L - 1 - pos;
+                    const tail = Math.max(1, L * o.length / 100);
+                    // MeteorsEffect: each step a lane starts a meteor with chance count/200 and
+                    // meteors move one row a step (speed/2 steps a frame); spacing tuned against
+                    // xLights renders (tails overlap)
+                    const gap = 300 / Math.max(1, o.count);
+                    const head = frames * o.speed / 2 + hash(lane * 7919 + 13) * gap;
+                    const d = frac((head - pos) / gap) * gap;
+                    if (d < tail) palPick(p.pal, Math.floor(hash(lane * 31 + Math.floor((head - pos) / gap)) * nc), out, 3 * k, 1 - d / tail);
+                }
+            },
+        },
+        {
+            // CurtainEffect: a curtain opening towards (or closing from) an edge.
+            id: 'curtain', label: 'Curtain (open / close)', xl: 'Curtain', use: ['part', 'hit'],
+            options: { effect: 'open', edge: 'left', times: 1 },
+            choices: { effect: ['open', 'close', 'open then close', 'close then open'], edge: ['left', 'center', 'right', 'bottom', 'middle', 'top'] },
+            labels: { effect: 'Curtain', edge: 'From', times: 'Times' },
+            settings: o => `E_CHECKBOX_Curtain_Repeat=${+o.times > 1 ? 1 : 0},E_CHOICE_Curtain_Edge=${o.edge},E_CHOICE_Curtain_Effect=${o.effect},E_SLIDER_Curtain_Swag=0,E_TEXTCTRL_Curtain_Speed=${Math.max(0.1, +o.times || 1).toFixed(1)}`,
+            render(p, N, out) {
+                const o = p.o, times = Math.max(1, Math.round(+o.times || 1));
+                const tt = times <= 1 ? p.t : frac(p.t * times);
+                const lit = { open: 1 - tt, close: tt, 'open then close': Math.abs(1 - 2 * tt), 'close then open': 1 - Math.abs(1 - 2 * tt) }[o.effect] ?? 1;
+                for (let k = 0; k < N.n; k++) {
+                    const u = N.u[k], v = N.v[k];
+                    let d;
+                    switch (o.edge) {
+                        case 'right': d = 1 - u; break;
+                        case 'center': d = Math.abs(u - 0.5) * 2; d = 1 - d; break;
+                        case 'top': d = 1 - v; break;
+                        case 'bottom': d = v; break;
+                        case 'middle': d = 1 - Math.abs(v - 0.5) * 2; break;
+                        default: d = u;
+                    }
+                    if (o.edge === 'center' || o.edge === 'middle') { if (1 - d <= lit) palBlend(p.pal, u * (p.pal.length - 1), out, 3 * k); }
+                    else if (d <= lit) palBlend(p.pal, u * (p.pal.length - 1), out, 3 * k);
+                }
+            },
+        },
+        {
+            // MorphEffect: a line sweeps across (bottom to top by default) in the first
+            // part of the effect, leaving a tail that drains away.
+            id: 'morph', label: 'Morph (sweep with tail)', xl: 'Morph', use: ['part', 'hit'],
+            options: { direction: 'up', sweep: 20 },
+            choices: { direction: ['up', 'down', 'left', 'right'] },
+            labels: { direction: 'Sweeps', sweep: 'Head time %' },
+            settings: o => {
+                const [sx1, sy1, sx2, sy2, ex1, ey1, ex2, ey2] = { up: [0, 0, 100, 0, 0, 100, 100, 100], down: [0, 100, 100, 100, 0, 0, 100, 0], left: [100, 0, 100, 100, 0, 0, 0, 100], right: [0, 0, 0, 100, 100, 0, 100, 100] }[o.direction] || [0, 0, 100, 0, 0, 100, 100, 100];
+                return `E_CHECKBOX_Morph_AutoRepeat=0,E_CHECKBOX_Morph_End_Link=0,E_CHECKBOX_Morph_Start_Link=0,E_CHECKBOX_ShowHeadAtStart=0,E_NOTEBOOK_Morph=Start,E_SLIDER_MorphAccel=0,E_SLIDER_MorphDuration=${Math.round(Math.max(1, Math.min(100, o.sweep)))},E_SLIDER_MorphEndLength=1,E_SLIDER_MorphStartLength=1,E_SLIDER_Morph_End_X1=${ex1},E_SLIDER_Morph_End_X2=${ex2},E_SLIDER_Morph_End_Y1=${ey1},E_SLIDER_Morph_End_Y2=${ey2},E_SLIDER_Morph_Repeat_Count=0,E_SLIDER_Morph_Repeat_Skip=1,E_SLIDER_Morph_Stagger=0,E_SLIDER_Morph_Start_X1=${sx1},E_SLIDER_Morph_Start_X2=${sx2},E_SLIDER_Morph_Start_Y1=${sy1},E_SLIDER_Morph_Start_Y2=${sy2}`;
+            },
+            render(p, N, out) {
+                const o = p.o, D = Math.max(0.01, Math.min(1, o.sweep / 100));
+                const head = p.t / D, tailLen = 1 / D - 1, tailEnd = head - tailLen;
+                const tc = p.pal.length > 1 ? 1 : 0;
+                for (let k = 0; k < N.n; k++) {
+                    const s = { up: N.v[k], down: 1 - N.v[k], left: 1 - N.u[k], right: N.u[k] }[o.direction] ?? N.v[k];
+                    if (s > head) continue;
+                    if (head - s < 0.03 && head <= 1.03) { palPick(p.pal, 0, out, 3 * k); continue; }
+                    const pct = tailLen > 0 ? (s - tailEnd) / tailLen : 0;
+                    if (pct > 0) palPick(p.pal, tc, out, 3 * k, pct > 0.5 ? 1 : pct / 0.5);
+                }
+            },
+        },
+        {
+            // SnowflakesEffect: flakes drifting down.
+            id: 'snowflakes', label: 'Snowflakes (falling)', xl: 'Snowflakes', use: ['part'],
+            options: { count: 10, speed: 10 },
+            labels: { count: 'How many', speed: 'Speed' },
+            settings: o => `E_CHOICE_Falling=Driving,E_SLIDER_Snowflakes_Count=${Math.round(o.count)},E_SLIDER_Snowflakes_Speed=${Math.round(o.speed)},E_SLIDER_Snowflakes_Type=1`,
+            render(p, N, out) {
+                const o = p.o, nc = p.pal.length, frames = p.sec * 40;
+                for (let k = 0; k < N.n; k++) {
+                    const W = Math.max(2, Math.round(N.bw ? N.bw[k] : N.w)), H = Math.max(2, Math.round(N.bh ? N.bh[k] : N.h));
+                    const x = Math.round(N.u[k] * (W - 1)), y = Math.round(N.v[k] * (H - 1));
+                    // flakes per column ~ count spread over the buffer, falling speed/20 rows a frame
+                    const per = Math.max(1, W * H / Math.max(1, o.count * 4));
+                    const fall = y + frames * o.speed / 20 + hash(x * 977 + 5) * per;
+                    const cell = Math.floor(fall / per);
+                    if (Math.floor(fall) % Math.max(1, Math.round(per)) === 0 && hash(x * 131 + cell * 7) < 0.6) palPick(p.pal, Math.floor(hash(cell + x) * nc), out, 3 * k);
+                }
+            },
+        },
+        {
+            // StrobeEffect: random lights flashing for a few frames each.
+            id: 'strobe', label: 'Strobe', xl: 'Strobe', use: ['part', 'hit'],
+            options: { count: 3, duration: 10 },
+            labels: { count: 'Flashes per frame', duration: 'Flash length (frames)' },
+            settings: o => `E_CHECKBOX_Strobe_Music=0,E_SLIDER_Number_Strobes=${Math.round(o.count)},E_SLIDER_Strobe_Duration=${Math.round(o.duration)},E_SLIDER_Strobe_Type=1`,
+            render(p, N, out) {
+                const o = p.o, nc = p.pal.length, frame = Math.floor(p.sec * 40), dur = Math.max(1, Math.round(o.duration));
+                for (let k = 0; k < N.n; k++) {
+                    const s = N.seed[k];
+                    // `count` new flashes a frame anywhere in the buffer
+                    const chance = Math.min(1, Math.max(1, o.count) / Math.max(1, (N.bw ? N.bw[k] * N.bh[k] : N.w * N.h)));
+                    for (let a = 0; a < dur; a++) {
+                        const f = frame - a;
+                        if (hash(s * 7 + f * 2654435761) < chance) { palPick(p.pal, Math.floor(hash(s + f) * nc), out, 3 * k, 1 - a / dur); break; }
+                    }
+                }
+            },
+        },
+        {
+            // OffEffect: the lights go dark, hiding every row under it.
+            id: 'off', label: 'Off (dark)', xl: 'Off', use: ['part', 'hit'], blackout: true,
+            options: {},
+            settings: () => '',
+            render() { },
+        },
+        {
+            // VUMeterEffect timing events: a flash on every mark of a timing track, or
+            // a bar sweeping across, back and forth from one mark to the next.
+            id: 'vumeter', label: 'Beat meter (flash / sweep on marks)', xl: 'VU Meter', use: ['part'],
+            options: { type: 'sweep', track: 'Beats', size: 6 },
+            choices: { type: ['sweep', 'flash'], track: ['Beats', 'Bars', 'Note Onsets'] },
+            labels: { type: 'Each mark', track: 'Timing track', size: 'Bar width / flash frames' },
+            settings: o => `E_CHOICE_VUMeter_TimingTrack=${o.track},E_CHOICE_VUMeter_Type=${o.type === 'flash' ? 'Timing Event Pulse' : 'Timing Event Alternate Timed Sweep'},E_SLIDER_VUMeter_Bars=${Math.max(1, Math.round(o.size))}`,
+            render(p, N, out) {
+                const o = p.o, marks = p.marks || [];
+                const now = p.abs;
+                // the mark playing now (marks are sorted)
+                let lo = 0, hi = marks.length - 1, m = -1;
+                while (lo <= hi) { const mid = (lo + hi) >> 1; if (marks[mid].s <= now) { m = mid; lo = mid + 1; } else hi = mid - 1; }
+                if (m < 0 || marks[m].s < p.start - 1e-6) return;
+                const mk = marks[m], size = Math.max(1, Math.round(o.size));
+                if (o.type === 'flash') {
+                    const fr = Math.floor((now - mk.s) * 40 + 1e-6);
+                    if (fr >= size) return;
+                    for (let k = 0; k < N.n; k++) palPick(p.pal, 0, out, 3 * k, (size - fr) / size);
+                    return;
+                }
+                if (now >= mk.e) return;
+                const count = marks.filter((x, i) => i <= m && x.s >= p.start - 1e-6).length;
+                for (let k = 0; k < N.n; k++) {
+                    const W = N.bw ? N.bw[k] : N.w;
+                    const frames = Math.max(1, (mk.e - mk.s) * 40);
+                    const startX = (W + 2 * size) / frames * ((now - mk.s) * 40) - size;
+                    let x = N.u[k] * (W - 1);
+                    if (count % 2 === 0) x = W - 1 - x;
+                    const i = Math.floor(x - startX);
+                    if (i >= 0 && i < size) palBlend(p.pal, i / size * (p.pal.length - 1), out, 3 * k);
                 }
             },
         },
@@ -466,7 +706,7 @@ const Effects = (() => {
     // marquee round a window) run on each model separately by default; things
     // that travel (chases, washes) run across the whole yard.
     // (moving heads too: xLights only runs the Moving Head effect on each head's own buffer)
-    const PER_MODEL = new Set(['bars', 'spirals', 'pinwheel', 'shockwave', 'marquee', 'moving', 'fan', 'ripple', 'spirograph']);
+    const PER_MODEL = new Set(['bars', 'spirals', 'pinwheel', 'shockwave', 'marquee', 'moving', 'fan', 'ripple', 'spirograph', 'wave', 'meteors', 'curtain', 'morph', 'snowflakes', 'strobe', 'vumeter']);
     for (const e of LIST) e.perModel = PER_MODEL.has(e.id);
 
     const BY_ID = new Map(LIST.map(e => [e.id, e]));
@@ -564,13 +804,29 @@ const Effects = (() => {
 
     const hexToRgb = h => { const n = parseInt(h.replace('#', ''), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 
-    function paletteString(colors) {
+    // extra: { sparkles: 0..200, music: bool } -> palette sparkles (white)
+    function paletteString(colors, extra = null) {
         const slots = colors.slice(0, 8);
         while (slots.length < 8) slots.push('#000000');
         const parts = [];
         for (let i = 0; i < 8; i++) parts.push(`C_BUTTON_Palette${i + 1}=${slots[i]}`);
         for (let i = 0; i < Math.min(8, colors.length); i++) parts.push(`C_CHECKBOX_Palette${i + 1}=1`);
+        if (extra && extra.sparkles > 0) {
+            parts.push(`C_SLIDER_SparkleFrequency=${Math.round(Math.min(200, extra.sparkles))}`, 'C_COLOURPICKERCTRL_SparklesColour=#FFFFFF');
+            if (extra.music) parts.push('C_CHECKBOX_MusicSparkles=1');
+        }
         return parts.sort().join(',');
+    }
+
+    // The same look, turned round (a later phrase, or every other beat of a chopped row).
+    const FLIP = { 'Left-Right': 'Right-Left', 'Right-Left': 'Left-Right', 'From Middle': 'To Middle', 'To Middle': 'From Middle', up: 'down', down: 'up', expand: 'compress', compress: 'expand', Left: 'Right', Right: 'Left', left: 'right', right: 'left', 'Right to Left': 'Left to Right', 'Left to Right': 'Right to Left', Down: 'Up', Up: 'Down', Explode: 'Implode', Implode: 'Explode', open: 'close', close: 'open' };
+    function flip(effect, o) {
+        const out = { ...o };
+        for (const k of ['direction', 'movement', 'effect']) if (out[k] && FLIP[out[k]]) out[k] = FLIP[out[k]];
+        if (effect === 'pinwheel' && out.speed) out.speed = -out.speed;
+        if (effect === 'spirals' && out.rotation) out.rotation = -out.rotation;
+        if (effect === 'fan') out.reverse = out.reverse ? 0 : 1;
+        return out;
     }
 
     const resetMovingHeads = () => { mhState = {}; };
@@ -580,6 +836,6 @@ const Effects = (() => {
         LIST, get: id => BY_ID.get(id), resetMovingHeads, movingHeadState, MH_PATTERNS,
         get SCHEMES() { return schemes; },
         DEFAULT_SCHEMES, setSchemes, resetSchemes, randomScheme,
-        hexToRgb, paletteString, ADD, BLENDS,
+        hexToRgb, paletteString, ADD, BLENDS, flip, curveAt, curveString, hash,
     };
 })();
