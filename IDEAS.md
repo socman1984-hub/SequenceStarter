@@ -70,6 +70,48 @@ effects (Morph, VU Meter, Warp, Curtain, Shader, Kaleidoscope, Candle, Wave), va
 moving Shockwave/Fan centre, twisting Pinwheel), more layers on matrices (they stack 7–8),
 Shadow/Average blends. Ripple's preview on spinners is ~1.6× dimmer than xLights.
 
+### Lessons from the owner's show folder (survey of 56 sequences, 2026-10-04)
+
+All `.xsq` in `C:\xLights\Show` except backups and the four made by Claude: 83,676 effects.
+Scripts and full reports: `~/.claude/skills/xlights-sequence/reference/survey/technique_survey*.js`,
+`report_techniques.txt`, `report_technique_chains.txt`. (The earlier per-prop survey is
+`report_effects.txt` there.) What they do that the tool doesn't, biggest first:
+
+1. **Short effects, one per beat.** The four most used effects (chase 28%, shockwave 18%,
+   colour wash 12%, on 12%) last about half a second; 34% of them are exactly one beat long,
+   and 67% of all effects start exactly on a timing mark. Consecutive chases on a prop **flip
+   direction half the time** (ping-pong each beat) and On / Colour wash **change colour 25–40% of
+   the time**. Our steady rows are one long effect per part. Idea: a row option *Restart every
+   beat / bar* that chops it, alternating direction and/or colour; ideas use it in lively parts.
+2. **3D looks are the norm:** Pinwheel 3D 61% (we write None), Spirals 3D 77% (we write off),
+   Bars 3D 82% (off), chase fade "From Head" 61%. Switch our defaults (and the preview) to 3D.
+3. **Sparkles on the colours:** 15% of effects have palette sparkles, 7.5% music-reactive
+   sparkles. A *Sparkles* row option (C_SLIDER_SparkleFrequency / C_CHECKBOX_MusicSparkles).
+4. **Effects we don't have, by how many of the 56 songs use them:** Wave 38, VU Meter 36 (mostly
+   "Timing Event" pulses and sweeps driven by a timing track), Meteors 33, Pictures 31, Video 35
+   (likely matrix-only), Morph 27, Snowflakes 26, Shader 26, Shape 23, Warp 21, Curtain 20,
+   Garlands 19, Strobe 17, Galaxy 16. **Off** in 43 songs (a prop deliberately dark ~8 s).
+5. **Value curves** on 1 effect in 12: Pinwheel arm size growing (618), Spirals rotation (361),
+   Shockwave end width / radius / centre moving (765), Pinwheel twist (207), Curtain rotation,
+   chase colour mix. Curve shapes: Ramp, Ramp Up/Down, Sine, Saw Tooth.
+6. **Wipe-style transitions** instead of fades at effect edges: Wipe (≈1,200), Circle Explode
+   (≈270), Zoom, Fold, Bow Tie, Circular Swirl, Blinds, From Middle, Doorway, Dissolve. A part
+   could *come in* with a wipe or circle explode.
+7. **Buffer tricks:** rotation / zoom of the buffer (12% have a buffer transform; rotation curves
+   spin an effect), blur 5%, *Per Model Single Line* on groups (a chase through each prop as one
+   line) 2%, *Layer Star* on stars.
+8. **More timing tracks to react to:** Note Onsets (13 songs), Drums, Structure, Flourishes,
+   Piano, per-vocal tracks. We have beats / kick / snare / words; a *Melody notes* trigger from
+   the vocal-notes analysis would add the "note onsets" style.
+9. **Colours:** 54% one colour, 27% two, 15% three — matches what we do. Brightness / contrast /
+   saturation adjust on ~5%.
+10. **Blends:** 90% Normal; Layered 2%, 2 is Unmask 2%, Average 1.3% (masks are used, rarely).
+
+**Suggested order:** (1) beat-chopped rows with direction/colour flips, (2) 3D defaults,
+(3) sparkles, (4) Wave, Meteors, Curtain, Morph, Snowflakes, Strobe, Off and VU-Meter timing
+pulses, (5) value curves on pinwheel/spirals/shockwave, (6) wipe / circle-explode part
+entrances, (7) buffer rotation, (8) melody-notes trigger.
+
 ### Using the empty space under the preview (wide screens)
 
 The preview column ends where the preview does, while the plan keeps scrolling beside it.
