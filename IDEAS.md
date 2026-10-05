@@ -8,11 +8,19 @@ moves to **Done** with the date.
 - **Live:** https://socman1984-hub.github.io/LightsAutoSequencer/ (GitHub Pages, public repo
   `socman1984-hub/LightsAutoSequencer`, GPLv3). Guide: `tutorial.html`. Feedback: Discord
   https://discord.gg/xjgWweqCEs. Posted to the xLights Facebook group; first testers replied.
-- **Built but not on the website yet** (committed locally, waiting for "push it"): the File
-  menu and Export dialog, ⧉ pop-out preview, moving heads (effect, beams, fixtures, the Moving
-  heads box), the step tracker, layered looks on matrices and big singing props, image props.
+- **Everything built is live** (latest release 2026.10.04.4, pushed 2026-10-04): moving heads,
+  File menu, pop-out preview, older-xLights support and error reporting, 24 effects (incl. Fan,
+  Ripple, Spirograph, Wave, Meteors, Curtain, Morph, Snowflakes, Strobe, Off, Beat meter), masks,
+  overlay groups, beat-chopped rows, sparkles, wipe/circle transitions, spin, 3D looks, value
+  curves, new triggers, the project-banner fix. Nothing is waiting to be pushed.
+- **Waiting on testers:** the xLights 2023 show folder that crashed (need its
+  `xlights_rgbeffects.xml` or the copied error); whether File › Open project now works for the
+  owner (fixed a hidden banner; the native picker itself couldn't be tested here).
 - **Needs checking in a real browser:** the pop-out window (this test browser blocks new
   windows), Chrome's *Allow on every visit* prompt, the native open/save dialogs.
+- **Next up, if wanted:** the open items in *Lessons from the owner's show folder* and *Lessons
+  from pro sequences* (Pictures/Video, Shader, Warp, blur/zoom, more transition styles, more
+  matrix layers), and the list below.
 
 ## Open ideas
 
