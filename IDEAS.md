@@ -65,9 +65,10 @@ other sequences, so only general technique is taken, never settings. What they d
 9. **Value curves** mainly in the newest one (Fight Song, 20%): Pinwheel twist, Shockwave
    centre moving, Fan centre moving.
 
-**Status:** findings only; nothing built. Suggested order: Fan + Ripple + Spirograph effects,
-fades on rows, Overlay - Centered for round-prop groups, dense short hits on spinners/flakes,
-then masks on matrices and part groups.
+**Status (2026-10-04): built** — 1–7 in part (see Done). Still open from this list: more
+effects (Morph, VU Meter, Warp, Curtain, Shader, Kaleidoscope, Candle, Wave), value curves (a
+moving Shockwave/Fan centre, twisting Pinwheel), more layers on matrices (they stack 7–8),
+Shadow/Average blends. Ripple's preview on spinners is ~1.6× dimmer than xLights.
 
 ### Using the empty space under the preview (wide screens)
 
@@ -308,6 +309,18 @@ show); 7 the test hooks stay on purpose (harmless, used for testing); 8 not need
   or whether a prop suits the moment, so a high score is a good start, not a verdict.
 
 ## Done
+
+- **2026-10-04:** Pro techniques from the xTreme study. New effects Fan, Ripple, Spirograph
+  (previews ported from xLights' render code). Row *Mix*: add, mask (*1 is Unmask*) or cut-out
+  (*1 is Mask*), done in the preview the way xLights' PixelBuffer mixes. *On a group → Every prop
+  the same* writes *Overlay - Centered* (same-size props) or *- Scaled*. Row *Fade in / out* on
+  every effect (`softIn` / `softOut`; a straight cut removes them where parts meet). Ideas: round
+  props in groups use Overlay; loud parts add kick + snare hits (fan / ripple / shockwave) on
+  round props; matrices and mega trees get a mask half the time (butterfly/wash bed + moving
+  shape); props with submodels sometimes get per-part rows (numbered submodels merged, e.g.
+  snowflake *Level-1..6*, mini tree *Tree Only* / *Star Only*). Checked with xLights renders on
+  Dusty Bibles: spirograph 1.00, fan on snowflakes 0.99, mask 0.91, hits 0.91 (xLights /
+  preview brightness); a full idea plan (2,985 effects) correlates 0.8–0.93 per prop.
 
 - **2026-10-04:** Older xLights versions. A tester said loading a show from xLights 2023
   crashed. Could not reproduce: seven vendor layouts saved by xLights 2021–2025 and a

@@ -59,7 +59,10 @@ const Sequencer = (() => {
     //         level (brightness %, default 100), endFade / startFade (seconds of fade-out at
     //         the end / fade-in at the start),
     //         bars: [from, to) bar indexes within the part (a phrase of a long part; default all),
-    //         colourBy: 'bar' (hits change colour each bar rather than each hit) }
+    //         colourBy: 'bar' (hits change colour each bar rather than each hit),
+    //         softIn / softOut: seconds every effect of the row fades in / out,
+    //         blend: 'unmask' | 'mask' (how it mixes with the layers below; default adds),
+    //         overlay: on a group, every prop shows the same thing (xLights' Overlay buffer) }
 
     const emptyPlan = () => ({ version: 2, whole: { rows: [] }, sections: {} });
     const newId = () => Math.random().toString(36).slice(2, 9);
@@ -166,13 +169,18 @@ const Sequencer = (() => {
                     const perModel = isGroup && (eff.dmx || (row.perModel ?? eff.perModel));
                     const level = row.level != null ? Math.max(0, Math.min(100, row.level)) : 100;
                     const endFade = row.endFade > 0 && n === spans.length - 1 ? Math.min(row.endFade, (eMs - sMs) / 1000) : 0;
-                    const startFade = row.startFade > 0 && n === 0 ? Math.min(row.startFade, (eMs - sMs) / 1000) : 0;
+                    let startFade = row.startFade > 0 && n === 0 ? Math.min(row.startFade, (eMs - sMs) / 1000) : 0;
+                    // soft edges on every effect of the row, never more than 40% of it
+                    const len = (eMs - sMs) / 1000;
+                    if (row.softIn > 0 && !startFade) startFade = Math.min(row.softIn, len * 0.4);
+                    const softOut = row.softOut > 0 && !endFade ? Math.min(row.softOut, len * 0.4) : 0;
                     // moving heads take only the Moving Head effect, and it only moves heads:
                     // anything else would write colours into their pan / tilt channels
                     if (!headCache.has(target)) headCache.set(target, Show.movingHeadsIn(show, target).length);
                     const heads = headCache.get(target);
                     if (eff.dmx ? !heads : (heads && show.models.has(target) && show.models.get(target).mh)) { if (!problems.includes(target)) problems.push(target); continue; }
-                    place(target, { sMs, eMs, eff, o, colors, pal, index, rowId: row.id, isGroup, perModel, level: eff.dmx ? 100 : level, endFade: eff.dmx ? 0 : endFade, startFade: eff.dmx ? 0 : startFade, target }, isEvent ? 1 : 0);
+                    const blend = !eff.dmx && (row.blend === 'unmask' || row.blend === 'mask') ? row.blend : null;
+                    place(target, { sMs, eMs, eff, o, colors, pal, index, rowId: row.id, isGroup, perModel: perModel || (isGroup && !!row.overlay && !eff.dmx), overlay: isGroup && !!row.overlay && !eff.dmx, blend, level: eff.dmx ? 100 : level, endFade: eff.dmx ? 0 : endFade || softOut, startFade: eff.dmx ? 0 : startFade, target }, isEvent || blend ? 1 : 0);
                     count++;
                 }
             });
@@ -209,13 +217,14 @@ const Sequencer = (() => {
             const n = list.length;
             const N = { n, u: new Float32Array(n), v: new Float32Array(n), k: new Int32Array(n), seed: new Int32Array(n), g: new Int32Array(n), w: 96, h: 50 };
             // the same nodes seen through each model's own buffer
-            const NM = { ...N, u: new Float32Array(n), v: new Float32Array(n), k: new Int32Array(n) };
+            const NM = { ...N, u: new Float32Array(n), v: new Float32Array(n), k: new Int32Array(n), bw: new Float32Array(n), bh: new Float32Array(n) };
             list.forEach((t, i) => {
                 N.u[i] = t.u; N.v[i] = t.v; N.k[i] = i; N.g[i] = t.model.offset + t.i; N.seed[i] = N.g[i] * 2654435761 | 0;
-                NM.u[i] = t.mu; NM.v[i] = t.mv; NM.k[i] = t.i;
+                NM.u[i] = t.mu; NM.v[i] = t.mv; NM.k[i] = t.i; NM.bw[i] = Math.max(1, t.bw || 1); NM.bh[i] = Math.max(1, t.bh || 1);
             });
             const m = show.models.get(name);
             if (m) { N.w = NM.w = Math.max(8, m.bufW); N.h = NM.h = Math.max(8, m.bufH); }
+            else if (!show.groups.has(name) && list[0].bw) { N.w = list[0].bw; N.h = list[0].bh; }
             targets.push({ name, N, NM, model: m || null, layers: r.layers.filter(Boolean), tmp: new Float32Array(3 * n), acc: new Float32Array(3 * n) });
         }
         return { targets, total: offset, colors: new Float32Array(3 * offset) };
@@ -265,6 +274,23 @@ const Sequencer = (() => {
         lit(mouth + '2', c1);
     }
 
+    // xLights' mask blends (PixelBuffer mixColors), this layer `top` over `acc`:
+    // unmask keeps the colour below where top is lit, at top's brightness (a dark
+    // pixel below turns grey, as in xLights); mask blacks out where top is lit.
+    function blendInto(mode, acc, top, n) {
+        for (let k = 0; k < n; k++) {
+            const i = 3 * k;
+            const fv = Math.min(255, Math.max(top[i], top[i + 1], top[i + 2]));
+            if (mode === 'mask') { if (fv > 0) acc[i] = acc[i + 1] = acc[i + 2] = 0; continue; }
+            if (fv <= 0) { acc[i] = acc[i + 1] = acc[i + 2] = 0; continue; }
+            const r = Math.min(255, acc[i]), g = Math.min(255, acc[i + 1]), b = Math.min(255, acc[i + 2]);
+            const bv = Math.max(r, g, b);
+            if (bv <= 0) { acc[i] = acc[i + 1] = acc[i + 2] = fv; continue; }
+            const f = fv / bv;
+            acc[i] = r * f; acc[i + 1] = g * f; acc[i + 2] = b * f;
+        }
+    }
+
     // Colours for every node at time t (seconds) into prep.colors.
     function renderFrame(prep, song, t) {
         const out = prep.colors;
@@ -297,7 +323,10 @@ const Sequencer = (() => {
                 if (fx.endFade > 0) gain *= Math.max(0, Math.min(1, (p.dur - p.sec) / fx.endFade));
                 if (fx.startFade > 0) gain *= Math.max(0, Math.min(1, p.sec / fx.startFade));
                 if (gain !== 1) for (let i = 0; i < tmp.length; i++) tmp[i] *= gain;
-                if (!any) { acc.set(tmp); any = true; }
+                if (fx.blend) {
+                    if (!any) { acc.fill(0); any = true; }
+                    blendInto(fx.blend, acc, tmp, N.n);
+                } else if (!any) { acc.set(tmp); any = true; }
                 else for (let i = 0; i < tmp.length; i++) acc[i] += tmp[i];
             }
             if (!any) continue;
@@ -321,15 +350,27 @@ const Sequencer = (() => {
         const pals = [], palIdx = new Map();
         const db = [], dbIdx = new Map();
         const ctx = { lyricTrack: LYRIC_TRACK };
+        // Overlay: every member draws the same picture. Same-size props sit centred
+        // in one shared buffer; mixed sizes are each scaled to it (as the preview draws).
+        const overlayCache = new Map();
+        const overlayStyle = name => {
+            if (!overlayCache.has(name)) {
+                const sizes = new Set();
+                for (const t of Show.resolveTarget(show, name)) sizes.add(t.bw + 'x' + t.bh);
+                overlayCache.set(name, sizes.size <= 1 ? 'Overlay - Centered' : 'Overlay - Scaled');
+            }
+            return overlayCache.get(name);
+        };
         const refOf = fx => {
             let s = fx.eff.settings(fx.o, { ...ctx, fx, show });
             // A group row's buffer has to be stated, or xLights uses the group's
             // default layout and the effect lands somewhere else than the preview shows.
-            if (fx.isGroup) s = (fx.perModel ? 'B_CHOICE_BufferStyle=Per Model Default,' : 'B_CHOICE_BufferStyle=Per Preview,') + s;
+            if (fx.isGroup) s = `B_CHOICE_BufferStyle=${fx.overlay ? overlayStyle(fx.target) : fx.perModel ? 'Per Model Default' : 'Per Preview'},` + s;
             if (fx.level !== 100) s += `,C_SLIDER_Brightness=${Math.round(fx.level)}`;
             if (fx.endFade > 0 && !/T_TEXTCTRL_Fadeout=/.test(s)) s += `,T_TEXTCTRL_Fadeout=${fx.endFade.toFixed(2)}`;
             if (fx.startFade > 0 && !/T_TEXTCTRL_Fadein=/.test(s)) s += `,T_TEXTCTRL_Fadein=${fx.startFade.toFixed(2)}`;
-            if (fx.above) s += Effects.ADD;
+            if (fx.blend && Effects.BLENDS[fx.blend]) s += `,T_CHOICE_LayerMethod=${Effects.BLENDS[fx.blend].xl}`;
+            else if (fx.above) s += Effects.ADD;
             if (!dbIdx.has(s)) { dbIdx.set(s, db.length); db.push(s); }
             return dbIdx.get(s);
         };

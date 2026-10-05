@@ -157,7 +157,14 @@ Ctrl+Z undoes. Edits are kept per song (keyed by word position + word), survive
 - *Fit with the music* under the plan scores it (0-100): does the house follow loudness,
   does the beat show, are loud parts brighter. *Try 4 ideas, keep the best fit* makes four
   ideas and keeps the best one. Light rows have *Brightness %* and, for steady rows,
-  *Fade at end*; each part has *Hold a breath at the end*.
+  *Fade at end*, *Fade in / out* (every effect), *Mix* (add or mask) and, on groups,
+  *On a group*; each part has *Hold a breath at the end*.
+- Ideas borrow pro technique (studied from bought sequences; techniques only, no effects
+  copied): round props in a group all show the same picture, loud parts give them a fast
+  run of short hits on kick and snare, almost every effect fades in or out, matrices and
+  mega trees often get a mask (a colourful bed seen through moving blades, spirals or a
+  ring), and props built from parts (rings, spokes, star on top) sometimes light each part
+  differently, the same part on every prop together.
 - A long part changes with its energy: where the music gets clearly louder or quieter
   inside it, ideas split it into phrases (same props, more or fewer lit, the other colour,
   moving things turned round). Light rows can be limited to *Bars* from / to.
@@ -191,11 +198,16 @@ same file each time (Shift+click *Save project* to save elsewhere); other browse
 it. The page warns before closing with unsaved changes. Work is also kept in the browser
 between visits, but the project file is the copy to trust.
 - **Effects** (`js/effects.js`): Solid, Flash-and-fade, Colour wash, Chase, Bars,
-  Spirals, Pinwheel, Twinkle, Shockwave, Marquee, Butterfly, Singing face (Faces, driven
-  by the Lyrics track), Show the words (Text on a matrix, driven by the Lyrics track).
-  Each has a browser renderer for the preview and an xLights settings string taken from
-  working effects in real sequences. On group rows the buffer is written explicitly
-  (*Per Model Default* or *Per Preview*), so xLights draws what the preview shows.
+  Spirals, Pinwheel, Twinkle, Shockwave, Marquee, Butterfly, Fan, Ripple, Spirograph,
+  Moving head, Singing face (Faces, driven by the Lyrics track), Show the words (Text on a
+  matrix, driven by the Lyrics track). Each has a browser renderer for the preview and an
+  xLights settings string taken from working effects in real sequences (Fan, Ripple and
+  Spirograph previews are ports of xLights' own render code). On group rows the buffer is
+  written explicitly (*Per Model Default*, *Per Preview*, or *Overlay - Centered / Scaled*
+  for "every prop the same"), so xLights draws what the preview shows.
+- **Layers**: rows on the same lights stack. Upper rows add light (*Additive*), or act as a
+  mask (*1 is Unmask*: the shape shows the colours below; *1 is Mask*: the shape cuts them
+  out). Rows can fade in and out on every effect.
 - **Preview accuracy**: rendering the exported sequence with xLights headless and
   comparing bulb by bulb at four moments, 76–82% of bulbs agree on/off; solids, faces,
   words on the matrix (95–97%) and washes match; chases and marquees have the right

@@ -825,12 +825,12 @@ const Show = (() => {
         if (seen.has(name)) return [];
         seen.add(name);
         // u,v: the row's own buffer. mu,mv: the node's own model buffer, used
-        // when a group's effect runs "per model".
+        // when a group's effect runs "per model"; bw x bh: that buffer's size.
         const m = show.models.get(name);
         if (m) {
             return m.nodes.map((n, i) => {
                 const u = m.bufW > 1 ? n.bx / (m.bufW - 1) : 0.5, v = m.bufH > 1 ? n.by / (m.bufH - 1) : 0.5;
-                return { model: m, i, u, v, mu: u, mv: v };
+                return { model: m, i, u, v, mu: u, mv: v, bw: m.bufW, bh: m.bufH };
             });
         }
         const slash = name.indexOf('/');
@@ -840,9 +840,10 @@ const Show = (() => {
             if (sm) {
                 const out = [];
                 const rows = sm.lines.filter(l => l.length);
+                const bw = Math.max(1, ...rows.map(l => l.length)), bh = Math.max(1, rows.length);
                 rows.forEach((line, r) => line.forEach((i, k) => {
                     const u = line.length > 1 ? k / (line.length - 1) : 0.5, v = rows.length > 1 ? r / (rows.length - 1) : 0.5;
-                    out.push({ model: mm, i, u, v, mu: u, mv: v });
+                    out.push({ model: mm, i, u, v, mu: u, mv: v, bw, bh });
                 }));
                 return out;
             }
@@ -860,7 +861,7 @@ const Show = (() => {
             for (const t of list) { const p = t.model.nodes[t.i].pts[0]; x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
             return list.map(t => {
                 const p = t.model.nodes[t.i].pts[0];
-                return { model: t.model, i: t.i, u: x1 > x0 ? (p.x - x0) / (x1 - x0) : 0.5, v: y1 > y0 ? (p.y - y0) / (y1 - y0) : 0.5, mu: t.mu, mv: t.mv };
+                return { model: t.model, i: t.i, u: x1 > x0 ? (p.x - x0) / (x1 - x0) : 0.5, v: y1 > y0 ? (p.y - y0) / (y1 - y0) : 0.5, mu: t.mu, mv: t.mv, bw: t.bw, bh: t.bh };
             });
         }
         return [];

@@ -1,5 +1,19 @@
 [
   {
+    "version": "2026.10.04.3",
+    "date": "2026-10-04",
+    "title": "New effects and layered looks",
+    "items": [
+      ["new", "Three new effects: Fan (spinning blades), Ripple (a circle, star, square or snowflake that grows out or shrinks in) and Spirograph (line patterns). Checked against xLights' own render."],
+      ["new", "Masks: a row can be a moving shape that shows the colours of the row under it only where it's lit, or cuts them out. Ideas often use one on the matrix and mega tree."],
+      ["new", "On a group: \"Every prop the same\" makes every spinner, snowflake or wreath show exactly the same picture (xLights' Overlay). Ideas use it for round props."],
+      ["new", "Fade in / Fade out on every light row; ideas now soften nearly every effect."],
+      ["better", "Loud parts give spinners and snowflakes a fast run of short hits on the kick and snare."],
+      ["better", "Props made of parts (rings, spokes, the star on a mini tree) sometimes get a different look for each part, the same part on every prop together."],
+      ["better", "Ideas spread their effects wider, including the new ones, on every kind of prop."]
+    ]
+  },
+  {
     "version": "2026.10.04.2",
     "date": "2026-10-04",
     "title": "Older xLights versions",

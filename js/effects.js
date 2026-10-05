@@ -10,6 +10,14 @@
 // bottom->top) and its order k along the row. out[] receives r,g,b 0..255.
 const Effects = (() => {
     const ADD = ',T_CHOICE_LayerMethod=Additive';
+    // Row blends besides adding light. xLights' layer method on the upper layer
+    // (PixelBuffer mixColors): "1 is Unmask" shows the layer below only where this
+    // one is lit, at this one's brightness; "1 is Mask" cuts this one's shape out of it.
+    const BLENDS = {
+        add: { label: 'Add to the layers below', xl: 'Additive' },
+        unmask: { label: 'Shape shows the colours below', xl: '1 is Unmask' },
+        mask: { label: 'Shape cuts out of the layers below', xl: '1 is Mask' },
+    };
 
     const frac = x => x - Math.floor(x);
     const clamp01 = x => x < 0 ? 0 : x > 1 ? 1 : x;
@@ -43,9 +51,62 @@ const Effects = (() => {
         return clamp01(b);
     };
 
+    // Fan_Revolutions is in degrees over the whole effect (slider max 3600).
+    const fanRevs = o => Math.round(Math.max(0, Math.min(10, +o.turns || 0)) * 360);
+
     const fades = o => (o.fadeIn ? `,T_TEXTCTRL_Fadein=${o.fadeIn}` : '') + (o.fadeOut ? `,T_TEXTCTRL_Fadeout=${o.fadeOut}` : '');
 
-    const CHASE_DIRS = ['Left-Right', 'Right-Left', 'From Middle', 'To Middle', 'Bounce from Left'];
+    // How far out a shape's edge is at polar angle a (1 = circle), for Ripple.
+    function shapeProfile(shape) {
+        const poly = (n, rot) => a => { const s = 2 * Math.PI / n; const x = ((a - rot) % s + s) % s; return Math.cos(Math.PI / n) / Math.cos(x - s / 2); };
+        const star = (n, inner) => a => { const s = 2 * Math.PI / n; const x = ((a - Math.PI / 2) % s + s) % s / s; return inner + (1 - inner) * Math.abs(1 - 2 * x); };
+        switch (shape) {
+            case 'Square': return poly(4, Math.PI / 4);
+            case 'Triangle': return poly(3, Math.PI / 2);
+            case 'Star': return star(5, 0.4);
+            case 'Snow Flake': return star(6, 0.2);
+            default: return () => 1;
+        }
+    }
+
+    // The Spirograph line for one frame on a W x H buffer (palette index + 1 per cell).
+    const spiroCache = new Map();
+    function spiroGrid(p, W, H) {
+        const o = p.o;
+        const key = `${o.R}|${o.r}|${o.d}|${o.speed}|${o.animate}|${o.length}|${o.width}|${p.pal.length}|${W}x${H}|${Math.round(p.sec * 40)}`;
+        let g = spiroCache.get(key);
+        if (g) return g;
+        g = new Uint8Array(W * H);
+        const nc = p.pal.length;
+        const frames = Math.round(p.sec * 40);
+        const state = Math.floor(frames * o.speed * 25 / 50);
+        const xc = W / 2, yc = H / 2;
+        const R = xc * o.R / 100;
+        let r = Math.max(0.00001, xc * o.r / 100);
+        if (r > R) r = R;
+        let d = xc * o.d / 100;
+        if (o.animate) d += frames * o.animate * 25 / 5000 * d;
+        const width = Math.max(1, Math.round(o.width));
+        const step = 1 / width, stepw = 1 / (Math.log10(width) + 1);
+        const dmod = Math.max(1, Math.floor(W / nc));
+        const len = Math.max(0, o.length) * 18, m = state % 1440;
+        for (let i = 1; i <= len; i += step) {
+            const t = (i + m) * Math.PI / 180;
+            const x = (R - r) * Math.cos(t) + d * Math.cos(((R - r) / r) * t) + xc;
+            const y = (R - r) * Math.sin(t) + d * Math.sin(((R - r) / r) * t) + yc;
+            const ci = Math.min(nc - 1, Math.floor(Math.hypot(x - xc, y - yc) / W * 100 / dmod));
+            const tt = ((R - r) / r) * t;
+            for (let w = -width / 2; w <= width / 2; w += stepw) {
+                const xx = Math.trunc(x + w * Math.cos(tt)), yy = Math.trunc(y + w * Math.sin(tt));
+                if (xx >= 0 && xx < W && yy >= 0 && yy < H) g[yy * W + xx] = ci + 1;
+            }
+        }
+        if (spiroCache.size > 64) spiroCache.clear();
+        spiroCache.set(key, g);
+        return g;
+    }
+
+    const CHASE_DIRS =['Left-Right', 'Right-Left', 'From Middle', 'To Middle', 'Bounce from Left'];
 
     const LIST = [
         {
@@ -213,6 +274,85 @@ const Effects = (() => {
             },
         },
         {
+            // FanEffect::Render: blades sweeping round the centre; as a hit (grow < 100)
+            // they grow out and shrink back in.
+            id: 'fan', label: 'Fan (spinning blades)', xl: 'Fan', use: ['part', 'hit'],
+            options: { blades: 3, width: 50, turns: 2, twist: 0, reverse: 0, grow: 100 },
+            labels: { blades: 'Blades', width: 'Blade width %', turns: 'Turns', twist: 'Blade bend °', reverse: 'Reverse (0/1)', grow: 'Time at full size %' },
+            settings: o => `E_CHECKBOX_Fan_Blend_Edges=1,E_CHECKBOX_Fan_Reverse=${o.reverse ? 1 : 0},E_NOTEBOOK_Fan=Position,E_SLIDER_Fan_Accel=0,E_SLIDER_Fan_Blade_Angle=${Math.round(o.twist)},E_SLIDER_Fan_Blade_Width=${Math.round(o.width)},E_SLIDER_Fan_CenterX=50,E_SLIDER_Fan_CenterY=50,E_SLIDER_Fan_Duration=${Math.round(o.grow)},E_SLIDER_Fan_Element_Width=100,E_SLIDER_Fan_End_Radius=150,E_SLIDER_Fan_Num_Blades=${Math.round(o.blades)},E_SLIDER_Fan_Num_Elements=1,E_SLIDER_Fan_Revolutions=${fanRevs(o)},E_SLIDER_Fan_Start_Angle=0,E_SLIDER_Fan_Start_Radius=1`,
+            render(p, N, out) {
+                const o = p.o, nc = p.pal.length;
+                const blades = Math.max(1, Math.round(o.blades));
+                const div = 360 / blades, bw = div * Math.max(5, Math.min(100, o.width)) / 100, ca = bw / nc;
+                const off = p.t * fanRevs(o), grow = Math.max(0, Math.min(100, o.grow)) / 100, ramp = (1 - grow) / 2;
+                for (let k = 0; k < N.n; k++) {
+                    const W = N.bw ? N.bw[k] : N.w, H = N.bh ? N.bh[k] : N.h;
+                    const big = Math.max(W, H) / 200;
+                    let r1 = big, r2 = 150 * big;
+                    const maxR = r2, delta = r2 - r1;
+                    if (grow < 1) {
+                        if (p.t < ramp) r2 -= delta * (1 - p.t / ramp);
+                        else if (p.t > 1 - ramp) r1 = r2 - delta * ((1 - p.t) / ramp);
+                    }
+                    const x1 = (N.u[k] - 0.5) * W, y1 = (N.v[k] - 0.5) * H;
+                    const r = Math.hypot(x1, y1);
+                    if (r < r1 || r > r2) continue;
+                    let th = Math.atan2(x1, y1) * 180 / Math.PI + (r / maxR) * o.twist;
+                    th = o.reverse ? off - th + 180 : th + 180 + off;
+                    th = ((th % 360) + 360) % 360;
+                    const a = th % div;
+                    if (a > bw) continue;
+                    const ea = a % ca;
+                    palPick(p.pal, Math.min(nc - 1, Math.floor(a / ca)), out, 3 * k, clamp01(1 - Math.abs(ea - ca / 2) * 2 / ca));
+                }
+            },
+        },
+        {
+            // RippleEffect, the classic style: a shape grows out of (or into) the
+            // centre with a fading 3D edge; each cycle takes the next colour.
+            id: 'ripple', label: 'Ripple (growing shape)', xl: 'Ripple', use: ['part', 'hit'],
+            options: { shape: 'Circle', movement: 'Explode', thickness: 4, cycles: 1 },
+            choices: { shape: ['Circle', 'Square', 'Triangle', 'Star', 'Snow Flake'], movement: ['Explode', 'Implode'] },
+            labels: { shape: 'Shape', movement: 'Grows', thickness: 'Edge thickness', cycles: 'Times' },
+            settings: o => `E_CHECKBOX_Ripple3D=1,E_CHOICE_Ripple_Movement=${o.movement},E_CHOICE_Ripple_Object_To_Draw=${o.shape},E_FILEPICKERCTRL_Ripple_SVG=,E_SLIDER_Ripple_Thickness=${Math.round(o.thickness)},E_SLIDER_Ripple_XC=0,E_SLIDER_Ripple_YC=0,E_TEXTCTRL_Ripple_Cycles=${Math.max(0.1, Math.min(30, +o.cycles)).toFixed(1)}`,
+            render(p, N, out) {
+                const o = p.o, nc = p.pal.length;
+                const pos = frac(p.t * Math.max(0.1, Math.min(30, +o.cycles)));
+                const ci = Math.min(nc - 1, Math.floor(pos * nc));
+                const th = Math.max(1, Math.round(o.thickness)), grow = o.movement !== 'Implode';
+                // the rings xLights draws: the radius steps by i (cumulatively), each fainter
+                const rings = [];
+                let rad = 0, b = 1;
+                for (let i = 0; i < th; i += 0.5) { b *= 1 - i / th; rad += grow ? i : -i; rings.push([rad, b]); }
+                const prof = shapeProfile(o.shape);
+                for (let k = 0; k < N.n; k++) {
+                    const W = N.bw ? N.bw[k] : N.w, H = N.bh ? N.bh[k] : N.h;
+                    const maxR = W > H ? W / 2 : H / 2;
+                    const r0 = grow ? maxR * pos : maxR - maxR * pos;
+                    const x1 = (N.u[k] - 0.5) * W, y1 = (N.v[k] - 0.5) * H;
+                    const d = Math.hypot(x1, y1) / prof(Math.atan2(y1, x1));
+                    let lit = 0;
+                    for (const [dr, bb] of rings) { const R = r0 + dr; if (R >= 0 && Math.abs(d - R) <= 0.75) lit = bb; }
+                    if (lit) palPick(p.pal, ci, out, 3 * k, lit);
+                }
+            },
+        },
+        {
+            // SpirographEffect: a rolling hypotrochoid line drawing.
+            id: 'spirograph', label: 'Spirograph (line pattern)', xl: 'Spirograph', use: ['part'],
+            options: { R: 70, r: 15, d: 50, speed: 10, animate: 0, length: 30, width: 2 },
+            labels: { R: 'Outer size %', r: 'Wheel size %', d: 'Pen distance %', speed: 'Speed', animate: 'Breathe', length: 'Line length', width: 'Line width' },
+            settings: o => `E_SLIDER_Spirograph_R=${Math.round(o.R)},E_SLIDER_Spirograph_d=${Math.round(o.d)},E_SLIDER_Spirograph_r=${Math.round(o.r)},E_TEXTCTRL_Spirograph_Animate=${Math.round(o.animate)},E_TEXTCTRL_Spirograph_Length=${Math.round(o.length)},E_TEXTCTRL_Spirograph_Speed=${Math.round(o.speed)},E_TEXTCTRL_Spirograph_Width=${Math.max(1, Math.round(o.width))}`,
+            render(p, N, out) {
+                for (let k = 0; k < N.n; k++) {
+                    const W = Math.max(4, Math.round(N.bw ? N.bw[k] : N.w)), H = Math.max(4, Math.round(N.bh ? N.bh[k] : N.h));
+                    const g = spiroGrid(p, W, H);
+                    const c = g[Math.round(N.v[k] * (H - 1)) * W + Math.round(N.u[k] * (W - 1))];
+                    if (c) palPick(p.pal, c - 1, out, 3 * k);
+                }
+            },
+        },
+        {
             id: 'faces', label: 'Singing face', xl: 'Faces', use: ['vocal'], needsFace: true,
             options: { face: '' },
             settings: (o, ctx) => `E_CHECKBOX_Faces_Outline=1,E_CHOICE_Faces_EyeBlinkFrequency=Normal,E_CHOICE_Faces_Eyes=Auto,E_CHOICE_Faces_FaceDefinition=${o.face},E_CHOICE_Faces_TimingTrack=${ctx.lyricTrack},T_TEXTCTRL_Fadein=.2,T_TEXTCTRL_Fadeout=.3`,
@@ -326,7 +466,7 @@ const Effects = (() => {
     // marquee round a window) run on each model separately by default; things
     // that travel (chases, washes) run across the whole yard.
     // (moving heads too: xLights only runs the Moving Head effect on each head's own buffer)
-    const PER_MODEL = new Set(['bars', 'spirals', 'pinwheel', 'shockwave', 'marquee', 'moving']);
+    const PER_MODEL = new Set(['bars', 'spirals', 'pinwheel', 'shockwave', 'marquee', 'moving', 'fan', 'ripple', 'spirograph']);
     for (const e of LIST) e.perModel = PER_MODEL.has(e.id);
 
     const BY_ID = new Map(LIST.map(e => [e.id, e]));
@@ -440,6 +580,6 @@ const Effects = (() => {
         LIST, get: id => BY_ID.get(id), resetMovingHeads, movingHeadState, MH_PATTERNS,
         get SCHEMES() { return schemes; },
         DEFAULT_SCHEMES, setSchemes, resetSchemes, randomScheme,
-        hexToRgb, paletteString, ADD,
+        hexToRgb, paletteString, ADD, BLENDS,
     };
 })();

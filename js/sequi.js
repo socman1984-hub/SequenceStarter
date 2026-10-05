@@ -1519,7 +1519,7 @@
             <div class="row-line">
               <input type="checkbox" class="rkeep" ${r.keep ? '' : 'checked'} title="Ticked: randomizing may replace this row. Untick to keep it as it is.">
               <button type="button" class="rtw" aria-expanded="${open}" title="${open ? 'Hide settings' : 'Show settings'}">${open ? '▾' : '▸'}</button>
-              <span class="rl-text"><b>${esc(eff.label)}</b> · ${esc(tShort)}${trigLabel ? ` · <span class="muted">${esc(trigLabel)}</span>` : ''}${r.level != null && r.level !== 100 ? ` · <span class="muted" title="Brightness">${r.level}%</span>` : ''}${r.bars ? ` · <span class="muted" title="Only these bars of the part">bars ${r.bars[0] + 1}–${r.bars[1] >= 9999 ? 'end' : r.bars[1]}</span>` : ''}</span>
+              <span class="rl-text"><b>${esc(eff.label)}</b> · ${esc(tShort)}${trigLabel ? ` · <span class="muted">${esc(trigLabel)}</span>` : ''}${r.level != null && r.level !== 100 ? ` · <span class="muted" title="Brightness">${r.level}%</span>` : ''}${r.bars ? ` · <span class="muted" title="Only these bars of the part">bars ${r.bars[0] + 1}–${r.bars[1] >= 9999 ? 'end' : r.bars[1]}</span>` : ''}${r.blend && Effects.BLENDS[r.blend] ? ` · <span class="muted" title="${esc(Effects.BLENDS[r.blend].label)}">${r.blend === 'mask' ? 'cut-out' : 'mask'}</span>` : ''}${r.of ? ` · <span class="muted" title="One part of each ${esc(r.of)} prop">part of ${esc(r.of)}</span>` : ''}</span>
               <span class="rl-sw">${r.colors.map(col => `<i style="background:${col}"></i>`).join('')}</span>
               <button type="button" class="btn tiny solo${soloed ? ' on' : ''}" aria-pressed="${soloed}" title="Solo: show only this row in the preview">Solo</button>
               <button type="button" class="btn tiny mute${muted ? ' on' : ''}" aria-pressed="${muted}" title="Mute: hide this row in the preview (it is still saved)">Mute</button>
@@ -1535,7 +1535,9 @@
               <label title="Only part of the section: from this bar to that bar (empty = the whole part)">Bars <span class="bars-in"><input type="number" class="bfrom" min="1" step="1" value="${r.bars ? r.bars[0] + 1 : ''}" placeholder="1"> to <input type="number" class="bto" min="1" step="1" value="${r.bars && r.bars[1] < 9999 ? r.bars[1] : ''}" placeholder="end"></span></label>
               ${eff.id !== 'faces' && !eff.dmx ? `<label title="How bright this row is (xLights' Brightness slider)">Brightness % <input type="number" class="lvl" min="0" max="100" step="5" value="${r.level ?? 100}"></label>` : ''}
               ${eff.id !== 'faces' && !eff.dmx && r.trigger === 'span' && eff.id !== 'on' ? `<label title="Fade out over the last seconds of the row (e.g. when the song fades)">Fade at end (s) <input type="number" class="efade" min="0" step="0.5" value="${r.endFade || 0}"></label>` : ''}
-              ${r.targets.some(t => S.show.groups.has(t)) && !eff.use.includes('vocal') && !eff.dmx ? `<label class="chk permodel" title="On: each model in the group gets the effect separately. Off: the effect spans the whole group, across the yard."><input type="checkbox" class="pm" ${(r.perModel ?? eff.perModel) ? 'checked' : ''}> Each model on its own</label>` : ''}
+              ${eff.id !== 'faces' && !eff.dmx ? `<label title="Every effect of this row fades in over this many seconds">Fade in (s) <input type="number" class="sin" min="0" step="0.05" value="${r.softIn || 0}"></label><label title="Every effect of this row fades out over this many seconds">Fade out (s) <input type="number" class="sout" min="0" step="0.05" value="${r.softOut || 0}"></label>` : ''}
+              ${eff.id !== 'faces' && !eff.dmx ? `<label title="How this row mixes with the rows under it on the same lights. Mask: a moving shape (blades, spirals, a ring) shows the colours of the row below only where it is lit.">Mix <select class="blend">${Object.entries(Effects.BLENDS).map(([k, b]) => `<option value="${k}" ${(r.blend || 'add') === k ? 'selected' : ''}>${esc(b.label)}</option>`).join('')}</select></label>` : ''}
+              ${r.targets.some(t => S.show.groups.has(t)) && !eff.use.includes('vocal') && !eff.dmx ? `<label title="On a group: one picture across the yard, each prop running the effect on its own, or every prop showing exactly the same picture (xLights' Overlay)">On a group <select class="gstyle"><option value="across" ${!r.overlay && !(r.perModel ?? eff.perModel) ? 'selected' : ''}>Across the yard</option><option value="each" ${!r.overlay && (r.perModel ?? eff.perModel) ? 'selected' : ''}>Each prop on its own</option><option value="same" ${r.overlay ? 'selected' : ''}>Every prop the same</option></select></label>` : ''}
               <span class="row-btns"><button type="button" class="btn small dup" title="Duplicate">Duplicate</button><button type="button" class="btn small del" title="Remove">Remove</button></span>
             </div>
             </div>`;
@@ -1630,8 +1632,20 @@
             const v = Math.max(0, parseFloat(efade.value) || 0);
             if (v) r.endFade = v; else delete r.endFade;
         }, { render: false }));
-        const pm = el.querySelector('.pm');
-        if (pm) pm.addEventListener('change', () => commit(() => { r.perModel = pm.checked; }, { render: false }));
+        const gs = el.querySelector('.gstyle');
+        if (gs) gs.addEventListener('change', () => commit(() => {
+            if (gs.value === 'same') { r.overlay = true; delete r.perModel; }
+            else { delete r.overlay; r.perModel = gs.value === 'each'; }
+        }, { render: false }));
+        for (const [cls, key] of [['.sin', 'softIn'], ['.sout', 'softOut']]) {
+            const inp = el.querySelector(cls);
+            if (inp) inp.addEventListener('change', () => commit(() => {
+                const v = Math.max(0, parseFloat(inp.value) || 0);
+                if (v) r[key] = v; else delete r[key];
+            }, { render: false }));
+        }
+        const bl = el.querySelector('.blend');
+        if (bl) bl.addEventListener('change', () => commit(() => { if (bl.value === 'add') delete r.blend; else r.blend = bl.value; }));
         return el;
     }
 

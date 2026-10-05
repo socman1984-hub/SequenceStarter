@@ -2,6 +2,18 @@
 
 Release notes for Lights Auto Sequencer, newest first. The same list is in the app under **✨ What's new**.
 
+## 2026.10.04.3 — New effects and layered looks
+
+_2026-10-04_
+
+- **New:** Three new effects: Fan (spinning blades), Ripple (a circle, star, square or snowflake that grows out or shrinks in) and Spirograph (line patterns). Checked against xLights' own render.
+- **New:** Masks: a row can be a moving shape that shows the colours of the row under it only where it's lit, or cuts them out. Ideas often use one on the matrix and mega tree.
+- **New:** On a group: "Every prop the same" makes every spinner, snowflake or wreath show exactly the same picture (xLights' Overlay). Ideas use it for round props.
+- **New:** Fade in / Fade out on every light row; ideas now soften nearly every effect.
+- **Better:** Loud parts give spinners and snowflakes a fast run of short hits on the kick and snare.
+- **Better:** Props made of parts (rings, spokes, the star on a mini tree) sometimes get a different look for each part, the same part on every prop together.
+- **Better:** Ideas spread their effects wider, including the new ones, on every kind of prop.
+
 ## 2026.10.04.2 — Older xLights versions
 
 _2026-10-04_
