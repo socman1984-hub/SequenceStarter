@@ -2,6 +2,12 @@
 
 Release notes for Lights Auto Sequencer, newest first. The same list is in the app under **✨ What's new**.
 
+## 2026.10.04.5 — Preview fix from the community
+
+_2026-10-04_
+
+- **Fixed:** Props placed outside xLights' preview area are no longer cut off in the preview. Thanks to computergeek1507 for the first community contribution!
+
 ## 2026.10.04.4 — Opening projects fix
 
 _2026-10-04_

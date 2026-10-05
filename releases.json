@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026.10.04.5",
+    "date": "2026-10-04",
+    "title": "Preview fix from the community",
+    "items": [
+      ["fixed", "Props placed outside xLights' preview area are no longer cut off in the preview. Thanks to computergeek1507 for the first community contribution!"]
+    ]
+  },
+  {
     "version": "2026.10.04.4",
     "date": "2026-10-04",
     "title": "Opening projects fix",
