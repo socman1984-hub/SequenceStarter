@@ -770,7 +770,7 @@ const Ideas = (() => {
         ['ramp', 'Ramp up'],
         ['sweep', 'Sweep in'],
         ['burst', 'Burst'],
-        ['colourhit', 'Colour hit'],
+        ['colourhit', 'Color hit'],
         ['crossfade', 'Crossfade'],
         ['build', 'Build & land (dark, then flash)'],
         ['wipe', 'Wipe in'],

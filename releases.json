@@ -2,12 +2,12 @@
   {
     "version": "2026.10.05",
     "date": "2026-10-05",
-    "title": "Halloween colours and per-part colours",
+    "title": "Halloween colors and per-part colors",
     "items": [
-      ["new", "Halloween colour schemes: Halloween (orange, purple, green), Orange & purple, Green & purple, Red & orange. They're added to your list even if you've edited your schemes."],
+      ["new", "Halloween color schemes: Halloween (orange, purple, green), Orange & purple, Green & purple, Red & orange. They're added to your list even if you've edited your schemes."],
       ["new", "🎲 Randomize the whole sequence: a button above the parts that gives every part new lights at once (each part's own 🎲 Randomize still changes just that part)."],
-      ["fixed", "A part's 🎲 Randomize went back to the palette in Idea settings even after you changed that part's colours. A part you recolour (its 🎨, or by editing its rows' colours) now keeps its own colours for new ideas, shown as \"own colours\" on its card; ✕ goes back to the main palette."],
-      ["fixed", "The 🎨 colour window now opens on the scheme the part last had applied, instead of always the same one."]
+      ["fixed", "A part's 🎲 Randomize went back to the palette in Idea settings even after you changed that part's colors. A part you recolor (its 🎨, or by editing its rows' colors) now keeps its own colors for new ideas, shown as \"own colors\" on its card; ✕ goes back to the main palette."],
+      ["fixed", "The 🎨 color window now opens on the scheme the part last had applied, instead of always the same one."]
     ]
   },
   {
@@ -33,8 +33,8 @@
     "title": "New effects, layered looks and pro techniques",
     "items": [
       ["new", "Ten new effects: Fan, Ripple, Spirograph, Wave, Meteors, Curtain, Morph, Snowflakes, Strobe, Off (dark) and a Beat meter that flashes or sweeps on every beat or bar. Checked against xLights' own render."],
-      ["new", "Restart every beat or bar: a steady row becomes short effects that turn round or change colour each time, the way most pro sequences are built."],
-      ["new", "Masks: a row can be a moving shape that shows the colours of the row under it only where it's lit, or cuts them out."],
+      ["new", "Restart every beat or bar: a steady row becomes short effects that turn round or change color each time, the way most pro sequences are built."],
+      ["new", "Masks: a row can be a moving shape that shows the colors of the row under it only where it's lit, or cuts them out."],
       ["new", "On a group: \"Every prop the same\" makes every spinner, snowflake or wreath show exactly the same picture (xLights' Overlay)."],
       ["new", "Per row: Fade in / Fade out, Sparkles (optionally with the music), Comes in / Goes (wipe or circle burst), and Spin (the whole picture turns)."],
       ["new", "Pinwheel, Spirals and Bars get xLights' 3D look; pinwheel arms can grow or pulse, spirals can wobble, shockwaves can rise or fall."],
@@ -60,8 +60,8 @@
     "date": "2026-10-04",
     "title": "Moving heads, a File menu and a pop-out preview",
     "items": [
-      ["new", "Moving heads: a Moving head effect (pattern, size, aim, speed, spread between heads, brightness, colours) that xLights renders with its own Moving Head effect. Tested in an xLights render."],
-      ["new", "Moving heads are drawn in the preview as fixtures with beams that sweep in their colour."],
+      ["new", "Moving heads: a Moving head effect (pattern, size, aim, speed, spread between heads, brightness, colors) that xLights renders with its own Moving Head effect. Tested in an xLights render."],
+      ["new", "Moving heads are drawn in the preview as fixtures with beams that sweep in their color."],
       ["new", "Moving heads box: choose which parts of the song the heads join, add or re-roll just the heads without touching anything else, and set how big they look in the preview. Each part also has + Moving heads."],
       ["new", "Ideas and 🎲 Randomize include moving heads: slow, small shapes in quiet parts, big fast ones in loud parts."],
       ["new", "File menu: open a song or project, recent projects, Save, Save as, Auto-save and Export, like any program. The project's name shows beside it, with a • while there are unsaved changes."],
@@ -71,7 +71,7 @@
       ["new", "What's new (this list) and when the website was last updated."],
       ["better", "Matrices get a layered look (a base plus a lighter effect on top), and big singing props like a snow globe get a background with the face on top."],
       ["better", "Round props (snowflakes, spinners, wreaths, stars) share each other's moves, and names like \"ChromaFlake\" count as snowflakes."],
-      ["better", "Image props are drawn as their picture, glowing in the light's colour."],
+      ["better", "Image props are drawn as their picture, glowing in the light's color."],
       ["fixed", "Moving heads set to \"No Controller\" in xLights were skipped by ideas and Randomize."]
     ]
   },
@@ -88,7 +88,7 @@
       ["new", "📝 Words on the matrix: put the sung words on your matrix in the parts you choose."],
       ["new", "Only the part that's playing: the plan shows just the part you hear and follows the song."],
       ["new", "The control boxes above the plan can be folded and rearranged (unlock the layout first)."],
-      ["new", "Each part shows how it comes in (ramp up, sweep in, burst, colour hit, crossfade…) and you can change it."],
+      ["new", "Each part shows how it comes in (ramp up, sweep in, burst, color hit, crossfade…) and you can change it."],
       ["new", "Discord link for ideas, bugs and help."],
       ["better", "Going into a chorus no longer goes dark and flashes white every time: each lift gets its own transition."],
       ["better", "A new start screen, and the controls above the plan grouped into Ideas, Change what's planned and View."],
@@ -106,7 +106,7 @@
       ["new", "Load an MP3: tempo, beats, bars, song parts, loud and quiet sections and drum hits are found for you."],
       ["new", "Find the words: voice separation and speech recognition, matched to your lyrics, for singing faces and timing tracks."],
       ["new", "Open your xLights show folder and watch the plan on a preview of your own house."],
-      ["new", "Suggest a plan and 🎲 Randomize, with feeling, intensity, colour schemes, prop mix and props to leave out."],
+      ["new", "Suggest a plan and 🎲 Randomize, with feeling, intensity, color schemes, prop mix and props to leave out."],
       ["new", "Lights that follow the music: louder parts brighter and fuller, the beat on one or two props, build-ups into choruses, and a fit-with-the-music score."],
       ["new", "Save projects, and export an .xsq for xLights with Beats, Bars, Song Parts and Lyrics timing tracks."],
       ["new", "Free and open source (GPLv3). Everything runs in your browser; nothing is uploaded."]

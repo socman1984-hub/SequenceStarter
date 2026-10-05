@@ -12,7 +12,7 @@
 <header class="topbar">
   <div class="topbar-row">
     <h1>Lights Auto Sequencer <span class="sub">make xLights sequences in the browser</span></h1>
-    <nav class="help-links"><label class="theme-sel" title="Colours of the page"><span class="sr">Theme</span><select id="themeSel" aria-label="Theme"><option value="auto">🖥 Auto</option><option value="light">☀ Light</option><option value="dark">🌙 Dark</option></select></label> <button type="button" class="btn small" id="whatsNewBtn" title="Release notes, and when the site was last updated">✨ What's new</button> <button type="button" class="btn small" id="tourBtn">Show me around</button> <a class="btn small" href="tutorial.html" target="_blank" rel="noopener">How to use</a> <a class="btn small discord" href="https://discord.gg/xjgWweqCEs" target="_blank" rel="noopener" title="Suggestions, help and show-off on Discord">💬 Discord</a></nav>
+    <nav class="help-links"><label class="theme-sel" title="Colors of the page"><span class="sr">Theme</span><select id="themeSel" aria-label="Theme"><option value="auto">🖥 Auto</option><option value="light">☀ Light</option><option value="dark">🌙 Dark</option></select></label> <button type="button" class="btn small" id="whatsNewBtn" title="Release notes, and when the site was last updated">✨ What's new</button> <button type="button" class="btn small" id="tourBtn">Show me around</button> <a class="btn small" href="tutorial.html" target="_blank" rel="noopener">How to use</a> <a class="btn small discord" href="https://discord.gg/xjgWweqCEs" target="_blank" rel="noopener" title="Suggestions, help and show-off on Discord">💬 Discord</a></nav>
   </div>
 </header>
 
@@ -271,7 +271,7 @@
         <div class="ctl-stack" id="ctlStack">
         <section class="ctl-group wide" data-block="intro">
           <div class="ctl-head"><h3>How this works</h3></div>
-          <p class="panel-note">Every part of the song has its own light rows: which lights, when (the whole time, on beats, drum hits or singing), the effect and its colours. Let <b>Ideas</b> fill them in, then change anything by hand.</p>
+          <p class="panel-note">Every part of the song has its own light rows: which lights, when (the whole time, on beats, drum hits or singing), the effect and its colors. Let <b>Ideas</b> fill them in, then change anything by hand.</p>
         </section>
 
         <section class="ctl-group wide" data-block="ideas">
@@ -293,8 +293,8 @@
                 <h4>Look</h4>
                 <label>Feeling <select id="ideaFeel"></select></label>
                 <label>Intensity <select id="ideaIntensity"></select></label>
-                <label>Colours <select id="ideaScheme"></select></label>
-                <button type="button" class="btn small" id="editSchemes">Edit colour schemes…</button>
+                <label>Colors <select id="ideaScheme"></select></label>
+                <button type="button" class="btn small" id="editSchemes">Edit color schemes…</button>
               </div>
               <div class="ctl-col">
                 <h4>Props</h4>
@@ -343,7 +343,7 @@
           <section class="ctl-group" data-block="change">
             <div class="ctl-head"><h3>Change what's planned</h3></div>
             <div class="ctl-row">
-              <button type="button" class="btn small" id="recolourBtn" title="Change only the colours of planned lights">🎨 Change colours…</button>
+              <button type="button" class="btn small" id="recolourBtn" title="Change only the colors of planned lights">🎨 Change colors…</button>
               <button type="button" class="btn small" id="wordsBtn" title="Show the sung words on the matrix in the parts you choose">📝 Words on the matrix…</button>
             </div>
           </section>
@@ -513,7 +513,7 @@
       <h3>How</h3>
       <div class="btnrow tight">
         <label>Text size <input type="number" id="wdSize" min="4" max="200" step="1" style="width:70px"></label>
-        <label>Colour <input type="color" id="wdColor" value="#ffffff"></label>
+        <label>Color <input type="color" id="wdColor" value="#ffffff"></label>
       </div>
       <label class="chk"><input type="checkbox" id="wdDim" checked> Dim the matrix's other lights in those parts, so the words stand out</label>
     </div>
@@ -530,17 +530,17 @@
 
 <dialog id="recolourDlg" class="picker recolour-dlg">
   <form method="dialog" class="picker-inner">
-    <div class="picker-head"><h2>Change colours</h2><span class="muted small">Only the colours change; effects stay as they are. The preview shows it before you apply.</span></div>
+    <div class="picker-head"><h2>Change colors</h2><span class="muted small">Only the colors change; effects stay as they are. The preview shows it before you apply.</span></div>
     <div class="recolour-body">
-      <h3>Colours</h3>
+      <h3>Colors</h3>
       <div class="recolour-schemes" id="rcSchemes"></div>
       <h3>Where</h3>
       <div class="btnrow tight" id="rcQuick"></div>
       <div class="pick-list rc-list" id="rcList"></div>
       <h3>How</h3>
-      <label class="chk"><input type="radio" name="rcMode" value="keep" checked> Keep each light row's number of colours (rows get different mixes, like ideas do)</label>
+      <label class="chk"><input type="radio" name="rcMode" value="keep" checked> Keep each light row's number of colors (rows get different mixes, like ideas do)</label>
       <label class="chk"><input type="radio" name="rcMode" value="full"> Use the whole scheme on every row</label>
-      <label class="chk"><input type="checkbox" id="rcFaces"> Recolour singing faces too</label>
+      <label class="chk"><input type="checkbox" id="rcFaces"> Recolor singing faces too</label>
     </div>
     <div class="picker-foot">
       <span id="rcCount" class="muted small"></span>
@@ -554,7 +554,7 @@
 
 <dialog id="schemeDlg" class="picker scheme-dlg">
   <form method="dialog" class="picker-inner">
-    <div class="picker-head"><h2>Colour schemes</h2><span class="muted small">Used by the colour lists and by ideas. Lights already planned keep their colours.</span></div>
+    <div class="picker-head"><h2>Color schemes</h2><span class="muted small">Used by the color lists and by ideas. Lights already planned keep their colors.</span></div>
     <div class="scheme-list" id="schemeList"></div>
     <div class="picker-foot">
       <div class="btnrow tight">

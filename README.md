@@ -109,13 +109,13 @@ Ctrl+Z undoes. Edits are kept per song (keyed by word position + word), survive
 - **Plan, per section**: every section (plus a *Whole song* layer underneath) has its
   own rows of *lights* (groups, models, submodels) → *when* (the whole time, every beat,
   first beat of a bar, kick, snare, while singing, each line, each word) → *effect* +
-  colours + options. Sections are collapsible cards; click the strip under the preview to
+  colors + options. Sections are collapsible cards; click the strip under the preview to
   play from there, Ctrl+click a part (or use
   *Go to a section*) to jump there and open its card; the playing part is
   highlighted.
-- **🎨 Change colours…** (whole plan, or the 🎨 on a section card) swaps only the colours to
+- **🎨 Change colors…** (whole plan, or the 🎨 on a section card) swaps only the colors to
   another scheme for the sections you pick; the preview shows it before *Apply*, *Cancel*
-  puts the old colours back, Undo works after.
+  puts the old colors back, Undo works after.
 - **Copy to…** copies a section's lights to any others (quick picks: *All Chorus*, every
   section), replacing or adding. Copies are independent afterwards.
 - **Ideas** (`js/ideas.js`): *Suggest a plan* / *Another idea* for every section, or only the
@@ -142,7 +142,7 @@ Ctrl+Z undoes. Edits are kept per song (keyed by word position + word), survive
 - Click a prop on the house to see what lights it in the playing section, add lights for
   it (or one of its groups), or use it for randomizing. Drag a box to pick several.
 - Ideas take a *Feeling* (peaceful, joyful, playful, powerful, magical) and an
-  *Intensity* (or both from the song). *Edit colour schemes…* adds, edits, removes or
+  *Intensity* (or both from the song). *Edit color schemes…* adds, edits, removes or
   randomizes schemes, with a way back to the defaults. *Prop mix…* sets, per prop type (or any prop or group you
   add) and per kind of section, whether ideas use it Never / Less / Normal / More / Always.
   *Leave out of ideas…* lists props,
@@ -151,7 +151,7 @@ Ctrl+Z undoes. Edits are kept per song (keyed by word position + word), survive
 - Ideas follow the music: each part's loudness sets how many props are lit and how bright;
   repeats share effects but scale with their loudness; one or two prop types carry the
   beat over a dimmer base, and loud parts add a whole-house hit. Each lift gets its own
-  transition (ramp up, sweep in, burst, colour hit or crossfade, never the same twice running;
+  transition (ramp up, sweep in, burst, color hit or crossfade, never the same twice running;
   the dark-then-flash build & land only for the biggest lift); big drops crossfade. Each part's
   *Comes in with* menu changes it. The lights fade when the song does.
 - *Fit with the music* under the plan scores it (0-100): does the house follow loudness,
@@ -162,24 +162,24 @@ Ctrl+Z undoes. Edits are kept per song (keyed by word position + word), survive
 - Ideas borrow pro technique (studied from bought sequences; techniques only, no effects
   copied): round props in a group all show the same picture, loud parts give them a fast
   run of short hits on kick and snare, almost every effect fades in or out, matrices and
-  mega trees often get a mask (a colourful bed seen through moving blades, spirals or a
+  mega trees often get a mask (a colorful bed seen through moving blades, spirals or a
   ring), and props built from parts (rings, spokes, star on top) sometimes light each part
   differently, the same part on every prop together.
 - Ideas also follow the owner's own sequences (a survey of 56 of them): in lively parts
-  steady rows restart every beat or bar, chases turning round and solids changing colour;
+  steady rows restart every beat or bar, chases turning round and solids changing color;
   3D looks by default; sparkles on about one row in seven; the new effects where he uses
   them (Wave on the mega tree and peace stakes, Curtain on the tree and matrix, beat meters
   on canes and mini trees, Morph and Meteors on lines); a small prop flashing on the sung
   notes or the music's hits; parts that wipe or burst in.
 - A long part changes with its energy: where the music gets clearly louder or quieter
-  inside it, ideas split it into phrases (same props, more or fewer lit, the other colour,
+  inside it, ideas split it into phrases (same props, more or fewer lit, the other color,
   moving things turned round). Light rows can be limited to *Bars* from / to.
-- Colours: each part uses one or two colours; verses take turns (red verse, green verse),
+- Colors: each part uses one or two colors; verses take turns (red verse, green verse),
   choruses use both and swap them bar by bar, quiet parts go cool.
 - *Words on the matrix in choruses* (option): the lyrics on the matrix in the lifting parts,
   a dim slow background on it everywhere else.
 - *📝 Words on the matrix…* adds the words to an existing plan without changing anything
-  else: choose the matrix, the parts (choruses ticked to start), text size and colour, and
+  else: choose the matrix, the parts (choruses ticked to start), text size and color, and
   whether to dim the matrix's other lights there. *Remove from these parts* takes them off.
 - *Prop types…* tells ideas what a prop is when its name doesn't say. Without it, a group is
   judged by what most of its members are (so "Everything but starburst" is not a group of
@@ -203,7 +203,7 @@ choose it (or pick your music folder once, so every project looks there). Chrome
 same file each time (Shift+click *Save project* to save elsewhere); other browsers download
 it. The page warns before closing with unsaved changes. Work is also kept in the browser
 between visits, but the project file is the copy to trust.
-- **Effects** (`js/effects.js`): Solid, Flash-and-fade, Colour wash, Chase, Bars,
+- **Effects** (`js/effects.js`): Solid, Flash-and-fade, Color wash, Chase, Bars,
   Spirals, Pinwheel, Twinkle, Shockwave, Marquee, Butterfly, Fan, Ripple, Spirograph,
   Wave, Meteors, Curtain, Morph, Snowflakes, Strobe, Off, Beat meter (VU Meter timing-event
   flash / sweep on the Beats, Bars or Note Onsets track), Moving head, Singing face (Faces, driven by the Lyrics track), Show the words (Text on a
@@ -213,10 +213,10 @@ between visits, but the project file is the copy to trust.
   written explicitly (*Per Model Default*, *Per Preview*, or *Overlay - Centered / Scaled*
   for "every prop the same"), so xLights draws what the preview shows.
 - **Layers**: rows on the same lights stack. Upper rows add light (*Additive*), or act as a
-  mask (*1 is Unmask*: the shape shows the colours below; *1 is Mask*: the shape cuts them
+  mask (*1 is Unmask*: the shape shows the colors below; *1 is Mask*: the shape cuts them
   out). Rows can fade in and out on every effect.
 - **Row extras** (written as xLights' own settings): restart every beat / bar with the
-  direction or colour changing each time; palette sparkles (optionally music-driven); wipe /
+  direction or color changing each time; palette sparkles (optionally music-driven); wipe /
   circle-explode in and out transitions; buffer rotation (*Spin*); 3D looks on Pinwheel,
   Spirals and Bars; value curves for pinwheel arms, spiral twist and a moving shockwave
   centre. Triggers include hi-hats, the music's note onsets and each sung note; the export
@@ -264,7 +264,7 @@ exported marks line up with the audio in xLights.
 - `js/workers/separate.js`, `js/workers/transcribe.js`: the two models, off the main thread
 - `js/app.js`: page, timeline, playback and beat click, word-timing edits, timing export
 - `js/show.js`: show folder access, rgbeffects parsing, model geometry, row targets
-- `js/effects.js`: effect library (preview renderer + xLights settings) and colour schemes
+- `js/effects.js`: effect library (preview renderer + xLights settings) and color schemes
 - `js/sequence.js`: plan → timed effects, preview frame renderer, `.xsq` writer
 - `js/ideas.js`: random-but-sensible light ideas for a section or the whole song
 - `js/sequi.js`: the "Make a sequence" tab (show, preview, section cards, picker, copy, undo, saving)

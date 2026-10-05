@@ -1744,7 +1744,7 @@
                 renderLyrics();
                 setVocalStatus('Words restored from the project. Press Update words only if you change the lyrics.', null);
             }
-            // the project's colour schemes join the user's own (nothing of theirs is removed)
+            // the project's color schemes join the user's own (nothing of theirs is removed)
             if (Array.isArray(p.colourSchemes)) {
                 const have = new Set(Effects.SCHEMES.map(s => s.id));
                 const extra = p.colourSchemes.filter(s => s && s.id && !have.has(s.id) && Array.isArray(s.colors));

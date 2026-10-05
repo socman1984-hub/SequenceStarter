@@ -1401,7 +1401,7 @@
                 <b>${esc(sec.name)}</b>
                 ${!isWhole && c.transition && c.transition !== 'cut' ? `<span class="tr-chip" title="How this part comes in (change it inside the part)">↗ ${esc((Ideas.TRANSITIONS.find(t => t[0] === c.transition) || [, c.transition])[1].replace(/ \(.*\)$/, ''))}</span>` : ''}
                 <span class="muted">${isWhole ? 'under every section' : `${fmt(sec.s)}–${fmt(sec.e)}${sec.bars ? ` · ${sec.bars} bars` : ''}`}</span>
-                ${!isWhole && partScheme(c) ? `<span class="own-cols" title="This part's own colours: its 🎲 Randomize and new ideas use them instead of the palette in Idea settings"><span class="rl-sw">${partScheme(c).colors.map(col => `<i style="background:${col}"></i>`).join('')}</span> own colours <button type="button" class="link clr-cols" title="Use the palette from Idea settings again">✕</button></span>` : ''}
+                ${!isWhole && partScheme(c) ? `<span class="own-cols" title="This part's own colors: its 🎲 Randomize and new ideas use them instead of the palette in Idea settings"><span class="rl-sw">${partScheme(c).colors.map(col => `<i style="background:${col}"></i>`).join('')}</span> own colors <button type="button" class="link clr-cols" title="Use the palette from Idea settings again">✕</button></span>` : ''}
                 ${energy}
               </div>
               <div class="sec-btns">
@@ -1409,7 +1409,7 @@
                 ${isWhole ? '' : `<button type="button" class="btn tiny loop${S.loopId === sec.id ? ' on' : ''}" aria-pressed="${S.loopId === sec.id}" title="Play this section over and over while you change it">🔁 Loop</button>`}
                 ${isWhole ? '' : '<button type="button" class="btn tiny rnd" title="Give this section a random set of lights (from its chosen lights, if any). Press again for another idea; Undo goes back.">🎲 Randomize</button>'}
                 ${isWhole ? '' : '<button type="button" class="btn tiny copy" title="Copy these lights to other sections">Copy to…</button>'}
-                <button type="button" class="btn tiny recol" title="Change only the colours of these lights">🎨</button>
+                <button type="button" class="btn tiny recol" title="Change only the colors of these lights">🎨</button>
               </div>
             </div>
             <div class="sec-sum">${summary(c)}</div>
@@ -1538,17 +1538,17 @@
             <div class="pr-fx">
               <label>When <select class="trig">${trigOpts}</select></label>
               <label>Effect <select class="eff">${effs.map(e => `<option value="${e.id}" ${e.id === r.effect ? 'selected' : ''}>${esc(e.label)}</option>`).join('')}</select></label>
-              <label>Colours <select class="scheme">${schemeOpts}</select></label>
-              <span class="swatches">${r.colors.map((col, i) => `<input type="color" value="${col}" data-i="${i}" aria-label="Colour ${i + 1}">`).join('')}${r.colors.length < 6 ? '<button type="button" class="btn tiny addc" title="Add a colour">+</button>' : ''}${r.colors.length > 1 ? '<button type="button" class="btn tiny delc" title="Remove the last colour">−</button>' : ''}</span>
+              <label>Colors <select class="scheme">${schemeOpts}</select></label>
+              <span class="swatches">${r.colors.map((col, i) => `<input type="color" value="${col}" data-i="${i}" aria-label="Color ${i + 1}">`).join('')}${r.colors.length < 6 ? '<button type="button" class="btn tiny addc" title="Add a color">+</button>' : ''}${r.colors.length > 1 ? '<button type="button" class="btn tiny delc" title="Remove the last color">−</button>' : ''}</span>
               <span class="opts"></span>
               <label title="Only part of the section: from this bar to that bar (empty = the whole part)">Bars <span class="bars-in"><input type="number" class="bfrom" min="1" step="1" value="${r.bars ? r.bars[0] + 1 : ''}" placeholder="1"> to <input type="number" class="bto" min="1" step="1" value="${r.bars && r.bars[1] < 9999 ? r.bars[1] : ''}" placeholder="end"></span></label>
               ${eff.id !== 'faces' && !eff.dmx ? `<label title="How bright this row is (xLights' Brightness slider)">Brightness % <input type="number" class="lvl" min="0" max="100" step="5" value="${r.level ?? 100}"></label>` : ''}
               ${eff.id !== 'faces' && !eff.dmx && r.trigger === 'span' && eff.id !== 'on' ? `<label title="Fade out over the last seconds of the row (e.g. when the song fades)">Fade at end (s) <input type="number" class="efade" min="0" step="0.5" value="${r.endFade || 0}"></label>` : ''}
               ${eff.id !== 'faces' && !eff.dmx ? `<label title="Every effect of this row fades in over this many seconds">Fade in (s) <input type="number" class="sin" min="0" step="0.05" value="${r.softIn || 0}"></label><label title="Every effect of this row fades out over this many seconds">Fade out (s) <input type="number" class="sout" min="0" step="0.05" value="${r.softOut || 0}"></label>` : ''}
-              ${r.trigger === 'span' && eff.id !== 'faces' && !eff.dmx && !eff.blackout ? `<label title="Restart the effect on every beat or bar, like most pro sequences do">Restart <select class="chop"><option value="" ${!r.chop ? 'selected' : ''}>never</option><option value="beat" ${r.chop === 'beat' ? 'selected' : ''}>every beat</option><option value="bar" ${r.chop === 'bar' ? 'selected' : ''}>every bar</option></select></label>${r.chop ? `<label title="What changes at each restart">Each time <select class="alt"><option value="" ${!r.alt ? 'selected' : ''}>the same</option><option value="dir" ${r.alt === 'dir' ? 'selected' : ''}>turns round</option><option value="colour" ${r.alt === 'colour' ? 'selected' : ''}>next colour</option><option value="both" ${r.alt === 'both' ? 'selected' : ''}>both</option></select></label>` : ''}` : ''}
+              ${r.trigger === 'span' && eff.id !== 'faces' && !eff.dmx && !eff.blackout ? `<label title="Restart the effect on every beat or bar, like most pro sequences do">Restart <select class="chop"><option value="" ${!r.chop ? 'selected' : ''}>never</option><option value="beat" ${r.chop === 'beat' ? 'selected' : ''}>every beat</option><option value="bar" ${r.chop === 'bar' ? 'selected' : ''}>every bar</option></select></label>${r.chop ? `<label title="What changes at each restart">Each time <select class="alt"><option value="" ${!r.alt ? 'selected' : ''}>the same</option><option value="dir" ${r.alt === 'dir' ? 'selected' : ''}>turns round</option><option value="colour" ${r.alt === 'colour' ? 'selected' : ''}>next color</option><option value="both" ${r.alt === 'both' ? 'selected' : ''}>both</option></select></label>` : ''}` : ''}
               ${eff.id !== 'faces' && !eff.dmx && !eff.blackout ? `<label title="White sparkles on the lit lights (xLights palette sparkles); 0 = none">Sparkles <input type="number" class="spk" min="0" max="200" step="10" value="${r.sparkles || 0}"></label><label class="chk" title="Sparkle more when the music is loud"><input type="checkbox" class="mspk" ${r.musicSparkles ? 'checked' : ''}> with the music</label>` : ''}
               ${eff.id !== 'faces' && !eff.dmx && !eff.blackout ? `<label title="How the row's first effect comes in (lasts its fade-in time, or 2 beats)">Comes in <select class="intr"><option value="" ${!r.inTr ? 'selected' : ''}>fade</option><option value="wipe" ${r.inTr === 'wipe' ? 'selected' : ''}>wipe</option><option value="circle" ${r.inTr === 'circle' ? 'selected' : ''}>circle burst</option></select></label><label title="How the row's last effect goes away">Goes <select class="outtr"><option value="" ${!r.outTr ? 'selected' : ''}>fade</option><option value="wipe" ${r.outTr === 'wipe' ? 'selected' : ''}>wipe</option><option value="circle" ${r.outTr === 'circle' ? 'selected' : ''}>circle</option></select></label><label title="Turn the whole picture this many times over each effect (0 = still)">Spin <input type="number" class="spin" min="0" max="20" step="0.5" value="${r.spin || 0}"></label>` : ''}
-              ${eff.id !== 'faces' && !eff.dmx ? `<label title="How this row mixes with the rows under it on the same lights. Mask: a moving shape (blades, spirals, a ring) shows the colours of the row below only where it is lit.">Mix <select class="blend">${Object.entries(Effects.BLENDS).map(([k, b]) => `<option value="${k}" ${(r.blend || 'add') === k ? 'selected' : ''}>${esc(b.label)}</option>`).join('')}</select></label>` : ''}
+              ${eff.id !== 'faces' && !eff.dmx ? `<label title="How this row mixes with the rows under it on the same lights. Mask: a moving shape (blades, spirals, a ring) shows the colors of the row below only where it is lit.">Mix <select class="blend">${Object.entries(Effects.BLENDS).map(([k, b]) => `<option value="${k}" ${(r.blend || 'add') === k ? 'selected' : ''}>${esc(b.label)}</option>`).join('')}</select></label>` : ''}
               ${r.targets.some(t => S.show.groups.has(t)) && !eff.use.includes('vocal') && !eff.dmx ? `<label title="On a group: one picture across the yard, each prop running the effect on its own, or every prop showing exactly the same picture (xLights' Overlay)">On a group <select class="gstyle"><option value="across" ${!r.overlay && !(r.perModel ?? eff.perModel) ? 'selected' : ''}>Across the yard</option><option value="each" ${!r.overlay && (r.perModel ?? eff.perModel) ? 'selected' : ''}>Each prop on its own</option><option value="same" ${r.overlay ? 'selected' : ''}>Every prop the same</option></select></label>` : ''}
               <span class="row-btns"><button type="button" class="btn small dup" title="Duplicate">Duplicate</button><button type="button" class="btn small del" title="Remove">Remove</button></span>
             </div>
@@ -2393,7 +2393,7 @@
         rcDlg.close();
         renderPlan();
         regenerate();
-        setPlanStatus('Colours changed. Undo puts the old ones back.');
+        setPlanStatus('Colors changed. Undo puts the old ones back.');
         document.dispatchEvent(new CustomEvent('xl:changed'));
     });
     // Cancel / Esc put the old colours back right away. (The dialog's own
@@ -2427,9 +2427,9 @@
         box.innerHTML = schemeWork.map((s, i) => `
             <div class="scheme-row" data-i="${i}">
               <input type="text" class="sname" value="${esc(s.label)}" aria-label="Scheme name">
-              <span class="swatches">${s.colors.map((c, j) => `<input type="color" value="${c}" data-j="${j}" aria-label="Colour ${j + 1}">`).join('')}
-                ${s.colors.length < 8 ? '<button type="button" class="btn tiny addc" title="Add a colour">+</button>' : ''}${s.colors.length > 1 ? '<button type="button" class="btn tiny delc" title="Remove the last colour">−</button>' : ''}</span>
-              <button type="button" class="btn tiny reroll" title="New random colours for this scheme">🎲</button>
+              <span class="swatches">${s.colors.map((c, j) => `<input type="color" value="${c}" data-j="${j}" aria-label="Color ${j + 1}">`).join('')}
+                ${s.colors.length < 8 ? '<button type="button" class="btn tiny addc" title="Add a color">+</button>' : ''}${s.colors.length > 1 ? '<button type="button" class="btn tiny delc" title="Remove the last color">−</button>' : ''}</span>
+              <button type="button" class="btn tiny reroll" title="New random colors for this scheme">🎲</button>
               <button type="button" class="btn tiny del" title="Delete this scheme" ${schemeWork.length < 2 ? 'disabled' : ''}>Delete</button>
             </div>`).join('');
         box.querySelectorAll('.scheme-row').forEach(rowEl => {
@@ -2447,14 +2447,14 @@
 
     $('editSchemes').addEventListener('click', openSchemes);
     $('schemeAdd').addEventListener('click', () => {
-        schemeWork.push({ id: 'u' + Math.random().toString(36).slice(2, 8), label: 'My colours', colors: ['#FFFFFF', '#FF0000'] });
+        schemeWork.push({ id: 'u' + Math.random().toString(36).slice(2, 8), label: 'My colors', colors: ['#FFFFFF', '#FF0000'] });
         applySchemes(); drawSchemes();
         const rows = $('schemeList').querySelectorAll('.sname');
         rows[rows.length - 1].focus(); rows[rows.length - 1].select();
     });
     $('schemeRandom').addEventListener('click', () => { schemeWork.push(Effects.randomScheme()); applySchemes(); drawSchemes(); $('schemeList').lastElementChild.scrollIntoView({ block: 'nearest' }); });
     $('schemeReset').addEventListener('click', () => {
-        if (!confirm('Replace your colour schemes with the default ones? Lights you already planned keep their colours.')) return;
+        if (!confirm('Replace your color schemes with the default ones? Lights you already planned keep their colors.')) return;
         Effects.resetSchemes();
         schemeWork = Effects.SCHEMES.map(s => ({ ...s, colors: s.colors.slice() }));
         drawSchemes();

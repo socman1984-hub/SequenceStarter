@@ -15,7 +15,7 @@ const Effects = (() => {
     // one is lit, at this one's brightness; "1 is Mask" cuts this one's shape out of it.
     const BLENDS = {
         add: { label: 'Add to the layers below', xl: 'Additive' },
-        unmask: { label: 'Shape shows the colours below', xl: '1 is Unmask' },
+        unmask: { label: 'Shape shows the colors below', xl: '1 is Unmask' },
         mask: { label: 'Shape cuts out of the layers below', xl: '1 is Mask' },
     };
 
@@ -148,7 +148,7 @@ const Effects = (() => {
 
     const LIST = [
         {
-            id: 'on', label: 'Solid colour', xl: 'On', use: ['part', 'hit'],
+            id: 'on', label: 'Solid color', xl: 'On', use: ['part', 'hit'],
             // start/end: brightness at the start and end of the effect (a ramp when they differ)
             options: { fadeIn: 0, fadeOut: 0, start: 100, end: 100 },
             settings: o => `E_TEXTCTRL_Eff_On_End=${o.end ?? 100},E_TEXTCTRL_Eff_On_Start=${o.start ?? 100}` + fades(o),
@@ -169,7 +169,7 @@ const Effects = (() => {
             },
         },
         {
-            id: 'wash', label: 'Colour wash', xl: 'Color Wash', use: ['part'],
+            id: 'wash', label: 'Color wash', xl: 'Color Wash', use: ['part'],
             options: { cycles: 1 },
             settings: o => `E_TEXTCTRL_ColorWash_Cycles=${(+o.cycles).toFixed(1)}`,
             render(p, N, out) {
@@ -316,7 +316,7 @@ const Effects = (() => {
             },
         },
         {
-            id: 'butterfly', label: 'Butterfly (colour swirl)', xl: 'Butterfly', use: ['part'],
+            id: 'butterfly', label: 'Butterfly (color swirl)', xl: 'Butterfly', use: ['part'],
             options: { speed: 10 },
             settings: o => `E_CHOICE_Butterfly_Colors=Palette,E_CHOICE_Butterfly_Direction=Normal,E_SLIDER_Butterfly_Chunks=1,E_SLIDER_Butterfly_Skip=2,E_SLIDER_Butterfly_Speed=${o.speed},E_SLIDER_Butterfly_Style=1`,
             render(p, N, out) {
