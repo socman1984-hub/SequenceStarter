@@ -862,7 +862,8 @@ const Ideas = (() => {
         }
     }
 
-    function planIdea(song, show, { seed, scheme, alike, pools, sections, whole = true, feel = 'auto', intensity = null, exclude = [], mix = null, matrixWords = false, phrased = true, mhParts = null }) {
+    // schemes: { [sectionId]: scheme } for parts that have their own colours
+    function planIdea(song, show, { seed, scheme, alike, pools, sections, whole = true, feel = 'auto', intensity = null, exclude = [], mix = null, matrixWords = false, phrased = true, mhParts = null, schemes = null }) {
         const rng = rngFrom(seed);
         const plan = Sequencer.emptyPlan();
         const excluded = modelsOf(show, exclude);
@@ -898,7 +899,7 @@ const Ideas = (() => {
             const pool = pools && pools[s.id];
             const own = !alike || !!(pool && pool.length);
             const rows = partIdea(s, song, show, {
-                pool, seed: own ? Math.floor(rng() * 2 ** 31) : kindSeed.get(kind), scheme, feel, intensity, exclude: excluded, mix,
+                pool, seed: own ? Math.floor(rng() * 2 ** 31) : kindSeed.get(kind), scheme: (schemes && schemes[s.id]) || scheme, feel, intensity, exclude: excluded, mix,
                 energy: energies.get(s.id), style: own ? null : avg(kindStyle.get(kind)), matrixWords, phrased, mhParts,
             });
             plan.sections[s.id] = { rows, pool: pool || [] };

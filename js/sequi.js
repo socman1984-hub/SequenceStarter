@@ -1344,6 +1344,7 @@
     function renderPlan() {
         const box = $('plan');
         const song = XLWeb.song();
+        $('randAllBar').hidden = !(S.show && song && S.plan);
         if (!S.show || !song || !S.plan) { box.innerHTML = ''; return; }
         // header controls
         if (S.hl) setHighlight(null);
@@ -1400,6 +1401,7 @@
                 <b>${esc(sec.name)}</b>
                 ${!isWhole && c.transition && c.transition !== 'cut' ? `<span class="tr-chip" title="How this part comes in (change it inside the part)">↗ ${esc((Ideas.TRANSITIONS.find(t => t[0] === c.transition) || [, c.transition])[1].replace(/ \(.*\)$/, ''))}</span>` : ''}
                 <span class="muted">${isWhole ? 'under every section' : `${fmt(sec.s)}–${fmt(sec.e)}${sec.bars ? ` · ${sec.bars} bars` : ''}`}</span>
+                ${!isWhole && partScheme(c) ? `<span class="own-cols" title="This part's own colours: its 🎲 Randomize and new ideas use them instead of the palette in Idea settings"><span class="rl-sw">${partScheme(c).colors.map(col => `<i style="background:${col}"></i>`).join('')}</span> own colours <button type="button" class="link clr-cols" title="Use the palette from Idea settings again">✕</button></span>` : ''}
                 ${energy}
               </div>
               <div class="sec-btns">
@@ -1429,6 +1431,8 @@
                 loopSection(sec);
             });
             el.querySelector('.rnd').addEventListener('click', () => randomizeSection(sec));
+            const cc = el.querySelector('.clr-cols');
+            if (cc) cc.addEventListener('click', e => { e.stopPropagation(); commit(() => { const k = container(sec.id); delete k.colors; delete k.scheme; }); });
             el.querySelector('.copy').addEventListener('click', () => openCopy(sec));
         }
         if (open) fillBody(el.querySelector('.sec-body'), sec, isWhole);
@@ -1601,6 +1605,7 @@
             r.scheme = e.target.value;
             const s = Effects.SCHEMES.find(x => x.id === r.scheme);
             if (s) r.colors = s.colors.slice();
+            if (c !== S.plan.whole) { c.colors = partColoursFromRows(c); delete c.scheme; }
         }));
         el.querySelectorAll('input[type=color]').forEach(inp => {
             inp.addEventListener('input', e => {
@@ -1610,7 +1615,7 @@
                 el.querySelector('.scheme').value = 'custom';
                 regenerate();
             });
-            inp.addEventListener('change', () => { endEdit(); renderPlan(); });
+            inp.addEventListener('change', () => { if (c !== S.plan.whole) { c.colors = partColoursFromRows(c); delete c.scheme; } endEdit(); renderPlan(); });
         });
         const addc = el.querySelector('.addc');
         if (addc) addc.addEventListener('click', () => commit(() => { r.colors.push('#FFFFFF'); r.scheme = 'custom'; }));
@@ -1950,10 +1955,30 @@
 
     const ideaScheme = () => Effects.SCHEMES.find(x => x.id === (S.plan.ideaScheme || 'christmas')) || Effects.SCHEMES[0];
 
+    // A part's own colours (chosen with its 🎨, or edited by hand in its rows) win
+    // over the palette in Idea settings when that part gets a new idea.
+    function partScheme(c) {
+        if (!c) return null;
+        if (Array.isArray(c.colors) && c.colors.length) return { id: 'custom', label: 'This part', colors: c.colors.slice() };
+        if (c.scheme) return Effects.SCHEMES.find(s => s.id === c.scheme) || null;
+        return null;
+    }
+    function partSchemes() {
+        const out = {};
+        for (const [id, c] of Object.entries(S.plan.sections || {})) { const s = partScheme(c); if (s) out[id] = s; }
+        return out;
+    }
+    // the colours a part's rows use now, most used first (at most four)
+    function partColoursFromRows(c) {
+        const n = new Map();
+        for (const r of c.rows || []) if (r.effect !== 'faces') for (const col of r.colors || []) n.set(col.toUpperCase(), (n.get(col.toUpperCase()) || 0) + 1);
+        return [...n].sort((a, b) => b[1] - a[1]).map(x => x[0]).slice(0, 4);
+    }
+
     function randomizeSection(sec) {
         const song = XLWeb.song();
         const c = container(sec.id);
-        const rows = Ideas.partIdea(sec, song, S.show, { pool: c.pool, seed: Math.floor(Math.random() * 2 ** 31), scheme: ideaScheme(), ...ideaMood() });
+        const rows = Ideas.partIdea(sec, song, S.show, { pool: c.pool, seed: Math.floor(Math.random() * 2 ** 31), scheme: partScheme(c) || ideaScheme(), ...ideaMood() });
         commit(() => { const cc = container(sec.id); cc.rows = withKept(cc.rows, rows); S.open.add(sec.id); });
         saveOpen();
         // loop it, so each new idea can be judged straight away
@@ -2046,19 +2071,25 @@
 
     const TRIES = 4;
     let suggesting = false;
-    async function suggestPlan() {
+    async function suggestPlan(all = false) {
         const song = XLWeb.song();
         if (!song || !S.show || suggesting) return;
-        const sections = song.sections.filter(s => ideaPicked(s.id));
-        const whole = ideaPicked('whole');
+        const sections = all === true ? song.sections.slice() : song.sections.filter(s => ideaPicked(s.id));
+        const whole = all === true || ideaPicked('whole');
         if (!sections.length && !whole) { setPlanStatus('Choose at least one section under "For:" first.'); return; }
         const pools = {};
         for (const [id, c] of Object.entries(S.plan.sections)) if (c.pool && c.pool.length) pools[id] = c.pool;
-        const make = () => Ideas.planIdea(song, S.show, { seed: Math.floor(Math.random() * 2 ** 31), scheme: ideaScheme(), alike: $('ideaAlike').checked, pools, sections, whole, ...ideaMood() });
+        const make = () => Ideas.planIdea(song, S.show, { seed: Math.floor(Math.random() * 2 ** 31), scheme: ideaScheme(), alike: $('ideaAlike').checked, pools, sections, whole, schemes: partSchemes(), ...ideaMood() });
         // only the chosen parts change; everything else keeps its lights
         const merged = idea => {
             const p = { ...S.plan, whole: whole ? { ...idea.whole, rows: withKept(S.plan.whole.rows, idea.whole.rows) } : S.plan.whole, sections: { ...S.plan.sections } };
-            for (const s of sections) p.sections[s.id] = { ...idea.sections[s.id], rows: withKept((S.plan.sections[s.id] || {}).rows, idea.sections[s.id].rows) };
+            for (const s of sections) {
+                const old = S.plan.sections[s.id] || {};
+                p.sections[s.id] = { ...idea.sections[s.id], rows: withKept(old.rows, idea.sections[s.id].rows) };
+                // a part's own colours stay with it
+                if (old.scheme) p.sections[s.id].scheme = old.scheme;
+                if (old.colors) p.sections[s.id].colors = old.colors;
+            }
             return p;
         };
         let idea = make(), best = null;
@@ -2088,7 +2119,8 @@
         const what = sections.length === song.sections.length ? 'the whole song' : sections.length ? sections.map(s => s.name).join(', ') : 'the whole-song layer';
         setPlanStatus(`New idea for ${what}${best ? ` (best fit of ${TRIES} tried: ${best.r.score})` : ''}. Press 🎲 Another idea to keep trying, Undo to go back, or change any section by hand.`);
     }
-    $('suggestPlan').addEventListener('click', suggestPlan);
+    $('suggestPlan').addEventListener('click', () => suggestPlan(false));
+    $('randAll').addEventListener('click', () => suggestPlan(true));
     // close the chooser on a click elsewhere (composedPath: the list re-renders under the click)
     document.addEventListener('click', e => { const d = $('ideaFor'); if (d.open && !e.composedPath().includes(d)) d.open = false; });
 
@@ -2347,6 +2379,10 @@
     $('rcFaces').addEventListener('change', previewRecolour);
     $('rcApply').addEventListener('click', () => {
         if (!rc) return;
+        for (const id of rc.ids) {
+            const c = id !== 'whole' && S.plan.sections[id];
+            if (c) { c.scheme = rc.scheme; delete c.colors; }
+        }
         S.history.push(rc.before);
         S.future = [];
         rc = null;

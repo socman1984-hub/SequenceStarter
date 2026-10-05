@@ -362,6 +362,13 @@ show); 7 the test hooks stay on purpose (harmless, used for testing); 8 not need
 
 ## Done
 
+- **2026-10-05:** Discord feedback round: Halloween schemes (Halloween, Orange & purple, Green &
+  purple, Red & orange; new built-ins are merged into saved scheme lists via
+  `xlweb-schemes-seen`); a *Randomize the whole sequence* bar above the parts (Suggest for every
+  part, ignoring the *For:* choice); bug fix: a part's own colours (`container.scheme` from its 🎨,
+  or `container.colors` from hand-edited row colours) now win over the Idea-settings palette for
+  its 🎲 Randomize and for whole-plan ideas, shown as an "own colours" chip with ✕.
+
 - **2026-10-04:** Bug: File > Open project "didn't load" when the page was scrolled down. The
   project opened fine; when its song needed a click (permission) or choosing, the banner asking
   for it was scrolled to the top of the page, under the sticky song bar, so it was never seen.

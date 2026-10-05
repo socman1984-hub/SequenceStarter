@@ -752,6 +752,10 @@ const Effects = (() => {
         { id: 'fire', label: 'Fire', colors: ['#FF2A00', '#FF8A00', '#FFD400'] },
         { id: 'rainbow', label: 'Rainbow', colors: ['#FF0000', '#FF8000', '#FFFF00', '#00FF00', '#0080FF', '#8000FF'] },
         { id: 'white', label: 'White', colors: ['#FFFFFF'] },
+        { id: 'halloween', label: 'Halloween', colors: ['#FF6A00', '#8A2BE2', '#39FF14'] },
+        { id: 'orangepurple', label: 'Orange & purple', colors: ['#FF6A00', '#8A2BE2'] },
+        { id: 'greenpurple', label: 'Green & purple', colors: ['#39FF14', '#8A2BE2'] },
+        { id: 'redorange', label: 'Red & orange', colors: ['#FF1414', '#FF6A00'] },
     ];
 
     // The user's own list of schemes (add / edit / remove), kept in the browser
@@ -760,9 +764,19 @@ const Effects = (() => {
     const SCHEME_KEY = 'xlweb-schemes';
     const cloneSchemes = list => list.map(s => ({ id: s.id, label: s.label, colors: s.colors.slice() }));
     let schemes = cloneSchemes(DEFAULT_SCHEMES);
+    // Built-in schemes added after someone saved their own list still reach them;
+    // ones they deleted stay deleted (SEEN_KEY: built-ins they have already had).
+    const SEEN_KEY = 'xlweb-schemes-seen';
     try {
         const saved = JSON.parse(localStorage.getItem(SCHEME_KEY) || 'null');
-        if (Array.isArray(saved) && saved.length && saved.every(s => s && s.id && Array.isArray(s.colors) && s.colors.length)) schemes = cloneSchemes(saved);
+        if (Array.isArray(saved) && saved.length && saved.every(s => s && s.id && Array.isArray(s.colors) && s.colors.length)) {
+            schemes = cloneSchemes(saved);
+            const seen = new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '["christmas","candycane","icy","warm","gold","sacred","neon","fire","rainbow","white"]'));
+            const have = new Set(schemes.map(s => s.id));
+            const fresh = DEFAULT_SCHEMES.filter(s => !seen.has(s.id) && !have.has(s.id));
+            if (fresh.length) { schemes = schemes.concat(cloneSchemes(fresh)); localStorage.setItem(SCHEME_KEY, JSON.stringify(schemes)); }
+        }
+        localStorage.setItem(SEEN_KEY, JSON.stringify(DEFAULT_SCHEMES.map(s => s.id)));
     } catch (e) { /* defaults */ }
 
     function setSchemes(list) {

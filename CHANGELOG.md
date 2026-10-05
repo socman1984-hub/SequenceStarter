@@ -2,6 +2,14 @@
 
 Release notes for Lights Auto Sequencer, newest first. The same list is in the app under **✨ What's new**.
 
+## 2026.10.05 — Halloween colours and per-part colours
+
+_2026-10-05_
+
+- **New:** Halloween colour schemes: Halloween (orange, purple, green), Orange & purple, Green & purple, Red & orange. They're added to your list even if you've edited your schemes.
+- **New:** 🎲 Randomize the whole sequence: a button above the parts that gives every part new lights at once (each part's own 🎲 Randomize still changes just that part).
+- **Fixed:** A part's 🎲 Randomize went back to the palette in Idea settings even after you changed that part's colours. A part you recolour (its 🎨, or by editing its rows' colours) now keeps its own colours for new ideas, shown as "own colours" on its card; ✕ goes back to the main palette.
+
 ## 2026.10.04.5 — Preview fix from the community
 
 _2026-10-04_

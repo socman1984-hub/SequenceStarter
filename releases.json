@@ -1,5 +1,15 @@
 [
   {
+    "version": "2026.10.05",
+    "date": "2026-10-05",
+    "title": "Halloween colours and per-part colours",
+    "items": [
+      ["new", "Halloween colour schemes: Halloween (orange, purple, green), Orange & purple, Green & purple, Red & orange. They're added to your list even if you've edited your schemes."],
+      ["new", "🎲 Randomize the whole sequence: a button above the parts that gives every part new lights at once (each part's own 🎲 Randomize still changes just that part)."],
+      ["fixed", "A part's 🎲 Randomize went back to the palette in Idea settings even after you changed that part's colours. A part you recolour (its 🎨, or by editing its rows' colours) now keeps its own colours for new ideas, shown as \"own colours\" on its card; ✕ goes back to the main palette."]
+    ]
+  },
+  {
     "version": "2026.10.04.5",
     "date": "2026-10-04",
     "title": "Preview fix from the community",
