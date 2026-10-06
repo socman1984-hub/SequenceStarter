@@ -6,7 +6,8 @@
     "items": [
       ["new", "Zoom the preview: scroll to zoom in/out on whatever's under the cursor (like a map), or use the − / + buttons next to Line up photo — from 50% to 600%. Click the zoom percentage to reset."],
       ["new", "Pan around once zoomed in: drag with the middle mouse button, or Shift+scroll to pan sideways."],
-      ["new", "💡 Props only, next to Pop out: click a prop on the house to select it (Ctrl/⌘-click, or drag a box, to pick more than one), then Props only hides everything else — the house photo and every other prop — and frames just what you picked, centered. Click Full view, or the hint's button, to go back. If you turn it on before picking anything, it fits all your props instead and shows a hint asking you to click one."]
+      ["new", "💡 Props only, next to Pop out: click a prop on the house to select it (Ctrl/⌘-click, or drag a box, to pick more than one), then Props only hides everything else — the house photo and every other prop — and frames just what you picked, centered. Click Full view, or the hint's button, to go back. If you turn it on before picking anything, it fits all your props instead and shows a hint asking you to click one."],
+      ["new", "Thanks to MGXAe for this one: the zoom, panning and Props only view are their contribution!"]
     ]
   },
   {
