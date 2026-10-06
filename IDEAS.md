@@ -362,6 +362,14 @@ show); 7 the test hooks stay on purpose (harmless, used for testing); 8 not need
 
 ## Done
 
+- **2026-10-05:** Render order (Discord suggestion). xLights renders sequence rows top to bottom and a
+  later row draws over earlier ones (RenderEngine wires each row after earlier rows sharing its
+  channels). Export now writes every layout group and model (empty if unused), groups first then
+  models, each by name (`rowOrder` in sequence.js); imported sequences keep their order. The master
+  view is not in xlights_rgbeffects.xml (`<views>` is empty) or networks.xml: it lives in each .xsq.
+  Preview composes rows the same way (lit pixels of a later row replace earlier). Checked: new plan
+  vs xLights 0.84-1.09 per prop; Storm import round trip still byte-identical.
+
 - **2026-10-05:** Shaders and videos in imported sequences (js/xlmedia.js). Golden had 60% of xLights'
   lit bulbs dark in the preview: Video 57% / Shader 26% of that. Shaders: ISF files run in WebGL2
   with xLights' uniforms (TIME = lead-in + time x Speed/100, RENDERSIZE, XL_OFFSET, XL_ZOOM with

@@ -416,6 +416,16 @@ const Sequencer = (() => {
 
     // stride > 1 keeps every stride-th light of each row: enough for measuring
     // the show (fit check), much cheaper than drawing it.
+    // The sequence's rows, top to bottom. xLights renders rows in this order and a
+    // later row draws over earlier ones where it is lit, so groups go first (at the
+    // back) and props after them, each by name, the way xLights' "sort: groups at
+    // top, by name" does. An imported sequence keeps its own order.
+    function rowOrder(show, imported) {
+        if (imported && imported.order && imported.order.length) return imported.order.slice();
+        const byName = (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+        return [...show.groups.keys()].sort(byName).concat([...show.models.keys()].sort(byName));
+    }
+
     function prepare(show, gen, song, stride = 1) {
         let offset = 0;
         for (const m of show.models.values()) { m.offset = offset; offset += m.nodes.length; }
@@ -451,13 +461,10 @@ const Sequencer = (() => {
             const imp = (r.imp || []).slice().sort((a, b) => b.key - a.key).map(x => x.fx);
             targets.push({ name, N, NM, NP: N.pw ? { ...N, w: N.pw, h: N.ph } : N, model: m || null, layers: imp.concat(r.layers.filter(Boolean)), tmp: new Float32Array(3 * n), acc: new Float32Array(3 * n) });
         }
-        // an imported sequence's rows render in their order (a later row's Off hides earlier ones)
-        const order = gen.imported && gen.imported.order;
-        if (order && order.length) {
-            const pos = new Map(order.map((n2, i) => [n2, i]));
-            const at = t => (pos.has(t.name) ? pos.get(t.name) : pos.has(t.name.split('/')[0]) ? pos.get(t.name.split('/')[0]) + 0.5 : 1e9);
-            targets.sort((a, b) => at(a) - at(b));
-        }
+        // rows render in the sequence's order (a later row draws over earlier ones)
+        const pos = new Map(rowOrder(show, gen.imported).map((n2, i) => [n2, i]));
+        const at = t => (pos.has(t.name) ? pos.get(t.name) : pos.has(t.name.split('/')[0]) ? pos.get(t.name.split('/')[0]) + 0.5 : 1e9);
+        targets.sort((a, b) => at(a) - at(b));
         return { targets, total: offset, colors: new Float32Array(3 * offset) };
     }
 
@@ -652,11 +659,9 @@ const Sequencer = (() => {
                 const g = 3 * N.g[k];
                 // layers add, but a bulb saturates
                 const r = Math.min(255, acc[3 * k]), gg = Math.min(255, acc[3 * k + 1]), b = Math.min(255, acc[3 * k + 2]);
-                // a row with an Off playing covers the rows before it
-                if (blackout) { out[g] = r; out[g + 1] = gg; out[g + 2] = b; continue; }
-                if (r > out[g]) out[g] = r;
-                if (gg > out[g + 1]) out[g + 1] = gg;
-                if (b > out[g + 2]) out[g + 2] = b;
+                // a later row draws over earlier ones where it is lit (xLights model
+                // blending); a row with an Off playing covers them entirely
+                if (blackout || r > 0 || gg > 0 || b > 0) { out[g] = r; out[g + 1] = gg; out[g + 2] = b; }
             }
         }
         return out;
@@ -732,14 +737,15 @@ const Sequencer = (() => {
             if (sub) el.subs.set(sub, layers); else { el.layers = layers; el.strands = r.strands || null; }
         }
 
-        // an imported sequence keeps its own row order; new rows follow it
-        const order = gen.imported && gen.imported.order;
-        if (order && order.length) {
-            const pos = new Map(order.map((n, i) => [n, i]));
-            const sorted = [...elements].sort((a, b) => (pos.has(a[0]) ? pos.get(a[0]) : 1e9) - (pos.has(b[0]) ? pos.get(b[0]) : 1e9));
-            elements.clear();
-            for (const [k, v] of sorted) elements.set(k, v);
-        }
+        // Every prop and group of the layout gets a row (empty if unused), as in a
+        // sequence started in xLights, in render order: groups at the back, then props
+        // (an imported sequence keeps its own rows and order); new rows follow it
+        const order = rowOrder(show, gen.imported);
+        for (const n of order) if (!elements.has(n)) elements.set(n, { layers: null, subs: new Map() });
+        const pos = new Map(order.map((n, i) => [n, i]));
+        const sorted = [...elements].sort((a, b) => (pos.has(a[0]) ? pos.get(a[0]) : 1e9) - (pos.has(b[0]) ? pos.get(b[0]) : 1e9));
+        elements.clear();
+        for (const [k, v] of sorted) elements.set(k, v);
         const L = [];
         L.push('<?xml version="1.0" encoding="UTF-8"?>');
         L.push('<xsequence BaseChannel="0" ChanCtrlBasic="0" ChanCtrlColor="0" FixedPointTiming="1" ModelBlending="true">');

@@ -1,5 +1,15 @@
 [
   {
+    "version": "2026.10.05.3",
+    "date": "2026-10-05",
+    "title": "Proper render order and the full layout in exported sequences",
+    "items": [
+      ["better", "Exported sequences list every prop and group from your layout (unused ones stay empty), like a sequence started in xLights, so your master view is all there."],
+      ["better", "Render order: groups at the top (rendered at the back), then props, each by name, the order xLights' \"sort: groups at top by name\" gives. A prop's own effect now shows over a group effect. Imported sequences keep their own order. Thanks to the Discord member who suggested it!"],
+      ["better", "The preview draws rows in that same order, a later row over earlier ones, as xLights does."]
+    ]
+  },
+  {
     "version": "2026.10.05.2",
     "date": "2026-10-05",
     "title": "Pan + zoom the preview, and a props-only view you control by clicking",
