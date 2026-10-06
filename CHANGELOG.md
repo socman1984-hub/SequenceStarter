@@ -2,6 +2,14 @@
 
 Release notes for Lights Auto Sequencer, newest first. The same list is in the app under **✨ What's new**.
 
+## 2026.10.05.2 — Pan + zoom the preview, and a props-only view you control by clicking
+
+_2026-10-05_
+
+- **New:** Zoom the preview: scroll to zoom in/out on whatever's under the cursor (like a map), or use the − / + buttons next to Line up photo — from 50% to 600%. Click the zoom percentage to reset.
+- **New:** Pan around once zoomed in: drag with the middle mouse button, or Shift+scroll to pan sideways.
+- **New:** 💡 Props only, next to Pop out: click a prop on the house to select it (Ctrl/⌘-click, or drag a box, to pick more than one), then Props only hides everything else — the house photo and every other prop — and frames just what you picked, centered. Click Full view, or the hint's button, to go back. If you turn it on before picking anything, it fits all your props instead and shows a hint asking you to click one.
+
 ## 2026.10.05 — Import xLights sequences, Halloween colors and per-part colors
 
 _2026-10-05_
