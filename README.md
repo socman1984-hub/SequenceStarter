@@ -101,6 +101,10 @@ Ctrl+Z undoes. Edits are kept per song (keyed by word position + word), survive
   beats, Alt for free). Once edited, detection never changes them again (*Back to
   detected sections* undoes that). A split part starts with the lights of the part it
   came from.
+- **Preview zoom and Props only** (contributed by MGXAe): scroll over the preview to zoom on
+  the cursor, or − / + (50–600%, click the percentage to reset); middle-drag or Shift+scroll
+  pans. Click props on the house (Ctrl-click or drag a box for several) and *💡 Props only*
+  hides the photo and every other prop and frames just those.
 - **House photo**: placed the way xLights places it (with *scale image* off it keeps the
   photo's proportions, fills the preview's height, anchored bottom-left; a 4:3 photo on a
   16:9 preview covers the left three-quarters). *Line up photo…* lets you drag, scroll to
@@ -115,14 +119,20 @@ Ctrl+Z undoes. Edits are kept per song (keyed by word position + word), survive
   highlighted.
 - **🎨 Change colors…** (whole plan, or the 🎨 on a section card) swaps only the colors to
   another scheme for the sections you pick; the preview shows it before *Apply*, *Cancel*
-  puts the old colors back, Undo works after.
+  puts the old colors back, Undo works after. It opens on the scheme those parts last got.
+  A part recolored this way (or whose row colors were edited by hand) keeps *its own
+  colors*: its 🎲 Randomize and whole-plan ideas use them instead of the Idea-settings scheme
+  (an "own colors" badge with ✕ goes back). Built-in schemes include Halloween ones
+  (Halloween, Orange & purple, Green & purple, Red & orange); new built-ins are added to
+  saved scheme lists too.
 - **Copy to…** copies a section's lights to any others (quick picks: *All Chorus*, every
   section), replacing or adding. Copies are independent afterwards.
 - **Ideas** (`js/ideas.js`): *Suggest a plan* / *Another idea* for every section, or only the
   ones chosen under *For:* (quick picks like *Only Chorus*; the rest keep their lights) (option:
   optionally the same look for every part with the same name), and *Randomize* per section, optionally limited to
-  that section's *lights to use*. Effect choices per prop are weighted by what the
-  owner's own 44 sequences use on that kind of prop, and shifted by the section's energy.
+  that section's *lights to use*. *🎲 Randomize the whole sequence* (above the parts) does
+  every part at once, whatever *For:* says. Effect choices per prop are weighted by what the
+  owner's own sequences use on that kind of prop, and shifted by the section's energy.
   Undo/Redo (Ctrl+Z / Ctrl+Y on this tab) step back through tries.
 
 ### Editing while watching
@@ -183,7 +193,10 @@ Ctrl+Z undoes. Edits are kept per song (keyed by word position + word), survive
   whether to dim the matrix's other lights there. *Remove from these parts* takes them off.
 - *Prop types…* tells ideas what a prop is when its name doesn't say. Without it, a group is
   judged by what most of its members are (so "Everything but starburst" is not a group of
-  stars), and a model by its name, then its xLights type.
+  stars), and a model by its name, then its xLights type. Names are read in English,
+  French, Spanish, German and Dutch, accents ignored (étoile, flocon, sapin, estrella,
+  Schneeflocke, sneeuwvlok...). In the *Prop mix*, props you added show "added by you" and a
+  *Remove* button.
 - The control boxes above the plan fold with ▾ and, after *🔒 Layout locked* is clicked to
   unlock, move by dragging the ⠿ grip or with ↑ ↓ (*Reset layout* restores them). Locked by
   default; order and folds are remembered in the browser.
@@ -202,8 +215,16 @@ muted, duplicated, removed, copied to another part; splitting or joining parts r
 time). The export writes them back untouched, under anything made here. Checked: *A Christmas
 Storm 2024* (3,619 effects, strands, 10 timing tracks) imported and exported renders
 byte-identical in xLights. Keeping the version stamp matters: xLights upgrades old settings on
-load by it. The preview draws imported effects with the closest effect here (brightness about
-0.6–0.9 of xLights; value curves, buffer transforms and many fine settings are not drawn).
+load by it.
+
+The preview draws imported effects with the closest effect here, reading their settings,
+value curves, buffer style, transforms, rotation, blends and fades, and composes rows in the
+sequence's order. Pictures, videos (`<video>`, kept in step with the song) and shaders (the
+ISF `.fs` files run with WebGL2 with xLights' uniforms; `js/xlmedia.js`) load from the show
+folder. Effects with no drawing here shimmer sparsely; Warp and Kaleidoscope draw nothing.
+Measured bulb by bulb against xLights renders: *A Christmas Storm* 93% of lit bulbs drawn;
+*Golden*'s shaders 57–100%. Videos could not be checked in the hidden test browser (it never
+decodes frames), only in a normal tab.
 
 ## Projects
 
@@ -226,6 +247,12 @@ between visits, but the project file is the copy to trust.
   Spirograph previews are ports of xLights' own render code). On group rows the buffer is
   written explicitly (*Per Model Default*, *Per Preview*, or *Overlay - Centered / Scaled*
   for "every prop the same"), so xLights draws what the preview shows.
+- **Rows of the sequence**: every group and model of the layout gets a row (empty if
+  unused), as in a sequence started in xLights, in render order: groups first, then models,
+  each by name (xLights' "sort: groups at top by name"). xLights renders rows top to bottom
+  and a later row draws over earlier ones, so a prop's own effect shows over a group effect;
+  the preview composes rows the same way. The master view lives in each `.xsq`, not in the
+  show folder files. Imported sequences keep their own order.
 - **Layers**: rows on the same lights stack. Upper rows add light (*Additive*), or act as a
   mask (*1 is Unmask*: the shape shows the colors below; *1 is Mask*: the shape cuts them
   out). Rows can fade in and out on every effect.
@@ -242,7 +269,7 @@ between visits, but the project file is the copy to trust.
 
 
 **Switching and auto-save.** Projects open through the browser's file picker, so *Save*
-writes back to the same file. *Projects ▾* lists recent projects (kept as file handles in
+writes back to the same file. The *File* menu lists recent projects (kept as file handles in
 the browser) and everything in a chosen projects folder; switching with unsaved changes asks
 Save / Don't save / Cancel. *Auto-save* saves 1.5 s after each change (Chrome/Edge). When the
 browser wants permission to read a remembered song again, a note offers one **Open** click
@@ -279,6 +306,7 @@ exported marks line up with the audio in xLights.
 - `js/app.js`: page, timeline, playback and beat click, word-timing edits, timing export
 - `js/show.js`: show folder access, rgbeffects parsing, model geometry, row targets
 - `js/effects.js`: effect library (preview renderer + xLights settings) and color schemes
+- `js/xlmedia.js`: imported Shader (WebGL2) and Video effects for the preview
 - `js/sequence.js`: plan → timed effects, preview frame renderer, `.xsq` writer
 - `js/ideas.js`: random-but-sensible light ideas for a section or the whole song
 - `js/sequi.js`: the "Make a sequence" tab (show, preview, section cards, picker, copy, undo, saving)

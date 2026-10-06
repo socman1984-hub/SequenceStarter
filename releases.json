@@ -6,7 +6,8 @@
     "items": [
       ["better", "Exported sequences list every prop and group from your layout (unused ones stay empty), like a sequence started in xLights, so your master view is all there."],
       ["better", "Render order: groups at the top (rendered at the back), then props, each by name, the order xLights' \"sort: groups at top by name\" gives. A prop's own effect now shows over a group effect. Imported sequences keep their own order. Thanks to the Discord member who suggested it!"],
-      ["better", "The preview draws rows in that same order, a later row over earlier ones, as xLights does."]
+      ["better", "The preview draws rows in that same order, a later row over earlier ones, as xLights does."],
+      ["better", "The guide (How to use), the Show me around tour and the page notes now cover everything new: importing xLights sequences, zoom and Props only, randomizing the whole sequence, part colors, Halloween colors, prop names in other languages and the render order."]
     ]
   },
   {

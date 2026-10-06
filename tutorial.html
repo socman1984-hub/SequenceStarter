@@ -64,9 +64,10 @@
     <li><a href="#parts">Check the song's parts</a></li>
     <li><a href="#words">Find the words (optional)</a></li>
     <li><a href="#show">Open your show</a></li>
-    <li><a href="#photo">Line up your house photo</a></li>
+    <li><a href="#photo">Your house in the preview</a></li>
     <li><a href="#suggest">Get a starting plan</a></li>
     <li><a href="#steer">Steer the ideas</a></li>
+    <li><a href="#import">Start from a sequence made in xLights</a></li>
     <li><a href="#tweak">Change parts by hand</a></li>
     <li><a href="#save">Save your work</a></li>
     <li><a href="#xlights">Into xLights</a></li>
@@ -74,7 +75,7 @@
   </ol>
 
   <p class="tip">Once a song is loaded, a row of steps under the two tabs (<b>Song › Words › Your show › Plan the lights ›
-  Save for xLights</b>) ticks off what's done and highlights what's next. Click a step to go there.</p>
+  Export to xLights</b>) ticks off what's done and highlights what's next. Click a step to go there.</p>
 
   <h2>Part 1: the song</h2>
   <ol class="steps">
@@ -116,10 +117,18 @@
       submodels, singing faces and house photo. It remembers the folder for next time.</p>
     </li>
     <li id="photo">
-      <h3>Line up your house photo</h3>
-      <p>On a second screen? <b>⧉ Pop out</b> puts the preview in its own window (close it to bring it back).
-      If the photo doesn't sit under the lights, press <b>Line up photo…</b> and drag it, or use the mouse wheel to
+      <h3>Your house in the preview</h3>
+      <p>If the photo doesn't sit under the lights, press <b>Line up photo…</b> and drag it, or use the mouse wheel to
       size it. This only changes how the preview looks.</p>
+      <ul>
+        <li><b>Zoom:</b> scroll over the preview to zoom in or out on whatever is under the mouse, or use the
+          <b>−</b> / <b>+</b> buttons (50% to 600%). Click the percentage to go back to 100%. Once zoomed in, drag with the
+          middle mouse button, or Shift+scroll, to look around.</li>
+        <li><b>💡 Props only:</b> click a prop on the house (Ctrl-click, or drag a box, to pick several), then press
+          <b>Props only</b>: the house photo and every other prop disappear, and what you picked fills the preview, so you
+          can see exactly what one prop is doing. <b>Full view</b> goes back.</li>
+        <li><b>⧉ Pop out</b> puts the preview in its own window, handy on a second screen (close it to bring it back).</li>
+      </ul>
     </li>
     <li id="suggest">
       <h3>Get a starting plan</h3>
@@ -127,7 +136,8 @@
       that carry the beat, makes loud parts brighter and fuller than quiet ones, and picks a transition into each
       lift (ramp up, sweep in, burst, color hit, crossfade, and once per song a build &amp; land). Each part shows how it
       comes in; open the part and change <b>Comes in with</b> to pick another. With <b>Try 4 ideas, keep the best fit</b> ticked (under <b>Idea settings</b>) it makes four ideas and keeps the one that
-      follows the music best. Don't like it? Press <b>🎲 Another idea</b>.</p>
+      follows the music best. Don't like it? Press <b>🎲 Another idea</b>, or <b>🎲 Randomize the whole
+      sequence</b> above the parts for new lights in every part at once.</p>
       <p>Press <b>Play</b> to watch it on your house. The <b>Fit with the music</b> score shows how well the lights
       follow the loudness and the beat, and whether loud parts are brighter.</p>
     </li>
@@ -135,9 +145,11 @@
       <h3>Steer the ideas</h3>
       <ul>
         <li><b>Feeling</b> (peaceful, joyful, playful, powerful, magical) and <b>Intensity</b> change the kind of effects and how busy they are.</li>
-        <li><b>Colors for ideas</b> picks the color scheme; <b>Edit color schemes…</b> makes your own.</li>
+        <li><b>Colors for ideas</b> picks the color scheme (Christmas ones, Halloween ones such as orange &amp; purple,
+          and more); <b>Edit color schemes…</b> makes your own.</li>
         <li><b>Prop mix…</b> uses a prop more, less, always or never, in every part or one kind of part.</li>
-        <li><b>Prop types…</b> tells the app what a prop is when its name doesn't say ("Big Tree" is a mega tree).</li>
+        <li><b>Prop types…</b> tells the app what a prop is when its name doesn't say ("Big Tree" is a mega tree). Names in
+          English, French, Spanish, German and Dutch are understood by themselves (snowflake, flocon, copo, Schneeflocke...).</li>
         <li><b>Leave out of ideas…</b> keeps props out completely.</li>
         <li><b>For:</b> chooses which parts the next idea changes. The 🎲 tick on each part does the same.</li>
       </ul>
@@ -150,8 +162,11 @@
       <p>Open your show folder first, then <b>File › Import xLights sequence (.xsq)</b>. The page finds the sequence's
       song, and every effect comes in exactly as xLights had it, grouped per part, per prop and per layer
       (marked <i>imported</i>). Change the lights or colors of those rows, mute or remove them, or press 🎲 on a part to
-      add new lights on top. When you export, everything you didn't change goes back to xLights exactly as it was. The
-      preview draws imported effects closely, but not perfectly.</p>
+      add new lights on top. When you export, everything you didn't change goes back to xLights exactly as it was,
+      in the sequence's own row order.</p>
+      <p>The preview draws imported effects closely, but not perfectly. Pictures, videos and shaders play in the preview
+      when their files are in your show folder (where xLights keeps them too); effects the preview can't draw show as a
+      soft twinkle so you can still see where they play.</p>
     </li>
     <li id="tweak">
       <h3>Change parts by hand</h3>
@@ -170,7 +185,12 @@
         time (the way most pro sequences are built). <b>Sparkles</b> add white glints (optionally with the music),
         <b>Comes in / Goes</b> can wipe or burst a row in and out, and <b>Spin</b> turns the whole picture.</li>
         <li><b>Copy to…</b> copies a part's lights to other parts.</li>
-        <li><b>🎨</b> changes only the colors.</li>
+        <li><b>🎨</b> changes only the colors. A part you recolor (or whose row colors you change by hand) keeps
+          <i>its own colors</i>: its 🎲 Randomize and new ideas use them instead of the main scheme. The part shows
+          "own colors" with a ✕ to go back to the main scheme.</li>
+        <li><b>Effects</b> to choose from include solid, wash, chase, bars, spirals, pinwheel, twinkle, shockwave,
+          marquee, butterfly, fan, ripple, spirograph, wave, meteors, curtain, morph, snowflakes, strobe, a beat meter,
+          Off (dark), singing faces and words on a matrix.</li>
         <li><b>Moving heads</b> get the <b>Moving head</b> effect: pick a pattern (circle, figure-8, square…), its size, where
           it aims, how many rounds per part, how far apart the heads move and how bright. Ideas and 🎲 Randomize include them
           (calm, slow shapes in quiet parts; big, fast ones in loud parts), and the preview draws each head's beam.
@@ -179,7 +199,7 @@
           <b>+ Moving heads</b>.</li>
         <li><b>📝 Words on the matrix…</b> shows the sung words on your matrix in the parts you pick (the choruses to
           start with), so people can sing along. Find the words first (step 4).</li>
-        <li><b>Click a prop on the house</b> to see what lights it, or drag a box to pick several.</li>
+        <li><b>Click a prop on the house</b> to see what lights it; Ctrl-click or drag a box to pick several.</li>
         <li><b>View → Only the part that's playing</b> shows just the part you're hearing, opened, and follows the song
           as it plays: less scrolling while you adjust things.</li>
         <li><b>Arrange the boxes</b> (How this works, Ideas, Change what's planned, View): ▾ folds a box to its title.
@@ -197,7 +217,7 @@
       the words and the whole light plan. After that, Save writes back to the same file.</p>
       <ul>
         <li><b>Auto-save</b>: tick it and every change saves by itself a moment later.</li>
-        <li><b>Projects ▾</b> lists your recent projects (and, with <b>Choose projects folder…</b>, every project in
+        <li>The <b>File</b> menu lists your recent projects (and, with <b>Choose projects folder…</b>, every project in
           that folder). Click one to switch; if you have unsaved changes it asks <i>Save / Don't save / Cancel</i> first.
           Recent projects also show on the start screen.</li>
         <li>Opening a project finds its song by itself. The browser asks once per visit before the page may read a
@@ -208,8 +228,11 @@
     <li id="xlights">
       <h3>Into xLights</h3>
       <p>Press <b>⤓ Export to xLights</b> (<kbd>Ctrl</kbd>+<kbd>E</kbd>), then <b>Save into show folder</b> (or <b>Download .xsq</b>). Open the sequence
-      in xLights, render it, and play. It includes timing tracks for the beats, bars, song parts and words, so you can
-      keep adding effects in xLights the usual way.</p>
+      in xLights, render it, and play. It includes timing tracks for the beats, bars, song parts, words and the music's
+      note onsets, so you can keep adding effects in xLights the usual way.</p>
+      <p>Every prop and group of your layout gets a row, empty if unused, like a sequence started in xLights. They're in
+      render order: groups at the top (drawn at the back), then props, each by name, so a prop's own effect shows over a
+      group effect.</p>
     </li>
   </ol>
 
@@ -237,14 +260,21 @@
     <dt>A prop gets odd effects, or isn't used.</dt>
     <dd>Use <b>Prop types…</b> to say what it is, and <b>Prop mix…</b> to use it more.</dd>
     <dt>A prop shows as a single dot in the preview.</dt>
-    <dd>That kind of model isn't drawn yet (for example DMX fixtures). The saved sequence still
+    <dd>That kind of model isn't drawn yet (for example DMX fixtures other than moving heads). The saved sequence still
       works in xLights. Please report it on <a href="https://github.com/socman1984-hub/LightsAutoSequencer/issues">GitHub</a>.</dd>
     <dt>"Find words" is slow.</dt>
     <dd>The first run downloads the models. In Chrome or Edge the models use your graphics card; other browsers fall
       back to the processor, which is slower.</dd>
     <dt>The ideas don't look like my style.</dt>
-    <dd>The ideas start from one person's sequencing style (which effects suit which props, learned from 44 finished
-      sequences). Use Feeling, Prop mix and Prop types to steer them, and keep the rows you like.</dd>
+    <dd>The ideas start from one person's sequencing style (which effects suit which props and how they're put
+      together, learned from 56 finished sequences and a few professional ones). Use Feeling, Prop mix and Prop types to
+      steer them, and keep the rows you like.</dd>
+    <dt>An imported sequence looks different in the preview.</dt>
+    <dd>The preview is a close guide, not xLights itself: some effects and settings are only approximated, and
+      pictures, videos and shaders need their files in your show folder. The exported sequence is always exact, so
+      check the final look in xLights.</dd>
+    <dt>Scrolling over the preview zooms instead of scrolling the page.</dt>
+    <dd>That's the zoom: move the mouse off the preview to scroll the page, or click the zoom percentage to reset it.</dd>
   </dl>
 
   <p class="muted small">An independent tool for xLights, not made by the xLights project. Free and open source (GPLv3).
