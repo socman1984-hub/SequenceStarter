@@ -3,26 +3,79 @@
 One running list for the web sequencer. New ideas get added here; when one is built it
 moves to **Done** with the date.
 
-## Where things stand (2026-10-04)
+## Where things stand (2026-10-07)
 
 - **Live:** https://socman1984-hub.github.io/LightsAutoSequencer/ (GitHub Pages, public repo
   `socman1984-hub/LightsAutoSequencer`, GPLv3). Guide: `tutorial.html`. Feedback: Discord
-  https://discord.gg/xjgWweqCEs. Posted to the xLights Facebook group; first testers replied.
-- **Everything built is live** (latest release 2026.10.04.4, pushed 2026-10-04): moving heads,
-  File menu, pop-out preview, older-xLights support and error reporting, 24 effects (incl. Fan,
-  Ripple, Spirograph, Wave, Meteors, Curtain, Morph, Snowflakes, Strobe, Off, Beat meter), masks,
-  overlay groups, beat-chopped rows, sparkles, wipe/circle transitions, spin, 3D looks, value
-  curves, new triggers, the project-banner fix. Nothing is waiting to be pushed.
-- **Waiting on testers:** the xLights 2023 show folder that crashed (need its
-  `xlights_rgbeffects.xml` or the copied error); whether File › Open project now works for the
-  owner (fixed a hidden banner; the native picker itself couldn't be tested here).
-- **Needs checking in a real browser:** the pop-out window (this test browser blocks new
-  windows), Chrome's *Allow on every visit* prompt, the native open/save dialogs.
-- **Next up, if wanted:** the open items in *Lessons from the owner's show folder* and *Lessons
-  from pro sequences* (Pictures/Video, Shader, Warp, blur/zoom, more transition styles, more
-  matrix layers), and the list below.
+  https://discord.gg/xjgWweqCEs. Posted to the xLights Facebook group; testers active on Discord.
+  Outside contributors send pull requests (MGXAe: preview zoom + Props only, computergeek1507:
+  preview clipping); after a merge on GitHub, pull locally, test, credit in What's new.
+- **Everything built is live** (latest release 2026.10.07, pushed 2026-10-07): xLights sequence
+  import (exact round trip; preview draws imported pictures, videos, shaders, value curves),
+  Halloween schemes, per-part colors, Randomize the whole sequence, prop names in 5 languages,
+  render order (groups first) with the full layout in every export, Find-words repeats and
+  "ah-ah" fills, preview zoom / Props only, docs and tour updated. Nothing is waiting to be pushed.
+- **Waiting on testers:** imported videos in a real browser tab (the hidden test browser never
+  decodes video frames); the xLights 2023 show folder that crashed (need its
+  `xlights_rgbeffects.xml` or the copied error).
+- **Needs checking in a real browser:** the pop-out window, Chrome's *Allow on every visit*
+  prompt, the native open/save dialogs, imported videos.
+- **Next up:** *Every xLights effect, and which effects each prop may get* (below, requested
+  2026-10-07), then the open items in *Lessons from the owner's show folder* and *Lessons from
+  pro sequences*.
 
 ## Open ideas
+
+### Every xLights effect, and which effects each prop may get (requested 2026-10-07, not started)
+
+The owner's request: "There are lots of effects missing. Make sure every single effect is
+available. Have a new tab/page where you can configure what effects are usable by what props, so
+randomize gives better control over which effects could be selected. Have a *default* selection
+(what we use now) people can go back to. Let users save their new selections."
+
+**1. Every effect.** xLights has 54 effects (`resources/effectmetadata/*.json`); the tool offers
+24 in its menus (On, Color Wash, SingleStrand chase, Bars, Spirals, Pinwheel, Twinkle, Shockwave,
+Marquee, Butterfly, Fan, Ripple, Spirograph, Wave, Meteors, Curtain, Morph, Snowflakes, Strobe,
+Off, VU Meter, Moving Head, Faces, Text for lyrics). Pictures, Video and Shader exist only for
+imported sequences. Missing from the menus, grouped by what they need:
+- *Plain drawing effects* (settings + a preview renderer ported from xLights' code, as done for
+  Fan/Ripple/Spirograph): Candle, Circles, Fill, Fire, Fireworks, Galaxy, Garlands, Kaleidoscope,
+  Life, Lightning, Lines, Liquid, Plasma, Shape, Shimmer, Snowstorm, Tendril, Tree, Warp, Text
+  (any text, not only lyrics), Single Strand's *Skips* and *FX* modes.
+- *Need a file*: Pictures, Video, Shader (renderers exist from the import work; need a file
+  picker that stores the path relative to the show folder), Sketch, Glediator.
+- *Need the music or a model feature*: Music, Piano, Guitar (audio/notes), State (state
+  definitions, like Faces), DMX and Servo (DMX models), Duplicate (copies another model), Adjust
+  (modifies the layers below).
+- Each new effect is checked against an xLights render (preview vs xLights brightness and
+  correlation per prop), as for the earlier batches.
+
+**2. An "Effects for props" page.** A new tab (or full-size dialog) with a grid: one row per prop
+type (arch, cane, mega tree, mini tree, spinner, snowflake, matrix, star, wreath, cross, peace,
+window, flood, house lines, moving head, other) and a column per effect.
+- Each cell: on/off, plus a weight (how often ideas pick it); possibly a slider or
+  never / less / normal / more like the Prop mix.
+- Also per prop type: which effects may be used as *hits* (beats/drums) versus steady looks.
+- Optional: per single prop or group overrides on top of the per-type row.
+- 🎲 Randomize, Suggest a plan, Randomize the whole sequence and *Another idea* only pick from
+  what's on. If a prop type has nothing on, ideas skip it and say so.
+
+**3. Default and saving.**
+- **Default** = today's built-in choices (the `WEIGHTS` table in `ideas.js` plus ROUND/hit
+  rules), and a *Reset to default* button that goes back to it any time.
+- **Save**: kept in the browser automatically, and inside project files (so a project carries
+  its own choices). Optional extras: named presets (*My Christmas*, *Halloween*), and
+  export / import a `.json` to share on Discord (fits the community-presets idea below).
+- New effects added in later versions start *on* at their default weight, even for people with
+  saved choices (like new color schemes reaching saved scheme lists).
+
+**Decisions to make before building:**
+1. Tab vs dialog for the page (a tab next to *Song & words* / *Make a sequence* has room for a
+   big grid; a dialog is quicker to reach from Ideas).
+2. Cells as simple on/off, or on/off + weight (never / less / normal / more).
+3. Per prop type only, or also per single prop / group.
+4. Named presets and file export now, or later.
+5. Order of the missing effects (plain drawing ones first is the most value per day).
 
 ### Waiting for a decision
 
