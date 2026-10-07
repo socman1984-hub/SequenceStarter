@@ -2,6 +2,13 @@
 
 Release notes for Lights Auto Sequencer, newest first. The same list is in the app under **✨ What's new**.
 
+## 2026.10.07 — Words for songs that repeat more than their lyrics
+
+_2026-10-07_
+
+- **Fixed:** Find words left parts of a song with singing but no words when the pasted lyrics list a chorus fewer times than the song sings it (common in dance and extended mixes). Those repeats are now added where they're sung.
+- **Fixed:** Sung sounds like "Ah-ah", "Ooh" or "Yeah" that the speech model can't hear as words: if your lyrics include such a line, every stretch of singing still without words gets it, timed to the sung notes.
+
 ## 2026.10.05.3 — Proper render order and the full layout in exported sequences
 
 _2026-10-05_

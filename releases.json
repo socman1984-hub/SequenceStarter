@@ -1,5 +1,14 @@
 [
   {
+    "version": "2026.10.07",
+    "date": "2026-10-07",
+    "title": "Words for songs that repeat more than their lyrics",
+    "items": [
+      ["fixed", "Find words left parts of a song with singing but no words when the pasted lyrics list a chorus fewer times than the song sings it (common in dance and extended mixes). Those repeats are now added where they're sung."],
+      ["fixed", "Sung sounds like \"Ah-ah\", \"Ooh\" or \"Yeah\" that the speech model can't hear as words: if your lyrics include such a line, every stretch of singing still without words gets it, timed to the sung notes."]
+    ]
+  },
+  {
     "version": "2026.10.05.3",
     "date": "2026-10-05",
     "title": "Proper render order and the full layout in exported sequences",

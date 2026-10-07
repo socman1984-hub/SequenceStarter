@@ -730,11 +730,133 @@ const Vocals = (() => {
         return v;
     }
 
+    // Pasted lyrics often list a repeated chorus fewer times than the song sings it
+    // (extended and dance mixes most of all), which leaves sung stretches with no
+    // words. Find the singing no line landed on, and which pasted lines Whisper
+    // heard there; returns those repeats as { s, text } (ms), in time order.
+    function missingRepeats(lines, out, whRaw) {
+        const splitKeys = t => t.split(/[\s—–]+|-(?=\S)/).map(norm).filter(Boolean);
+        const distinct = [...new Map(lines.map(l => [splitKeys(l).join(' '), l])).entries()]
+            .filter(([k]) => k).map(([k, text]) => ({ text, keys: k.split(' ') }));
+        const spans = [];
+        for (const w of out) {
+            const sp = spans[w.line] || (spans[w.line] = { s: w.s, e: w.e });
+            sp.s = Math.min(sp.s, w.s); sp.e = Math.max(sp.e, w.e);
+        }
+        const covered = ms => spans.some(sp => sp && ms >= sp.s - 400 && ms <= sp.e + 400);
+        const wh = whRaw.map(w => ({ key: norm(w.text), s: Math.round(w.s * 1000), e: Math.round(w.e * 1000) })).filter(w => w.key && !covered(w.s));
+        const runs = [];
+        for (const w of wh) {
+            const r = runs[runs.length - 1];
+            if (r && w.s - r[r.length - 1].e < 2500) r.push(w); else runs.push([w]);
+        }
+        // how well a pasted line matches a stretch of heard words (1 = the same)
+        const near = (a, b) => a === b || a.startsWith(b.slice(0, 3)) || b.startsWith(a.slice(0, 3));
+        const sim = (a, b) => {
+            const W = b.length + 1;
+            let prev = Array.from({ length: W }, (_, j) => j), cur = new Array(W);
+            for (let i = 1; i <= a.length; i++) {
+                cur[0] = i;
+                for (let j = 1; j < W; j++) cur[j] = Math.min(prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : near(a[i - 1], b[j - 1]) ? 0.4 : 1), prev[j] + 1, cur[j - 1] + 1);
+                [prev, cur] = [cur, prev];
+            }
+            return 1 - prev[W - 1] / Math.max(a.length, b.length);
+        };
+        const added = [];
+        for (const run of runs) {
+            if (run.length < 2) continue;
+            for (let i = 0; i < run.length;) {
+                let best = null;
+                for (const L of distinct) {
+                    for (const extra of [-1, 0, 1, 2]) {
+                        const n = Math.min(run.length - i, L.keys.length + extra);
+                        if (n < 1) continue;
+                        const sc = sim(L.keys, run.slice(i, i + n).map(w => w.key));
+                        if (!best || sc > best.sc) best = { L, n, sc };
+                    }
+                }
+                if (best && best.sc >= 0.5) { added.push({ s: run[i].s, text: best.L.text }); i += best.n; } else i++;
+            }
+        }
+        return added;
+    }
+
     // Cheap: re-run whenever the pasted lyrics change.
     async function build(v, lyricsText) {
         const fromUser = lyricsText && lyricsText.trim().length > 0;
-        const src = fromUser ? parseLyrics(lyricsText) : linesFromWhisper(v.whisperText || v.whisper);
-        const { out, stats, error } = align(src.words, v.whisper, v.edges, v.vseg);
+        let src = fromUser ? parseLyrics(lyricsText) : linesFromWhisper(v.whisperText || v.whisper);
+        let { out, stats, error } = align(src.words, v.whisper, v.edges, v.vseg);
+        // repeats the pasted lyrics left out: add them where they are sung and align again
+        let repeats = 0;
+        for (let pass = 0; fromUser && !error && pass < 3; pass++) {
+            const add = missingRepeats(src.lines, out, v.whisper);
+            if (!add.length) break;
+            const firstAt = li => { const w = out.find(x => x.line === li); return w ? w.s : Infinity; };
+            const merged = src.lines.map((text, li) => ({ s: firstAt(li), text })).concat(add).sort((a, b) => a.s - b.s);
+            const src2 = parseLyrics(merged.map(m => m.text).join('\n'));
+            const r2 = align(src2.words, v.whisper, v.edges, v.vseg);
+            if (r2.error) break;
+            src = src2; ({ out, stats, error } = r2);
+            repeats += add.length;
+        }
+        if (repeats) stats.repeatsAdded = repeats;
+        // Vocal chops and "ah-ah"s: Whisper hears them as noise ("I, I, I", "ha ha"),
+        // so nothing above places them. When the lyrics have a sung-sound line, every
+        // stretch of singing still without words gets it, on the sung notes.
+        if (fromUser && !error && out.length) {
+            const SOUND = /^(AH|AHH|OH|OHH|OOH|OO|LA|NA|HEY|YEAH|YEA|MM|MMM|HM|HA|WHOA|WOAH|WOO|AY|EY|EH|DA|DOO|HOO|UH|OHOH|AHAH)$/;
+            const keysOf = t => t.split(/[\s—–]+|-(?=\S)/).map(norm).filter(Boolean);
+            const counts = new Map();
+            for (const l of src.lines) { const k = keysOf(l); if (k.length && k.every(x => SOUND.test(x))) counts.set(l, (counts.get(l) || 0) + 1); }
+            const filler = [...counts].sort((a, b) => b[1] - a[1])[0];
+            if (filler) {
+                const ftext = filler[0], fwords = ftext.split(/[\s—–]+|-(?=\S)/).filter(w => norm(w));
+                // the sung stretches minus the words already there
+                const taken = out.map(w => [w.s - 150, w.e + 150]).sort((a, b) => a[0] - b[0]);
+                const pieces = [];
+                for (const [x, y] of v.vseg) {
+                    let a = x;
+                    for (const [p, q] of taken) {
+                        if (q <= a || p >= y) continue;
+                        if (p - a >= 500) pieces.push([a, p]);
+                        a = Math.max(a, q);
+                    }
+                    if (y - a >= 500) pieces.push([a, y]);
+                }
+                const n = fwords.length;
+                let filled = 0;
+                const place = starts => {
+                    const li = src.lines.push(ftext) - 1;
+                    starts.forEach(([s, e], k) => out.push({ s: Math.round(s), e: Math.round(e), text: displayWord(fwords[k]), key: norm(fwords[k]), line: li, filler: true }));
+                    filled++;
+                };
+                for (const [a, b] of pieces) {
+                    // one "ah" per sung note (vocal onset), as many times as the notes allow
+                    const ons = [];
+                    for (const t of v.edges) if (t >= a && t < b - 120 && (!ons.length || t - ons[ons.length - 1] >= 150)) ons.push(t);
+                    if (ons.length < n) {
+                        const step = (b - a) / n;
+                        place(fwords.map((_, k) => [a + step * k, a + step * (k + 1)]));
+                        continue;
+                    }
+                    for (let g = 0; g + n <= ons.length; g += n) {
+                        place(fwords.map((_, k) => {
+                            const s = ons[g + k], nx = g + k + 1 < ons.length ? ons[g + k + 1] : b;
+                            return [s, Math.min(nx, s + 900, b)];
+                        }));
+                    }
+                }
+                if (filled) {
+                    // keep words and lines in time order
+                    out.sort((a, b) => a.s - b.s);
+                    const order = [], seen = new Map();
+                    for (const w of out) { if (!seen.has(w.line)) { seen.set(w.line, order.length); order.push(src.lines[w.line]); } w.line = seen.get(w.line); }
+                    src.lines = order;
+                    stats.fillers = filled;
+                    stats.filler = ftext;
+                }
+            }
+        }
         if (!fromUser) {
             out.forEach((w, i) => { w.cap = src.words[i].cap; w.punct = src.words[i].punct; });
             src.lines = relineByTiming(out);

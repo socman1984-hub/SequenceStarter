@@ -1329,6 +1329,8 @@
             `${Math.round((st.onOnset || 0) * 100)}% start on a sung syllable`,
             `<b>${L.vseg.length}</b> sung passages, <b>${L.notes.length}</b> notes`,
         ];
+        if (st.repeatsAdded) parts.push(`<b>${st.repeatsAdded}</b> repeated lines added where the song sings more than your lyrics list`);
+        if (st.fillers) parts.push(`<b>${st.fillers}</b> more sung "${esc(st.filler)}" parts filled in`);
         let warn = '';
         if (L.error) warn = L.error;
         else if (L.source === 'lyrics' && st.words && st.anchored / st.words < 0.4) {

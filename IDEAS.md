@@ -362,6 +362,15 @@ show); 7 the test hooks stay on purpose (harmless, used for testing); 8 not need
 
 ## Done
 
+- **2026-10-07:** Words missing on part of *Dom Dolla - Dreamin'* (Discord). Pasted lyrics: 209 words;
+  Whisper heard 1,139, but the extra was Whisper looping on vocal chops ("I, I, I", "ha ha",
+  "I'm a little bit nervous"), not lyrics. Two passes after alignment in `Vocals.build`:
+  `missingRepeats` (sung stretches no line landed on, matched to pasted lines at >= 0.5
+  similarity, inserted in time order and re-aligned; none here, guards against hallucinations) and
+  a sung-sound filler (a lyric line made only of ah/oh/ooh/yeah... fills every uncovered voiced
+  piece >= 0.5 s, one word per vocal onset). Dreamin': 63 "Ah-ah" parts, unworded singing 19 s ->
+  7 s of 122 s. Dusty Bibles unchanged (0 added, 96% on onsets).
+
 - **2026-10-05:** Render order (Discord suggestion). xLights renders sequence rows top to bottom and a
   later row draws over earlier ones (RenderEngine wires each row after earlier rows sharing its
   channels). Export now writes every layout group and model (empty if unused), groups first then
