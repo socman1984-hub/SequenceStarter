@@ -6,7 +6,7 @@ Release notes for SequenceStarter, newest first. The same list is in the app und
 
 _2026-10-09_
 
-- **New:** Lights Auto Sequencer is now SequenceStarter: a head start on your xLights sequences. Another project already uses the name Auto Sequencer, so this one has its own. The web address, your saved projects and your settings stay exactly the same.
+- **New:** Lights Auto Sequencer is now SequenceStarter: a head start on your xLights sequences. Another project already uses the name Auto Sequencer, so this one has its own. It has a new address too: https://socman1984-hub.github.io/SequenceStarter/ (old links and the QR code forward there). Your saved projects and settings are all still there.
 
 ## 2026.10.09 — Every xLights effect, and you choose which ones ideas use
 

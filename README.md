@@ -5,7 +5,7 @@ right in your browser, then finish it your way in xLights. (Formerly *Lights Aut
 independent tool for xLights users; not made by or affiliated with the xLights project.
 Everything runs on your own computer: the song and your show folder are never uploaded.
 
-**New to it?** Read [How to use](https://socman1984-hub.github.io/LightsAutoSequencer/tutorial.html)
+**New to it?** Read [How to use](https://socman1984-hub.github.io/SequenceStarter/tutorial.html)
 (`tutorial.html`), or press **Show me around** in the app for a guided tour.
 
 **xLights versions:** show folders from xLights 2021 or newer (tested with layouts saved by
@@ -24,7 +24,7 @@ Two tabs:
 
 ## Running it
 
-**Online:** https://socman1984-hub.github.io/LightsAutoSequencer/ (GitHub Pages, from the
+**Online:** https://socman1984-hub.github.io/SequenceStarter/ (GitHub Pages, from the
 `main` branch). GitHub Pages can't send the cross-origin isolation headers the models like,
 so `coi.js` adds them through a service worker (one automatic reload on the first visit);
 `_headers` / `netlify.toml` do the same on Cloudflare Pages or Netlify.

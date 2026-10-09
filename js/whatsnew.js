@@ -7,7 +7,7 @@
 (() => {
     const $ = id => document.getElementById(id);
     const SEEN = 'xlweb-seen-release';
-    const REPO = 'socman1984-hub/LightsAutoSequencer';
+    const REPO = 'socman1984-hub/SequenceStarter';
     const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     const LABEL = { new: 'New', better: 'Better', fixed: 'Fixed' };
     let releases = [];
