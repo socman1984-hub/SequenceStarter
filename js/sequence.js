@@ -30,6 +30,7 @@ const Sequencer = (() => {
     ];
     // Triggers placed from the part itself rather than from song-wide marks.
     const PART_TRIGGERS = new Set(['leadin', 'first', 'lastbar']);
+    const VOCAL_TRIGGERS = new Set(['lines', 'words', 'singing', 'notes']);
     const EVENTS = TRIGGERS.filter(t => t.id !== 'span');
 
     function marksFor(id, song) {
@@ -337,6 +338,10 @@ const Sequencer = (() => {
                 if (spans.length && spans[0].s > ws + 0.05) spans.unshift({ s: ws, e: spans[0].s });
             } else if (!isEvent) spans = [{ s: ws, e: we }];
             else if (PART_TRIGGERS.has(trig)) spans = partSpans(trig, c, song);
+            // sung lines, words and notes belong to the part that holds most of each one, and
+            // show whole: a line sung just before the chorus starts, or running over into the next
+            // part, would otherwise lose its words
+            else if (VOCAL_TRIGGERS.has(trig)) spans = marks(trig).filter(m => { const mid = (m.s + m.e) / 2; return mid >= ws - 0.001 && mid < we; }).map(m => ({ s: m.s, e: m.e }));
             else spans = marks(trig).filter(m => m.s >= ws - 0.001 && m.s < we).map(m => ({ s: m.s, e: Math.min(m.e, we) }));
             const barIndex = t => { const bs = song.grid.bars; let lo = 0, hi = bs.length - 1; while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (bs[mid].s <= t + 0.01) lo = mid; else hi = mid - 1; } return lo; };
             const alt = row.chop ? row.alt || '' : '';

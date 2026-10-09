@@ -2,6 +2,12 @@
 
 Release notes for SequenceStarter, newest first. The same list is in the app under **✨ What's new**.
 
+## 2026.10.10 — Words on the matrix no longer go missing
+
+_2026-10-10_
+
+- **Fixed:** Words on the matrix skipped some lines: a line sung just before a chorus started ("We got dust on our Bibles" in Dusty Bibles) showed nothing, and a line running over into the next part stopped after its first word. Each sung line now belongs to the part that holds most of it and shows in full. In Dusty Bibles that brings back 28 of 66 chorus words. Rows on sung words, notes or singing work the same way. Export again to get the fix in xLights.
+
 ## 2026.10.09.2 — A new name: SequenceStarter
 
 _2026-10-09_
