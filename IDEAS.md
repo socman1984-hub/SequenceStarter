@@ -15,8 +15,7 @@ moves to **Done** with the date.
   Halloween schemes, per-part colors, Randomize the whole sequence, prop names in 5 languages,
   render order (groups first) with the full layout in every export, Find-words repeats and
   "ah-ah" fills, preview zoom / Props only, docs and tour updated.
-- **Built, not pushed yet (2026-10-09):** every xLights effect and the *🎛 Effects for props* tab
-  (release 2026.10.09 in `releases.json`). Committed locally; push when the owner says so.
+- **Pushed 2026-10-09:** every xLights effect and the *🎛 Effects for props* tab (release 2026.10.09).
 - **Waiting on testers:** imported videos in a real browser tab (the hidden test browser never
   decodes video frames); the xLights 2023 show folder that crashed (need its
   `xlights_rgbeffects.xml` or the copied error).
