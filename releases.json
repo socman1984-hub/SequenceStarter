@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026.10.09.2",
+    "date": "2026-10-09",
+    "title": "A new name: SequenceStarter",
+    "items": [
+      ["new", "Lights Auto Sequencer is now SequenceStarter: a head start on your xLights sequences. Another project already uses the name Auto Sequencer, so this one has its own. The web address, your saved projects and your settings stay exactly the same."]
+    ]
+  },
+  {
     "version": "2026.10.09",
     "date": "2026-10-09",
     "title": "Every xLights effect, and you choose which ones ideas use",

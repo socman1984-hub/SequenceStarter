@@ -5,6 +5,8 @@ moves to **Done** with the date.
 
 ## Where things stand (2026-10-09)
 
+- **Name:** *SequenceStarter – a head start on your xLights sequences* (renamed 2026-10-09 from Lights Auto
+  Sequencer: another project uses "Auto Sequencer"; web address and repo name kept so links and the QR code work).
 - **Live:** https://socman1984-hub.github.io/LightsAutoSequencer/ (GitHub Pages, public repo
   `socman1984-hub/LightsAutoSequencer`, GPLv3). Guide: `tutorial.html`. Feedback: Discord
   https://discord.gg/xjgWweqCEs. Posted to the xLights Facebook group; testers active on Discord.

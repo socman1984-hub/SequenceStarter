@@ -1,6 +1,7 @@
-# Lights Auto Sequencer
+# SequenceStarter
 
-Turn a song into an [xLights](https://xlights.org) sequence, right in your browser. An
+A head start on your xLights sequences: turn a song into an [xLights](https://xlights.org) sequence,
+right in your browser, then finish it your way in xLights. (Formerly *Lights Auto Sequencer*.) An
 independent tool for xLights users; not made by or affiliated with the xLights project.
 Everything runs on your own computer: the song and your show folder are never uploaded.
 

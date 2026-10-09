@@ -1,6 +1,12 @@
 # What's new
 
-Release notes for Lights Auto Sequencer, newest first. The same list is in the app under **✨ What's new**.
+Release notes for SequenceStarter, newest first. The same list is in the app under **✨ What's new**.
+
+## 2026.10.09.2 — A new name: SequenceStarter
+
+_2026-10-09_
+
+- **New:** Lights Auto Sequencer is now SequenceStarter: a head start on your xLights sequences. Another project already uses the name Auto Sequencer, so this one has its own. The web address, your saved projects and your settings stay exactly the same.
 
 ## 2026.10.09 — Every xLights effect, and you choose which ones ideas use
 

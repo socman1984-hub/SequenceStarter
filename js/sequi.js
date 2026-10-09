@@ -1109,7 +1109,7 @@
         if (!w) { setShowStatus('Your browser blocked the new window. Allow pop-ups for this site, then press ⧉ Pop out again.', true); return; }
         const theme = document.documentElement.dataset.theme;
         w.document.open();
-        w.document.write(`<!doctype html><html${theme ? ` data-theme="${theme}"` : ''}><head><meta charset="utf-8"><title>Preview – Lights Auto Sequencer</title><link rel="stylesheet" href="${new URL('css/style.css', location.href)}"></head><body class="popout-body"></body></html>`);
+        w.document.write(`<!doctype html><html${theme ? ` data-theme="${theme}"` : ''}><head><meta charset="utf-8"><title>Preview – SequenceStarter</title><link rel="stylesheet" href="${new URL('css/style.css', location.href)}"></head><body class="popout-body"></body></html>`);
         w.document.close();
         popPlaceholder = document.createElement('div');
         popPlaceholder.className = 'panel popped-note';

@@ -1856,7 +1856,7 @@
         const dirty = state.projectDirty && hasWork();
         $('projTitle').textContent = name ? (dirty ? '• ' : '') + name : '';
         $('projTitle').classList.toggle('dirty', !!dirty);
-        document.title = name ? `${dirty ? '• ' : ''}${name.replace(/ \(not saved yet\)$/, '')} – Lights Auto Sequencer` : 'Lights Auto Sequencer';
+        document.title = name ? `${dirty ? '• ' : ''}${name.replace(/ \(not saved yet\)$/, '')} – SequenceStarter` : 'SequenceStarter – a head start on your xLights sequences';
     }
     setInterval(updateTitle, 1000);
     $('openProj').addEventListener('click', () => pickProject());
