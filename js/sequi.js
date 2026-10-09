@@ -1490,8 +1490,77 @@
         else if (t.vocal) list = Effects.LIST.filter(e => e.use.includes('vocal') || e.use.includes('hit'));
         else list = Effects.LIST.filter(e => e.use.includes('hit'));
         const heads = S.show && targets.length && targets.every(x => S.show.models.has(x) ? !!S.show.models.get(x).mh : Show.movingHeadsIn(S.show, x).length > 0);
-        if (heads) return Effects.LIST.filter(e => e.dmx);
+        if (heads) return Effects.LIST.filter(e => e.dmx || e.anyModel);
         return list.filter(e => !e.dmx);
+    }
+
+    // Choose a file from the show folder (pictures, videos, shaders, recordings).
+    // Browsers never give a file's path, so the folder is listed and the file
+    // is stored by its path inside the show folder, which xLights resolves.
+    const SKIP_DIRS = /^(backup|rendercache|xscheduledata|\.|node_modules)/i;
+    const fileLists = new WeakMap();
+    async function listShowFiles(dir, exts) {
+        let all = fileLists.get(dir);
+        if (!all) {
+            all = [];
+            const walk = async (h, prefix, depth) => {
+                for await (const [name, e] of h.entries()) {
+                    if (all.length > 5000) return;
+                    if (e.kind === 'directory') { if (depth < 5 && !SKIP_DIRS.test(name)) await walk(e, prefix + name + '/', depth + 1); }
+                    else all.push(prefix + name);
+                }
+            };
+            await walk(dir, '', 0);
+            all.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+            fileLists.set(dir, all);
+        }
+        return exts && exts.length ? all.filter(p => exts.some(x => p.toLowerCase().endsWith(x))) : all;
+    }
+    function chooseShowFile(exts, done) {
+        let dlg = document.getElementById('fileDlg');
+        if (!dlg) {
+            dlg = document.createElement('dialog');
+            dlg.id = 'fileDlg';
+            dlg.className = 'picker file-dlg';
+            dlg.innerHTML = '<form method="dialog" class="picker-inner"><div class="picker-head"><h2>Choose a file from your show folder</h2><input type="search" id="fileFind" placeholder="Filter by name…" aria-label="Filter"></div><div class="pick-list file-list" id="fileList"></div><div class="picker-foot"><span class="muted small" id="fileNote"></span><button type="submit" class="btn">Cancel</button></div></form>';
+            document.body.appendChild(dlg);
+        }
+        const list = dlg.querySelector('#fileList'), find = dlg.querySelector('#fileFind'), note = dlg.querySelector('#fileNote');
+        let files = [];
+        const draw = () => {
+            const q = find.value.trim().toLowerCase();
+            const shown = files.filter(f => !q || f.toLowerCase().includes(q)).slice(0, 400);
+            list.innerHTML = shown.map(f => `<button type="button" class="file-item" data-f="${esc(f)}">${esc(f)}</button>`).join('') || '<p class="muted small">No matching files.</p>';
+        };
+        list.onclick = e => { const b = e.target.closest('.file-item'); if (!b) return; dlg.close(); done(b.dataset.f); };
+        find.oninput = draw;
+        find.value = '';
+        const dir = S.show && S.show.folder;
+        if (!dir) { files = []; list.innerHTML = '<p class="muted small">Open your show folder with <b>Choose show folder…</b> (not "pick the two files") to choose from it. Or type the path into the box.</p>'; note.textContent = ''; dlg.showModal(); return; }
+        list.innerHTML = '<p class="muted small">Reading the show folder…</p>';
+        note.textContent = exts && exts.length ? 'Showing ' + exts.join(' ') + ' files' : '';
+        dlg.showModal();
+        listShowFiles(dir, exts).then(f => { files = f; draw(); }).catch(err => { list.innerHTML = '<p class="muted small">Could not read the folder: ' + esc(err.message || err) + '</p>'; });
+    }
+
+    // The effect menu, grouped by kind (xLights' own name in brackets when it differs)
+    function effectOptions(effs, cur) {
+        const groups = new Map();
+        for (const e of effs) { const c = e.cat || 'other'; if (!groups.has(c)) groups.set(c, []); groups.get(c).push(e); }
+        const opt = e => `<option value="${e.id}" ${e.id === cur ? 'selected' : ''}>${esc(e.label)}</option>`;
+        if (groups.size < 2) return effs.map(opt).join('');
+        return Object.keys(Effects.CATS).filter(c => groups.has(c)).map(c => `<optgroup label="${esc(Effects.CATS[c])}">${groups.get(c).map(opt).join('')}</optgroup>`).join('');
+    }
+    // Lists an option takes from the row's props: their state lists, or the states in one
+    function dynChoices(kind, r) {
+        const models = (r.targets || []).flatMap(t => S.show.models.has(t) ? [S.show.models.get(t)] : Show.resolveTarget(S.show, t).map(n => n.model)).filter(Boolean);
+        const uniq = a => [...new Set(a)];
+        if (kind === 'states') return uniq(models.flatMap(m => (m.states || []).map(s => s.name)));
+        if (kind === 'stateNames') {
+            const def = r.options.State_StateDefinition;
+            return uniq(models.flatMap(m => (m.states || []).filter(s => !def || s.name === def).flatMap(s => s.list.map(x => x.name))));
+        }
+        return [];
     }
 
     function newRow() {
@@ -1766,7 +1835,7 @@
             <div class="pr-targets"><button type="button" class="btn small pick">Lights…</button> <span class="tlist">${targetsTxt}</span></div>
             <div class="pr-fx">
               <label>When <select class="trig">${trigOpts}</select></label>
-              <label>Effect <select class="eff">${effs.map(e => `<option value="${e.id}" ${e.id === r.effect ? 'selected' : ''}>${esc(e.label)}</option>`).join('')}</select></label>
+              <label>Effect <select class="eff">${effectOptions(effs, r.effect)}</select></label>
               <label>Colors <select class="scheme">${schemeOpts}</select></label>
               <span class="swatches">${r.colors.map((col, i) => `<input type="color" value="${col}" data-i="${i}" aria-label="Color ${i + 1}">`).join('')}${r.colors.length < 6 ? '<button type="button" class="btn tiny addc" title="Add a color">+</button>' : ''}${r.colors.length > 1 ? '<button type="button" class="btn tiny delc" title="Remove the last color">−</button>' : ''}</span>
               <span class="opts"></span>
@@ -1816,11 +1885,25 @@
                 const faces = m ? m.faces.map(f => f.name) : [];
                 if (!faces.length) continue;
                 opts.insertAdjacentHTML('beforeend', `<label>${LABELS[k]} <select data-k="${k}">${faces.map(f => `<option ${f === val ? 'selected' : ''}>${esc(f)}</option>`).join('')}</select></label>`);
+            } else if (eff.dynChoices && eff.dynChoices[k]) {
+                const list = dynChoices(eff.dynChoices[k], r);
+                const lab = (eff.labels && eff.labels[k]) || k;
+                if (!list.length) { opts.insertAdjacentHTML('beforeend', `<label>${esc(lab)} <span class="muted small">(none on these props)</span></label>`); continue; }
+                const cur = list.includes(val) ? val : list[0];
+                if (cur !== val) r.options[k] = cur;
+                opts.insertAdjacentHTML('beforeend', `<label>${esc(lab)} <select data-k="${k}" data-text="1">${list.map(x => `<option ${x === cur ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>`);
             } else if (eff.choices && eff.choices[k]) {
-                opts.insertAdjacentHTML('beforeend', `<label>${(eff.labels && eff.labels[k]) || LABELS[k] || k} <select data-k="${k}">${eff.choices[k].map(x => `<option ${x === val ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>`);
+                opts.insertAdjacentHTML('beforeend', `<label title="${esc((eff.tips && eff.tips[k]) || '')}">${(eff.labels && eff.labels[k]) || LABELS[k] || k} <select data-k="${k}" data-text="1">${eff.choices[k].map(x => `<option ${x === val ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>`);
+            } else if (eff.kinds && eff.kinds[k] === 'b') {
+                opts.insertAdjacentHTML('beforeend', `<label class="chk" title="${esc((eff.tips && eff.tips[k]) || '')}"><input type="checkbox" data-k="${k}" data-bool="1" ${+val || val === true ? 'checked' : ''}> ${esc(((eff.labels && eff.labels[k]) || k).replace(' (0/1)', ''))}</label>`);
+            } else if (eff.kinds && eff.kinds[k] === 'file') {
+                opts.insertAdjacentHTML('beforeend', `<label class="wide-opt">${esc((eff.labels && eff.labels[k]) || k)} <input type="text" data-k="${k}" data-text="1" value="${esc(val)}" placeholder="path in your show folder" spellcheck="false"> <button type="button" class="btn tiny pickfile" data-k="${k}" title="Choose a file from your show folder">Choose…</button></label>`);
+            } else if (eff.kinds && eff.kinds[k] === 's') {
+                opts.insertAdjacentHTML('beforeend', `<label class="wide-opt" title="${esc((eff.tips && eff.tips[k]) || '')}">${esc((eff.labels && eff.labels[k]) || k)} <input type="text" data-k="${k}" data-text="1" value="${esc(val)}" spellcheck="false"></label>`);
             } else {
                 const label = k === 'size' && eff.id === 'lyrictext' ? 'Text size' : ((eff.labels && eff.labels[k]) || LABELS[k] || k);
-                opts.insertAdjacentHTML('beforeend', `<label>${label} <input type="number" data-k="${k}" value="${val}" step="${typeof def === 'number' && def % 1 !== 0 ? 0.1 : 1}"></label>`);
+                const rg = eff.ranges && eff.ranges[k];
+                opts.insertAdjacentHTML('beforeend', `<label title="${esc((eff.tips && eff.tips[k]) || '')}">${label} <input type="number" data-k="${k}" value="${val}" step="${typeof def === 'number' && def % 1 !== 0 ? 0.1 : 1}"${rg && rg[0] != null ? ` min="${rg[0]}"` : ''}${rg && rg[1] != null ? ` max="${rg[1]}"` : ''}></label>`);
             }
         }
         el.querySelector('.pick').addEventListener('click', () => openPicker(r, 'targets', 'Choose lights'));
@@ -1852,8 +1935,9 @@
         if (delc) delc.addEventListener('click', () => commit(() => { r.colors.pop(); r.scheme = 'custom'; }));
         opts.querySelectorAll('[data-k]').forEach(inp => inp.addEventListener('change', e => commit(() => {
             const k = e.target.dataset.k;
-            r.options[k] = e.target.tagName === 'SELECT' ? e.target.value : parseFloat(e.target.value);
-        }, { render: false })));
+            r.options[k] = e.target.dataset.bool ? (e.target.checked ? 1 : 0) : e.target.dataset.text || e.target.tagName === 'SELECT' && isNaN(+e.target.value) ? e.target.value : e.target.tagName === 'SELECT' ? e.target.value : parseFloat(e.target.value);
+        }, { render: !!(eff.dynChoices && eff.dynChoices[e.target.dataset.k] === 'states') })));
+        opts.querySelectorAll('.pickfile').forEach(b => b.addEventListener('click', () => chooseShowFile(eff.fileTypes ? eff.fileTypes[b.dataset.k] : null, path => commit(() => { r.options[b.dataset.k] = path; }))));
         el.querySelector('.del').addEventListener('click', () => commit(() => { c.rows = c.rows.filter(x => x !== r); }));
         el.querySelector('.dup').addEventListener('click', () => commit(() => { c.rows.splice(c.rows.indexOf(r) + 1, 0, Sequencer.cloneRows([r])[0]); }));
         const lvl = el.querySelector('.lvl');
@@ -1922,7 +2006,14 @@
         matrixWords: !!S.plan.ideaMatrixWords,
         mhParts: S.plan.mh && Array.isArray(S.plan.mh.parts) ? S.plan.mh.parts : null,
         phrased: S.plan.ideaPhrased !== false,
+        fx: EffectPrefs.current(),
     });
+    // "Arches was left out…": kinds of prop the effect choices give no effect
+    function skippedNote() {
+        const s = Ideas.takeSkipped();
+        if (!s.length) return '';
+        return ` ${s.map(c => Ideas.CLASS_LABELS[c] || c).join(', ')} ${s.length > 1 ? 'were' : 'was'} left out: no effect is switched on for ${s.length > 1 ? 'them' : 'it'} in Effects for props.`;
+    }
     $('ideaMatrixWords').addEventListener('change', e => { S.plan.ideaMatrixWords = e.target.checked; savePlan(); });
     $('ideaPhrased').addEventListener('change', e => { S.plan.ideaPhrased = e.target.checked; savePlan(); });
     $('ideaAlike').addEventListener('change', e => { S.plan.ideaAlike = e.target.checked; savePlan(); });
@@ -2211,13 +2302,15 @@
     function randomizeSection(sec) {
         const song = XLWeb.song();
         const c = container(sec.id);
+        Ideas.takeSkipped();
         const rows = Ideas.partIdea(sec, song, S.show, { pool: c.pool, seed: Math.floor(Math.random() * 2 ** 31), scheme: partScheme(c) || ideaScheme(), ...ideaMood() });
+        const note = skippedNote();
         commit(() => { const cc = container(sec.id); cc.rows = withKept(cc.rows, rows); S.open.add(sec.id); });
         saveOpen();
         // loop it, so each new idea can be judged straight away
         if (S.loopId !== sec.id || !XLWeb.playing()) loopSection(sec);
         else setLoop(sec.id);
-        setPlanStatus(`New idea for "${sec.name}"${c.pool.length ? ' from its chosen lights' : ''}, looping now. Press 🎲 again for another, or Undo to go back.`);
+        setPlanStatus(`New idea for "${sec.name}"${c.pool.length ? ' from its chosen lights' : ''}, looping now. Press 🎲 again for another, or Undo to go back.${note}`);
     }
 
     // Which parts "Suggest a plan" works on: 'whole' plus section ids. null = everything.
@@ -2325,6 +2418,7 @@
             }
             return p;
         };
+        Ideas.takeSkipped();
         let idea = make(), best = null;
         if ($('ideaBest').checked) {
             suggesting = true;
@@ -2350,7 +2444,7 @@
         });
         $('suggestPlan').textContent = '🎲 Another idea';
         const what = sections.length === song.sections.length ? 'the whole song' : sections.length ? sections.map(s => s.name).join(', ') : 'the whole-song layer';
-        setPlanStatus(`New idea for ${what}${best ? ` (best fit of ${TRIES} tried: ${best.r.score})` : ''}. Press 🎲 Another idea to keep trying, Undo to go back, or change any section by hand.`);
+        setPlanStatus(`New idea for ${what}${best ? ` (best fit of ${TRIES} tried: ${best.r.score})` : ''}. Press 🎲 Another idea to keep trying, Undo to go back, or change any section by hand.${skippedNote()}`);
     }
     $('suggestPlan').addEventListener('click', () => suggestPlan(false));
     $('randAll').addEventListener('click', () => suggestPlan(true));

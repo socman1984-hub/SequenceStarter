@@ -131,8 +131,11 @@ Ctrl+Z undoes. Edits are kept per song (keyed by word position + word), survive
   ones chosen under *For:* (quick picks like *Only Chorus*; the rest keep their lights) (option:
   optionally the same look for every part with the same name), and *Randomize* per section, optionally limited to
   that section's *lights to use*. *🎲 Randomize the whole sequence* (above the parts) does
-  every part at once, whatever *For:* says. Effect choices per prop are weighted by what the
-  owner's own sequences use on that kind of prop, and shifted by the section's energy.
+  every part at once, whatever *For:* says. Which effects each kind of prop may get, and how
+  often, comes from the *🎛 Effects for props* tab (`js/fxprefs.js`, `js/fxpage.js`): its
+  *Default* set is what the owner's own sequences use on that kind of prop; users change the
+  weights, save named sets (kept in the browser, exported / imported as `.effects.json`), and
+  ideas skip a kind of prop with nothing switched on. Choices are then shifted by the section's energy.
   Undo/Redo (Ctrl+Z / Ctrl+Y on this tab) step back through tries.
 
 ### Editing while watching
@@ -221,7 +224,7 @@ The preview draws imported effects with the closest effect here, reading their s
 value curves, buffer style, transforms, rotation, blends and fades, and composes rows in the
 sequence's order. Pictures, videos (`<video>`, kept in step with the song) and shaders (the
 ISF `.fs` files run with WebGL2 with xLights' uniforms; `js/xlmedia.js`) load from the show
-folder. Effects with no drawing here shimmer sparsely; Warp and Kaleidoscope draw nothing.
+folder. Every xLights effect has a drawing here (see *Effects* below), read back from its own settings.
 Measured bulb by bulb against xLights renders: *A Christmas Storm* 93% of lit bulbs drawn;
 *Golden*'s shaders 57–100%. Videos could not be checked in the hidden test browser (it never
 decodes frames), only in a normal tab.
@@ -247,6 +250,20 @@ between visits, but the project file is the copy to trust.
   Spirograph previews are ports of xLights' own render code). On group rows the buffer is
   written explicitly (*Per Model Default*, *Per Preview*, or *Overlay - Centered / Scaled*
   for "every prop the same"), so xLights draws what the preview shows.
+- **The rest of xLights' effects** (`js/effects-more.js`): Plasma, Shimmer, Garlands, Fill, Tree,
+  Life, Lightning, Lines, Fire, Candle, Snowstorm, Circles, Galaxy, Fireworks, Shape, Tendril,
+  Liquid, Warp, Kaleidoscope, Adjust, Duplicate, VU Meter (music kinds), Music, Piano, Guitar,
+  Text, Single Strand Skips and FX (118 WLED patterns), State, DMX, Servo, Sketch, Glediator,
+  and Pictures / Video / Shader chosen by hand. Settings use xLights' own keys and defaults
+  from its effect metadata (`js/xlmeta.js`, built by `node tools/xlmeta.js <xLights source>`),
+  in the form the sequence's xLights version reads (keys that changed in 2026 are written the
+  old way for the default 2025.09 version and migrate in newer xLights). Previews are ports of
+  xLights' render code, checked effect by effect against headless xLights renders; random
+  effects match in look and amount of light, WLED patterns are calibrated from xLights
+  measurements, and Liquid (a physics engine in xLights) and the music-following kinds are
+  approximations. Warp, Kaleidoscope and Adjust use xLights' Canvas mode (they get the layers
+  under them). Piano / Guitar read a *Vocal Notes* timing track (MIDI numbers) that the export
+  adds when the words have been found.
 - **Rows of the sequence**: every group and model of the layout gets a row (empty if
   unused), as in a sequence started in xLights, in render order: groups first, then models,
   each by name (xLights' "sort: groups at top by name"). xLights renders rows top to bottom

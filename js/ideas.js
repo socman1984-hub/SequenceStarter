@@ -112,26 +112,22 @@ const Ideas = (() => {
         return 'generic';
     }
 
-    // Effect shares per prop class, from his sequences (survey of 44 songs), plus
-    // Fan / Ripple / Spirograph, which pro sequences use on every kind of prop.
-    const WEIGHTS = {
-        arch: { chase: 51, wash: 38, bars: 5, shockwave: 6, fan: 5, vumeter: 3, wave: 2 },
-        roof: { chase: 63, shockwave: 10, wash: 10, twinkle: 8, on: 9, fan: 4, morph: 3, meteors: 3, vumeter: 2 },
-        cane: { chase: 46, on: 15, shockwave: 9, wash: 7, bars: 5, spirals: 4, vumeter: 4 },
-        minitree: { shockwave: 28, chase: 21, on: 21, twinkle: 10, spirals: 5, fan: 5, vumeter: 3, snowflakes: 3, morph: 3, wave: 2 },
-        megatree: { shockwave: 18, chase: 17, spirals: 10, pinwheel: 9, butterfly: 8, bars: 8, twinkle: 8, fan: 9, spirograph: 4, ripple: 4, wave: 5, morph: 4, curtain: 4, snowflakes: 4, meteors: 4, strobe: 1 },
-        spinner: { chase: 28, shockwave: 22, pinwheel: 17, spirals: 8, twinkle: 5, wash: 5, fan: 14, ripple: 6, spirograph: 4, wave: 3, curtain: 2 },
-        snowflake: { shockwave: 44, on: 20, twinkle: 15, pinwheel: 12, spirals: 6, wash: 8, fan: 10, ripple: 9, curtain: 2 },
-        matrix: { shockwave: 30, pinwheel: 16, butterfly: 15, chase: 11, bars: 10, fan: 10, ripple: 8, spirograph: 10, curtain: 4, meteors: 4, snowflakes: 3, wave: 3 },
-        cross: { shockwave: 30, chase: 20, pinwheel: 11, on: 10, ripple: 5 },
-        peace: { chase: 49, shockwave: 14, on: 10, wave: 5 },
-        window: { marquee: 41, chase: 17, on: 15, wash: 10 },
-        flood: { on: 56, wash: 14, vumeter: 3, morph: 2 },
-        star: { twinkle: 30, on: 30, shockwave: 20, pinwheel: 8, ripple: 8, fan: 6, strobe: 2, curtain: 2 },
-        wreath: { chase: 30, pinwheel: 20, shockwave: 20, wash: 15, twinkle: 10, fan: 12, ripple: 6 },
-        movinghead: { moving: 1 },
-        generic: { chase: 20, wash: 20, twinkle: 15, bars: 10, on: 10, shockwave: 10, spirals: 5, butterfly: 5, fan: 5, ripple: 4, wave: 3, morph: 2 },
-    };
+    // Which effects each kind of prop gets, and how often, come from the effect
+    // choices (EffectPrefs: the "Effects for props" page; its Default is the
+    // survey of his 44 sequences). sel: those choices, passed in with the options.
+    const selOr = sel => sel || (typeof EffectPrefs !== 'undefined' ? EffectPrefs.current() : null);
+    const steadyWeights = (cls, sel) => cls === 'movinghead' ? { moving: 1 } : EffectPrefs.weights('steady', cls, selOr(sel));
+    const hitWeights = (cls, sel) => EffectPrefs.weights('hits', cls, selOr(sel));
+    const okFor = (part, cls, id, sel) => EffectPrefs.allowed(part, cls, id, selOr(sel));
+    // weights with the effects this kind of prop may not use taken out
+    const onlyAllowed = (w, cls, sel, part = 'steady') => { const o = {}; for (const [k, v] of Object.entries(w)) if (v > 0 && okFor(part, cls, k, sel)) o[k] = v; return o; };
+    const anyOf = w => Object.values(w).some(v => v > 0);
+    // a layer tool row (Warp, Kaleidoscope): it reshapes the row under it
+    const isTool = r => !!(Effects.get(r.effect) && Effects.get(r.effect).canvas);
+    // an effect that needs the sung notes (Piano, Guitar) only when the song has them
+    const usable = (id, ctx) => { const e = Effects.get(id); return !!e && (e.needs !== 'notes' || !!(ctx.song && ctx.song.lyr && ctx.song.lyr.notes && ctx.song.lyr.notes.length)); };
+    // kinds of prop left out of an idea because no effect is switched on for them
+    let skipped = new Set();
     // Round props: in a group, every one of them shows the same picture (Overlay),
     // and in loud parts they carry a fast rhythm of short hits.
     const ROUND = new Set(['spinner', 'snowflake', 'wreath', 'star']);
@@ -154,8 +150,9 @@ const Ideas = (() => {
         { id: 'full', label: 'Full on', value: 0.92 },
     ];
 
-    const CALM = new Set(['wash', 'twinkle', 'on']);
-    const BUSY = new Set(['shockwave', 'pinwheel', 'bars', 'spirals', 'chase', 'fan', 'ripple', 'meteors', 'morph', 'strobe', 'vumeter', 'curtain']);
+    // quiet parts lean to calm effects, loud ones to busy ones (effects say which they are)
+    const CALM = new Set(['wash', 'twinkle', 'on', ...Effects.LIST.filter(e => e.mood === 'calm').map(e => e.id)]);
+    const BUSY = new Set(['shockwave', 'pinwheel', 'bars', 'spirals', 'chase', 'fan', 'ripple', 'meteors', 'morph', 'strobe', 'vumeter', 'curtain', ...Effects.LIST.filter(e => e.mood === 'busy').map(e => e.id)]);
 
     // ---------- candidates ----------
 
@@ -260,6 +257,9 @@ const Ideas = (() => {
             }
             case 'on': return energy < 0.4 ? { fadeIn: +(between(rng, 0.3, 1.5)).toFixed(1), fadeOut: +(between(rng, 0.3, 1.5)).toFixed(1) } : {};
         }
+        // the other effects pick their own settings
+        const eff = Effects.get(effect);
+        if (eff && eff.rand) return eff.rand({ rng, pick: a => pick(rng, a), between: (a, b) => between(rng, a, b), ibetween: (a, b) => ibetween(rng, a, b), weighted: w => weighted(rng, w), chance: p => rng() < p }, { ...ctx, energy, bars, fast });
         return {};
     }
 
@@ -333,9 +333,9 @@ const Ideas = (() => {
         if (cls === 'face') {
             return { id: Sequencer.newId(), trigger: 'singing', targets: [target], effect: 'faces', options: {}, colors: ['#FFFFFF'], scheme: 'white' };
         }
-        const w = { ...(WEIGHTS[cls] || WEIGHTS.generic) };
-        delete w.shockwave;
-        if (!Object.keys(w).length) w.on = 1;
+        const w = { ...steadyWeights(cls, ctx.fx) };
+        for (const k of Object.keys(w)) if (!usable(k, ctx)) delete w[k];
+        if (!anyOf(w)) { skipped.add(cls); return null; }
         const e = ctx.style;
         for (const k of Object.keys(w)) {
             if (e < 0.25) { if (CALM.has(k)) w[k] *= 3; if (BUSY.has(k)) w[k] *= 0.25; }
@@ -343,7 +343,15 @@ const Ideas = (() => {
             else if (e > 0.65) { if (BUSY.has(k)) w[k] *= 1.5; if (k === 'wash' || k === 'on') w[k] *= 0.6; }
             if (ctx.feel && ctx.feel.mul[k]) w[k] *= ctx.feel.mul[k];
         }
-        const effect = weighted(rng, w);
+        let effect = weighted(rng, w);
+        let tool = null;
+        if (Effects.get(effect) && Effects.get(effect).canvas) {
+            const base = {};
+            for (const [k, v] of Object.entries(w)) if (!(Effects.get(k) && Effects.get(k).canvas)) base[k] = v;
+            if (!anyOf(base)) return null;
+            tool = effect;
+            effect = weighted(rng, base);
+        }
         const colors = pick(rng, ctx.cp.base).slice();
         let options = optionsFor(effect, rng, { ...ctx, energy: e, cls });
         if (ctx.flip) options = flipOptions(effect, options);
@@ -372,6 +380,13 @@ const Ideas = (() => {
         if (ctx.energy >= 0.3 && rng() < sp) { row.sparkles = pick(rng, [50, 62, 62, 100]); if (rng() < 0.5) row.musicSparkles = true; }
         // the whole picture turning, on big screens
         if (['matrix', 'megatree', 'spinner'].includes(cls) && ['pinwheel', 'spirals', 'bars', 'wave', 'fan', 'butterfly'].includes(effect) && rng() < 0.12) row.spin = pick(rng, [1, 1, 2]);
+        if (tool) {
+            // the layer tool sits above the look and reshapes it (xLights Canvas mode)
+            let topts = optionsFor(tool, rng, { ...ctx, energy: e, cls });
+            const tr = { id: Sequencer.newId(), trigger: 'span', targets: row.targets.slice(), effect: tool, options: topts, colors: row.colors.slice(), scheme: row.scheme, level: 100 };
+            if (row.chop) { delete row.chop; delete row.alt; }
+            return [row, tr];
+        }
         return row;
     }
 
@@ -380,11 +395,14 @@ const Ideas = (() => {
     // Big props mark the bar; small ones the beat.
     const BIG = new Set(['megatree', 'matrix', 'roof', 'flood']);
 
+    // Options for an effect used as a hit.
+    const hitOptions = (effect, rng, ctx, cls) => effect === 'shockwave' ? { width: ibetween(rng, 25, 50) } : effect === 'pulse' ? {} : optionsFor(effect, rng, { ...ctx, hit: true, cls });
+
     function hitRow(show, target, rng, ctx) {
         const cls = classify(show, target);
-        const w = WEIGHTS[cls] || WEIGHTS.generic;
-        const effect = ROUND.has(cls) ? weighted(rng, { shockwave: (w.shockwave || 0) >= 15 ? 4 : 1, pulse: 2, ripple: 2, fan: 2 })
-            : (w.shockwave || 0) >= 15 && rng() < 0.7 ? 'shockwave' : 'pulse';
+        const w = hitWeights(cls, ctx.fx);
+        if (!anyOf(w)) return null;
+        const effect = weighted(rng, w);
         let trigger;
         if (BIG.has(cls) || ctx.energy < 0.5) trigger = 'downbeats';
         else if (ctx.energy > 0.78) trigger = pick(rng, ['beats', 'kick']);
@@ -392,7 +410,7 @@ const Ideas = (() => {
         const colors = ctx.cp.hit.slice();
         const row = {
             id: Sequencer.newId(), trigger, targets: [target], effect,
-            options: effect === 'shockwave' ? { width: ibetween(rng, 25, 50) } : effect === 'pulse' ? {} : optionsFor(effect, rng, { ...ctx, hit: true, cls }),
+            options: hitOptions(effect, rng, ctx, cls),
             colors, scheme: schemeTag(colors, ctx.scheme),
         };
         if (show.groups.has(target) && ROUND.has(cls)) row.overlay = true;
@@ -511,7 +529,7 @@ const Ideas = (() => {
     // (a later phrase of a long part); matrixWords: the matrix shows the lyrics
     // in lifting parts and is a dim bed everywhere else.
     // mhParts: the parts moving heads join (null: every part)
-    function sectionIdea(section, song, show, { pool, seed, scheme, feel = 'auto', intensity = null, exclude = [], mix = null, energy = null, style = null, turn = null, flip = false, matrixWords = false, mhParts = null }) {
+    function sectionIdea(section, song, show, { pool, seed, scheme, feel = 'auto', intensity = null, exclude = [], mix = null, energy = null, style = null, turn = null, flip = false, matrixWords = false, mhParts = null, fx = null }) {
         const excluded = exclude instanceof Set ? exclude : modelsOf(show, exclude);
         if (pool && pool.length && excluded.size) pool = pool.filter(t => ![...modelsOf(show, [t])].some(m => excluded.has(m)));
         const rng = rngFrom(seed);
@@ -525,7 +543,7 @@ const Ideas = (() => {
         const lift = LIFT.test(section.name) || energy >= 0.75;
         if (turn == null) turn = Math.max(0, turnOf(song, section));
         const cp = colourPlan(scheme, energy, lift, turn);
-        const ctx = { energy, style, bars, scheme, feel: f, speed: f.speed, level: levelFor(energy), cp, flip };
+        const ctx = { energy, style, bars, scheme, feel: f, speed: f.speed, level: levelFor(energy), cp, flip, fx: selOr(fx), song };
 
         // Every prop type in a fixed order for this seed; the part takes as many
         // from the front as its loudness calls for, so a louder repeat adds props
@@ -545,6 +563,9 @@ const Ideas = (() => {
             for (const e of entries) {
                 const lv = level(mix, e.key, kind);
                 if (lv === 'never') continue;
+                // a kind of prop with no effect switched on sits this idea out
+                const ec = e.key.startsWith('class:') ? e.key.slice(6) : classify(show, e.targets[0]);
+                if (!anyOf(steadyWeights(ec, fx))) { skipped.add(ec); continue; }
                 if (e.key === 'class:movinghead' && mhParts && !mhParts.includes(section.id)) continue;
                 if (lv === 'always') always.push(e); else rest.push({ e, w: LEVEL_WEIGHT[lv] });
             }
@@ -581,13 +602,14 @@ const Ideas = (() => {
             const parts = (ROUND.has(cls) || cls === 'megatree' || cls === 'minitree') && energy >= 0.4 && pr() < 0.5 ? partsOf(show, t) : [];
             if (parts.length >= 2) {
                 parts.forEach((pt, i) => {
-                    const r = rowFor(show, pt.targets[0], propRng(t + '#' + pt.name), ctx, cls);
-                    r.targets = pt.targets;
-                    r.of = t;
-                    if (i % 2 === 1) { r.colors = [ctx.cp.accent || r.colors[0]]; r.scheme = schemeTag(r.colors, ctx.scheme); }
-                    rows.push(r);
+                    for (const r of [].concat(rowFor(show, pt.targets[0], propRng(t + '#' + pt.name), ctx, cls) || [])) {
+                        r.targets = pt.targets;
+                        r.of = t;
+                        if (i % 2 === 1) { r.colors = [ctx.cp.accent || r.colors[0]]; r.scheme = schemeTag(r.colors, ctx.scheme); }
+                        rows.push(r);
+                    }
                 });
-            } else rows.push(rowFor(show, t, propRng(t), ctx));
+            } else rows.push(...[].concat(rowFor(show, t, propRng(t), ctx) || []));
         }
         // The matrix as a screen: a dim slow bed (it holds a third of the show's
         // bulbs, so anything bright on it swamps the house), words in the lifts.
@@ -623,24 +645,29 @@ const Ideas = (() => {
         // otherwise a second, lighter effect on top of the base.
         if (energy >= 0.3) {
             for (const r of rows.slice()) {
-                if (r.trigger !== 'span' || r.of || screen.has(r.targets[0])) continue;
+                if (r.trigger !== 'span' || r.of || screen.has(r.targets[0]) || isTool(r)) continue;
                 const cls = classify(show, r.targets[0]);
                 if (cls !== 'matrix' && !(cls === 'megatree' && energy >= 0.45)) continue;
                 const lr = propRng('layer:' + r.targets[0]);
                 if (lr() < 0.5) {
-                    r.effect = pick(lr, ['butterfly', 'butterfly', 'wash']);
+                    const shapes = onlyAllowed({ fan: 3, spirals: 3, pinwheel: 2, ripple: 2, bars: 2, spirograph: cls === 'matrix' ? 2 : 0, ...Object.fromEntries(Effects.LIST.filter(x => x.maskShape).map(x => [x.id, 1])) }, cls, ctx.fx);
+                    const beds = onlyAllowed({ butterfly: 2, wash: 1 }, cls, ctx.fx);
+                    if (!anyOf(shapes) || !anyOf(beds)) continue;
+                    r.effect = weighted(lr, beds);
                     r.options = optionsFor(r.effect, lr, ctx);
                     const bed = ctx.cp.base.reduce((a, b) => (b.length > a.length ? b : a), []).slice();
                     if (bed.length < 2 && ctx.cp.accent && !bed.includes(ctx.cp.accent)) bed.push(ctx.cp.accent);
                     r.colors = bed; r.scheme = schemeTag(bed, ctx.scheme);
-                    const shape = weighted(lr, { fan: 3, spirals: 3, pinwheel: 2, ripple: 2, bars: 2, spirograph: cls === 'matrix' ? 2 : 0 });
+                    const shape = weighted(lr, shapes);
                     let options = optionsFor(shape, lr, { ...ctx, cls });
                     if (ctx.flip) options = flipOptions(shape, options);
                     rows.push({ id: Sequencer.newId(), trigger: 'span', targets: r.targets.slice(), effect: shape, options, colors: ['#FFFFFF'], scheme: 'white', level: r.level ?? 100, blend: 'unmask', softIn: r.softIn, softOut: r.softOut });
                     continue;
                 }
                 if (cls !== 'matrix') continue;
-                const over = weighted(lr, { twinkle: 5, spirals: 3, bars: 2, fan: 2, spirograph: 2 });
+                const overs = onlyAllowed({ twinkle: 5, spirals: 3, bars: 2, fan: 2, spirograph: 2 }, cls, ctx.fx);
+                if (!anyOf(overs)) continue;
+                const over = weighted(lr, overs);
                 if (over === r.effect) continue;
                 const colors = [ctx.cp.accent || r.colors[0]];
                 let options = optionsFor(over, lr, ctx);
@@ -654,7 +681,7 @@ const Ideas = (() => {
         const dimmed = new Set();
         const hitCount = energy < 0.3 ? 0 : energy > 0.7 || f.beats ? 2 : 1;
         if (hitCount) {
-            const cand = chosen.filter(e => e.targets.some(t => !['face', 'movinghead'].includes(classify(show, t)) && !screen.has(t)));
+            const cand = chosen.filter(e => e.targets.some(t => !['face', 'movinghead'].includes(classify(show, t)) && !screen.has(t) && anyOf(hitWeights(classify(show, t), ctx.fx))));
             const picked = [];
             const hr = rngFrom(seed ^ 0x5bd1e995);
             while (picked.length < hitCount && cand.length) {
@@ -668,9 +695,10 @@ const Ideas = (() => {
             }
             for (const e of picked) {
                 const tg = e.targets.filter(t => classify(show, t) !== 'face');
-                for (const r of rows) if ((tg.includes(r.targets[0]) || tg.includes(r.of)) && r.level != null && !r.blend) { r.level = Math.round(r.level * 0.5 / 5) * 5; dimmed.add(r); }
+                for (const r of rows) if ((tg.includes(r.targets[0]) || tg.includes(r.of)) && r.level != null && !r.blend && !isTool(r)) { r.level = Math.round(r.level * 0.5 / 5) * 5; dimmed.add(r); }
                 // one row for the whole prop type, so its hits land together
                 const h = hitRow(show, tg[0], propRng('hit:' + tg[0]), ctx);
+                if (!h) continue;
                 h.targets = tg;
                 rows.push(h);
             }
@@ -687,13 +715,15 @@ const Ideas = (() => {
                 const trigs = both ? (i === 0 ? ['kick', 'snare'] : ['snare']) : (i === 0 ? ['beats'] : []);
                 for (const trig of trigs) {
                     if (have.has(trig) || (trig !== 'beats' && have.has('beats'))) continue;
-                    const effect = weighted(hr, { shockwave: 3, ripple: 2, fan: 2, pulse: 1 });
+                    const hw = hitWeights(classify(show, t), ctx.fx);
+                    if (!anyOf(hw)) continue;
+                    const effect = weighted(hr, hw);
                     const colors = trig === 'snare' ? [ctx.cp.accent || ctx.cp.hit[0]] : ctx.cp.hit.slice();
-                    const row = { id: Sequencer.newId(), trigger: trig, targets: [t], effect, options: effect === 'pulse' ? {} : effect === 'shockwave' ? { width: ibetween(hr, 25, 50) } : optionsFor(effect, hr, { ...ctx, hit: true, cls: classify(show, t) }), colors, scheme: schemeTag(colors, ctx.scheme) };
+                    const row = { id: Sequencer.newId(), trigger: trig, targets: [t], effect, options: hitOptions(effect, hr, ctx, classify(show, t)), colors, scheme: schemeTag(colors, ctx.scheme) };
                     if (show.groups.has(t)) row.overlay = true;
                     rows.push(row);
                 }
-                for (const r of rows) if (r.trigger === 'span' && (r.targets[0] === t || r.of === t) && r.level != null && !dimmed.has(r) && !r.blend) { r.level = Math.round(r.level * 0.6 / 5) * 5; dimmed.add(r); }
+                for (const r of rows) if (r.trigger === 'span' && (r.targets[0] === t || r.of === t) && r.level != null && !dimmed.has(r) && !r.blend && !isTool(r)) { r.level = Math.round(r.level * 0.6 / 5) * 5; dimmed.add(r); }
             });
         }
         // Melody: a small prop flashes on each sung note while someone sings, or on
@@ -705,14 +735,16 @@ const Ideas = (() => {
             if (small.length && energy >= 0.3 && mr() < 0.35) {
                 const t = pick(mr, small);
                 const trig = sung ? 'notes' : (song.model.onsets.all || []).length ? 'onsets' : null;
-                if (trig) rows.push({ id: Sequencer.newId(), trigger: trig, targets: [t], effect: 'pulse', options: {}, colors: [ctx.cp.accent || ctx.cp.hit[0]], scheme: 'custom', level: 80 });
+                const mw = hitWeights(classify(show, t), ctx.fx);
+                const me = okFor('hits', classify(show, t), 'pulse', ctx.fx) ? 'pulse' : anyOf(mw) ? weighted(mr, mw) : null;
+                if (trig && me) rows.push({ id: Sequencer.newId(), trigger: trig, targets: [t], effect: me, options: hitOptions(me, mr, ctx, classify(show, t)), colors: [ctx.cp.accent || ctx.cp.hit[0]], scheme: 'custom', level: 80 });
             }
         }
         // Loud parts: the whole house hits together over a dimmer base. One prop
         // flashing barely moves the show; the same hit on every prop is what reads
         // as punch. Each hit takes the next colour, so red and green alternate.
         if (energy >= 0.45) {
-            const lit = rows.filter(r => r.trigger === 'span' && r.effect !== 'faces' && r.effect !== 'moving' && !r.blend && !screen.has(r.targets[0]));
+            const lit = rows.filter(r => r.trigger === 'span' && r.effect !== 'faces' && r.effect !== 'moving' && !r.blend && !isTool(r) && !screen.has(r.targets[0]));
             if (lit.length >= 3) {
                 for (const r of lit) r.level = Math.round(r.level * (energy >= 0.6 ? 0.6 : 0.8) / 5) * 5;
                 const hasKick = (song.model.onsets.kick || []).filter(o => o.s >= 0.35 && o.t >= section.s && o.t < section.e).length >= bars * 2;
@@ -757,8 +789,8 @@ const Ideas = (() => {
         energy = intensity != null ? intensity : Math.max(0.05, Math.min(0.95, energy + f.shift));
         const lift = LIFT.test(section.name) || energy >= 0.75;
         const cp = colourPlan(scheme, energy, lift, Math.max(0, turnOf(song, section)));
-        const ctx = { energy, style: energy, bars, scheme, feel: f, speed: f.speed, level: levelFor(energy), cp, flip: false };
-        return c.targets.map(t => rowFor(show, t, rngFrom(seed ^ hashStr(t)), ctx));
+        const ctx = { energy, style: energy, bars, scheme, feel: f, speed: f.speed, level: levelFor(energy), cp, flip: false, fx: selOr(null), song };
+        return c.targets.flatMap(t => [].concat(rowFor(show, t, rngFrom(seed ^ hashStr(t)), ctx) || []));
     }
 
     // ---------- the whole song ----------
@@ -865,7 +897,7 @@ const Ideas = (() => {
     }
 
     // schemes: { [sectionId]: scheme } for parts that have their own colours
-    function planIdea(song, show, { seed, scheme, alike, pools, sections, whole = true, feel = 'auto', intensity = null, exclude = [], mix = null, matrixWords = false, phrased = true, mhParts = null, schemes = null }) {
+    function planIdea(song, show, { seed, scheme, alike, pools, sections, whole = true, feel = 'auto', intensity = null, exclude = [], mix = null, matrixWords = false, phrased = true, mhParts = null, schemes = null, fx = null }) {
         const rng = rngFrom(seed);
         const plan = Sequencer.emptyPlan();
         const excluded = modelsOf(show, exclude);
@@ -902,7 +934,7 @@ const Ideas = (() => {
             const own = !alike || !!(pool && pool.length);
             const rows = partIdea(s, song, show, {
                 pool, seed: own ? Math.floor(rng() * 2 ** 31) : kindSeed.get(kind), scheme: (schemes && schemes[s.id]) || scheme, feel, intensity, exclude: excluded, mix,
-                energy: energies.get(s.id), style: own ? null : avg(kindStyle.get(kind)), matrixWords, phrased, mhParts,
+                energy: energies.get(s.id), style: own ? null : avg(kindStyle.get(kind)), matrixWords, phrased, mhParts, fx,
             });
             plan.sections[s.id] = { rows, pool: pool || [] };
         }
@@ -963,5 +995,8 @@ const Ideas = (() => {
         return fade >= 1.5 ? Math.round(fade * 10) / 10 : 0;
     }
 
-    return { movingHeadIdea, TRANSITIONS, applyTransition, transitionProps, guessClass, CLASS_LABELS, sectionIdea, partIdea, planIdea, partEnergies, phrases, classify, candidates, mixEntries, FEELS, INTENSITIES, LEVELS };
+    // the kinds of prop the last ideas left out (nothing switched on for them), then forgets them
+    const takeSkipped = () => { const s = [...skipped]; skipped = new Set(); return s; };
+
+    return { takeSkipped, movingHeadIdea, TRANSITIONS, applyTransition, transitionProps, guessClass, CLASS_LABELS, sectionIdea, partIdea, planIdea, partEnergies, phrases, classify, candidates, mixEntries, FEELS, INTENSITIES, LEVELS };
 })();

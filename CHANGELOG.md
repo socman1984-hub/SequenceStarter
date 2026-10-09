@@ -2,6 +2,19 @@
 
 Release notes for Lights Auto Sequencer, newest first. The same list is in the app under **✨ What's new**.
 
+## 2026.10.09 — Every xLights effect, and you choose which ones ideas use
+
+_2026-10-09_
+
+- **New:** Every xLights effect is now in the app: Fire, Candle, Fireworks, Lightning, Snowstorm, Galaxy, Circles, Shapes, Plasma, Shimmer, Fill, Garlands, Tree, Life, Lines, Tendril, Liquid, Text, Single Strand Skips and its 118 strip (WLED) patterns, VU Meter that follows the music, Music, Piano, Guitar, Warp, Kaleidoscope, Adjust, Duplicate, State, DMX, Servo, Sketch, Glediator, and Pictures, Video and Shader by hand. The Effect list in a light row is grouped by kind.
+- **New:** 🎛 Effects for props: a new tab with a grid of every effect against every kind of prop. Set how often ideas, Another idea and 🎲 Randomize pick each effect for each kind of prop (blank = never), for steady looks and for hits on beats and drums.
+- **New:** Default keeps what the app has always picked, and Every effect adds a little of everything. Change numbers, then Save your own sets under a name, go back to Default any time, and Export / Import them as a file to share.
+- **New:** Choose… next to a picture, video, shader or recording lists the files in your show folder.
+- **Better:** The new effects preview the way xLights renders them: each was checked against xLights itself, and most match it pixel for pixel. Random ones (fireworks, snow, sparkles) match it in look and amount of light.
+- **Better:** Warp, Kaleidoscope and Adjust change the row under them, as in xLights (Canvas mode); ideas give them a look to work on. Piano and Guitar play the sung melody from a new Vocal Notes timing track in the export.
+- **Better:** Imported xLights sequences now preview these effects too, instead of a dim shimmer.
+- **Better:** Effect settings are written so every supported xLights version reads them the same, including keys that changed in xLights 2026.
+
 ## 2026.10.07 — Words for songs that repeat more than their lyrics
 
 _2026-10-07_

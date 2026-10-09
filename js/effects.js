@@ -494,7 +494,7 @@ const Effects = (() => {
             options: { type: 'Sine', waves: 2, height: 60, thickness: 20, speed: 20, direction: 'Right to Left' },
             choices: { type: ['Sine', 'Triangle'], direction: ['Right to Left', 'Left to Right'] },
             labels: { type: 'Shape', waves: 'Waves across', height: 'Height %', thickness: 'Thickness %', speed: 'Speed', direction: 'Moves' },
-            settings: o => `E_CHECKBOX_Mirror_Wave=0,E_CHOICE_Fill_Colors=None,E_CHOICE_Wave_Direction=${o.direction},E_CHOICE_Wave_Type=${o.type},E_SLIDER_Number_Waves=${Math.round(Math.max(0.5, +o.waves) * 360)},E_SLIDER_Thickness_Percentage=${Math.round(o.thickness)},E_SLIDER_Wave_Height=${Math.round(o.height)},E_SLIDER_Wave_YOffset=0,E_TEXTCTRL_Wave_Speed=${(+o.speed).toFixed(2)}`,
+            settings: (o, ctx) => `E_CHECKBOX_Mirror_Wave=0,E_CHOICE_Fill_Colors=None,E_CHOICE_Wave_Direction=${o.direction},E_CHOICE_Wave_Type=${o.type},${ctx && ctx.version && !versionOlder(ctx.version, '2026.05.2') ? `E_TEXTCTRL_Number_Waves=${Math.max(0.5, +o.waves).toFixed(2)}` : `E_SLIDER_Number_Waves=${Math.round(Math.max(0.5, +o.waves) * 360)}`},E_SLIDER_Thickness_Percentage=${Math.round(o.thickness)},E_SLIDER_Wave_Height=${Math.round(o.height)},E_SLIDER_Wave_YOffset=0,E_TEXTCTRL_Wave_Speed=${(+o.speed).toFixed(2)}`,
             render(p, N, out) {
                 const o = p.o, deg = Math.max(0.5, +o.waves) * 360;
                 const state = Math.round(p.sec * 40) * o.speed * 0.5;
@@ -636,7 +636,7 @@ const Effects = (() => {
         },
         {
             // OffEffect: the lights go dark, hiding every row under it.
-            id: 'off', label: 'Off (dark)', xl: 'Off', use: ['part', 'hit'], blackout: true,
+            id: 'off', label: 'Off (dark)', xl: 'Off', use: ['part', 'hit'], blackout: true, everyWeight: 0,
             options: {},
             settings: () => '',
             render() { },
@@ -872,7 +872,27 @@ const Effects = (() => {
     const PER_MODEL = new Set(['bars', 'spirals', 'pinwheel', 'shockwave', 'marquee', 'moving', 'fan', 'ripple', 'spirograph', 'wave', 'meteors', 'curtain', 'morph', 'snowflakes', 'strobe', 'vumeter']);
     for (const e of LIST) e.perModel = PER_MODEL.has(e.id);
 
+    // Kinds of effect, for menus and the Effects for props page.
+    const CATS = { fill: 'Solid colors and washes', move: 'Chases and sweeps', shape: 'Shapes, spins and bursts', nature: 'Sparkle, snow and fire', music: 'Music', media: 'Words and pictures', layer: 'Layer tools', dmx: 'DMX', other: 'Other' };
+    const CAT_OF = { on: 'fill', pulse: 'fill', wash: 'fill', butterfly: 'fill', chase: 'move', bars: 'move', marquee: 'move', wave: 'move', curtain: 'move', morph: 'move', spirals: 'shape', pinwheel: 'shape', shockwave: 'shape', fan: 'shape', ripple: 'shape', spirograph: 'shape', twinkle: 'nature', meteors: 'nature', snowflakes: 'nature', strobe: 'nature', off: 'layer', nothing: 'layer', vumeter: 'music', pictures: 'media', shader: 'media', video: 'media', faces: 'media', lyrictext: 'media', moving: 'dmx' };
+    for (const e of LIST) e.cat = CAT_OF[e.id] || 'other';
+
     const BY_ID = new Map(LIST.map(e => [e.id, e]));
+    // more effects register themselves (effects-more.js)
+    function add(def) {
+        def.cat = def.cat || 'other';
+        if (def.perModel == null) def.perModel = false;
+        const i = LIST.findIndex(e => e.id === def.id);
+        if (i >= 0) LIST[i] = def; else LIST.push(def);
+        BY_ID.set(def.id, def);
+        return def;
+    }
+    // xLights' IsVersionOlder: is version a older than b ("2025.09" < "2026.05.2")
+    function versionOlder(a, b) {
+        const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0), pb = String(b).split('.').map(x => parseInt(x, 10) || 0);
+        for (let i = 0; i < Math.max(pa.length, pb.length); i++) { const x = pa[i] || 0, y = pb[i] || 0; if (x !== y) return x < y; }
+        return false;
+    }
 
     // Rasterised words for the Text preview, cached.
     const textCache = new Map();
@@ -1125,13 +1145,18 @@ const Effects = (() => {
                 if (/Loop/.test(str('E_CHOICE_Video_DurationTreatment', '')) && d) o.loopLen = (+d[1]) * 60 + (+d[2]);
                 break;
             }
-            case 'Pictures': id = 'pictures'; o = { file: str('E_FILEPICKER_Pictures_Filename', ''), scaling: str('E_CHOICE_Scaling', 'Scale To Fit') }; break;
+            case 'Pictures': id = 'pictures'; o = { file: str('E_TEXTCTRL_Pictures_Filename', str('E_FILEPICKER_Pictures_Filename', '')), scaling: str('E_CHOICE_Scaling', 'Scale To Fit') }; break;
             case 'VU Meter': {
                 const t = str('E_CHOICE_VUMeter_Type', '');
                 if (/Timing Event .*Sweep/.test(t)) { id = 'vumeter'; o = { type: 'sweep', track: str('E_CHOICE_VUMeter_TimingTrack', ''), size: parseFloat(S.E_SLIDER_VUMeter_Bars) || 6 }; }
                 else if (/Timing Event Pulse/.test(t)) { id = 'vumeter'; o = { type: 'flash', track: str('E_CHOICE_VUMeter_TimingTrack', ''), size: parseFloat(S.E_SLIDER_VUMeter_Bars) || 8 }; }
                 break;
             }
+        }
+        // the effects in effects-more.js read their own settings back
+        if (id === 'glow' || (id === 'nothing' && (name === 'Warp' || name === 'Kaleidoscope')) || (name === 'SingleStrand' && /Skips|FX/.test(S.E_NOTEBOOK_SSEFFECT_TYPE || ''))) {
+            const mi = Effects.more && Effects.more.metaImport(name, S);
+            if (mi) { id = mi.id; o = mi.o; Object.assign(curves, mi.curves); }
         }
         const eff = BY_ID.get(id) || BY_ID.get('glow');
         const colors = palColors(pal);
@@ -1161,7 +1186,8 @@ const Effects = (() => {
     const movingHeadState = () => mhState;
 
     return {
-        LIST, get: id => BY_ID.get(id), resetMovingHeads, movingHeadState, MH_PATTERNS,
+        LIST, get: id => BY_ID.get(id), add, CATS, versionOlder, resetMovingHeads,
+        util: { frac, clamp01, hash, palBlend, palPick, fadeOf, curveAt, kvOf, parseCurve, PREFIXES, textMask }, movingHeadState, MH_PATTERNS,
         get SCHEMES() { return schemes; },
         DEFAULT_SCHEMES, setSchemes, resetSchemes, randomScheme,
         hexToRgb, paletteString, ADD, BLENDS, flip, curveAt, curveString, hash, fromXl, palColors, recolorPal, optionsAt, setPictureLoader,

@@ -25,6 +25,8 @@
           text: 'Suggest a plan lights every part: steady looks with one or two props on the beat, brighter and fuller when the music is loud, and a different transition into each chorus. 🎲 Another idea gives a different one, and 🎲 Randomize the whole sequence (above the parts) redoes every part at once.' },
         { tab: 'seq', el: () => $('ideaSettings'), need: 'a song and your show', title: 'Steer the ideas',
           text: 'Idea settings: Look (feeling, intensity, colors), Props (use some more or less, say what a prop is, leave some out) and How ideas are made. For: picks which parts change.' },
+        { tab: 'fx', el: () => $('fxPanel'), need: 'a song', title: 'Effects for props',
+          text: 'Every xLights effect is here. This grid sets which ones ideas may pick for each kind of prop, and how often (blank = never). Default is what the app always used; change numbers and Save to keep your own set, or go back to Default any time.' },
         { tab: 'seq', el: () => $('fitBox'), need: 'a plan', title: 'Fit with the music',
           text: 'A score for how well the lights follow the loudness and the beat, and whether loud parts are brighter. With Try 4 ideas ticked, Suggest keeps the best one.' },
         { tab: 'seq', el: () => $('plan'), need: 'a plan', title: 'Change any part by hand',

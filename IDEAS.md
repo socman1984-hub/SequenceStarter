@@ -3,7 +3,7 @@
 One running list for the web sequencer. New ideas get added here; when one is built it
 moves to **Done** with the date.
 
-## Where things stand (2026-10-07)
+## Where things stand (2026-10-09)
 
 - **Live:** https://socman1984-hub.github.io/LightsAutoSequencer/ (GitHub Pages, public repo
   `socman1984-hub/LightsAutoSequencer`, GPLv3). Guide: `tutorial.html`. Feedback: Discord
@@ -14,68 +14,20 @@ moves to **Done** with the date.
   import (exact round trip; preview draws imported pictures, videos, shaders, value curves),
   Halloween schemes, per-part colors, Randomize the whole sequence, prop names in 5 languages,
   render order (groups first) with the full layout in every export, Find-words repeats and
-  "ah-ah" fills, preview zoom / Props only, docs and tour updated. Nothing is waiting to be pushed.
+  "ah-ah" fills, preview zoom / Props only, docs and tour updated.
+- **Built, not pushed yet (2026-10-09):** every xLights effect and the *🎛 Effects for props* tab
+  (release 2026.10.09 in `releases.json`). Committed locally; push when the owner says so.
 - **Waiting on testers:** imported videos in a real browser tab (the hidden test browser never
   decodes video frames); the xLights 2023 show folder that crashed (need its
   `xlights_rgbeffects.xml` or the copied error).
 - **Needs checking in a real browser:** the pop-out window, Chrome's *Allow on every visit*
   prompt, the native open/save dialogs, imported videos.
-- **Next up:** *Every xLights effect, and which effects each prop may get* (below, requested
-  2026-10-07), then the open items in *Lessons from the owner's show folder* and *Lessons from
-  pro sequences*.
+- **Needs checking in a real browser:** *Choose…* (show-folder file list) needs a folder opened with
+  *Choose show folder…*; the test browser loads the show by URL, so the listing itself is untested.
+- **Next up:** the open items in *Lessons from the owner's show folder* and *Lessons from pro sequences*;
+  closer previews for the approximated effects (see *Known weak spots*).
 
 ## Open ideas
-
-### Every xLights effect, and which effects each prop may get (requested 2026-10-07, not started)
-
-The owner's request: "There are lots of effects missing. Make sure every single effect is
-available. Have a new tab/page where you can configure what effects are usable by what props, so
-randomize gives better control over which effects could be selected. Have a *default* selection
-(what we use now) people can go back to. Let users save their new selections."
-
-**1. Every effect.** xLights has 54 effects (`resources/effectmetadata/*.json`); the tool offers
-24 in its menus (On, Color Wash, SingleStrand chase, Bars, Spirals, Pinwheel, Twinkle, Shockwave,
-Marquee, Butterfly, Fan, Ripple, Spirograph, Wave, Meteors, Curtain, Morph, Snowflakes, Strobe,
-Off, VU Meter, Moving Head, Faces, Text for lyrics). Pictures, Video and Shader exist only for
-imported sequences. Missing from the menus, grouped by what they need:
-- *Plain drawing effects* (settings + a preview renderer ported from xLights' code, as done for
-  Fan/Ripple/Spirograph): Candle, Circles, Fill, Fire, Fireworks, Galaxy, Garlands, Kaleidoscope,
-  Life, Lightning, Lines, Liquid, Plasma, Shape, Shimmer, Snowstorm, Tendril, Tree, Warp, Text
-  (any text, not only lyrics), Single Strand's *Skips* and *FX* modes.
-- *Need a file*: Pictures, Video, Shader (renderers exist from the import work; need a file
-  picker that stores the path relative to the show folder), Sketch, Glediator.
-- *Need the music or a model feature*: Music, Piano, Guitar (audio/notes), State (state
-  definitions, like Faces), DMX and Servo (DMX models), Duplicate (copies another model), Adjust
-  (modifies the layers below).
-- Each new effect is checked against an xLights render (preview vs xLights brightness and
-  correlation per prop), as for the earlier batches.
-
-**2. An "Effects for props" page.** A new tab (or full-size dialog) with a grid: one row per prop
-type (arch, cane, mega tree, mini tree, spinner, snowflake, matrix, star, wreath, cross, peace,
-window, flood, house lines, moving head, other) and a column per effect.
-- Each cell: on/off, plus a weight (how often ideas pick it); possibly a slider or
-  never / less / normal / more like the Prop mix.
-- Also per prop type: which effects may be used as *hits* (beats/drums) versus steady looks.
-- Optional: per single prop or group overrides on top of the per-type row.
-- 🎲 Randomize, Suggest a plan, Randomize the whole sequence and *Another idea* only pick from
-  what's on. If a prop type has nothing on, ideas skip it and say so.
-
-**3. Default and saving.**
-- **Default** = today's built-in choices (the `WEIGHTS` table in `ideas.js` plus ROUND/hit
-  rules), and a *Reset to default* button that goes back to it any time.
-- **Save**: kept in the browser automatically, and inside project files (so a project carries
-  its own choices). Optional extras: named presets (*My Christmas*, *Halloween*), and
-  export / import a `.json` to share on Discord (fits the community-presets idea below).
-- New effects added in later versions start *on* at their default weight, even for people with
-  saved choices (like new color schemes reaching saved scheme lists).
-
-**Decisions to make before building:**
-1. Tab vs dialog for the page (a tab next to *Song & words* / *Make a sequence* has room for a
-   big grid; a dialog is quicker to reach from Ideas).
-2. Cells as simple on/off, or on/off + weight (never / less / normal / more).
-3. Per prop type only, or also per single prop / group.
-4. Named presets and file export now, or later.
-5. Order of the missing effects (plain drawing ones first is the most value per day).
 
 ### Waiting for a decision
 
@@ -393,6 +345,13 @@ show); 7 the test hooks stay on purpose (harmless, used for testing); 8 not need
 
 ## Known weak spots
 
+- **New effects that are approximations** (2026-10-09): the 118 Single Strand FX (WLED) patterns are
+  drawn by family (chase, sparkle, fire, flow...) with xLights' measured background and brightness, not
+  ported one by one; VU Meter music kinds, Music, Piano and Guitar follow this app's own audio analysis
+  (xLights uses its own); Liquid is a simple particle pour (xLights runs a physics engine). Glediator
+  and Duplicate show a dim shimmer; Sketch draws its path roughly. Everything else was ported and
+  checked against headless xLights (most pixel-exact).
+
 - Section names from detection are rough (verse/chorus guesses); rename them.
 - Which beat starts a bar is a best guess; check it with the beat click.
 - When the speech model badly mishears a song that repeats a line many times, a lyric
@@ -414,6 +373,23 @@ show); 7 the test hooks stay on purpose (harmless, used for testing); 8 not need
   or whether a prop suits the moment, so a high score is a good start, not a verdict.
 
 ## Done
+
+- **2026-10-09:** *Every xLights effect, and which effects each prop may get* (requested 2026-10-07).
+  All 56 xLights effects are in the app (`js/effects-more.js`; settings from xLights' metadata,
+  `js/xlmeta.js` via `tools/xlmeta.js`). Previews ported from xLights' render code and checked in a lab
+  show (one 48x24 matrix, a 100-light line, a tree) against headless xLights: Plasma, Shimmer,
+  Garlands, Tree, Galaxy, Warp (all geometric kinds), Kaleidoscope Square/Radial, Adjust pixel-exact;
+  Fill 99.5%, Tendril 95%; random ones (Life, Lightning, Lines, Snowstorm, Fireworks, Circles, Shape,
+  Candle) match lit share and brightness. Whole-show test (Sounding Joy, only new effects, 62 props):
+  preview vs xLights brightness over time r = 0.94-0.98, total light within 3-8%. The *🎛 Effects for
+  props* tab (`js/fxprefs.js`, `js/fxpage.js`): grid of effect weights per prop kind for steady looks
+  and hits, built-in *Default* (the old `WEIGHTS` table, now there) and *Every effect*, named saved sets
+  in the browser, export / import `.effects.json`, ideas skip prop kinds with nothing on. Decisions
+  taken: a tab; numbers (weights) per cell; per prop kind (no per-prop overrides yet); presets and
+  file export now. Lessons: on a Normal layer xLights draws with an alpha channel (Snowstorm's
+  alpha wraps round for old trail points); xLights' Music effect is stored as "Music Effect"; keys
+  that moved in 2026 (Lines_Speed, Garlands_Cycles, Guitar wave factors, Liquid units, Wave's
+  Number_Waves) must be written per the sequence's version.
 
 - **2026-10-07:** Words missing on part of *Dom Dolla - Dreamin'* (Discord). Pasted lyrics: 209 words;
   Whisper heard 1,139, but the extra was Whisper looping on vocal chops ("I, I, I", "ha ha",

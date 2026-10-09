@@ -305,7 +305,7 @@ const Sequencer = (() => {
                         sMs: it.s, eMs: it.e, eff: pv.eff, o: pv.o, colors: pv.colors, pal: pv.pal, index: 0, rowId: row.id, isGroup,
                         perModel: isGroup && pv.perModel, level: pv.level, startFade: pv.fadeIn, endFade: pv.fadeOut, inTr: pv.inTr, outTr: pv.outTr,
                         sparkles: 0, spin: pv.spin, rot0: pv.rot0, transform: pv.transform, ppv: pv.ppv, target, mix: pv.mix, xlLayer: row.xl.layer, strand: row.xl.strand, node: row.xl.node,
-                        marks: pv.eff.id === 'vumeter' ? trackMarks(pv.o.track, song, X) : null,
+                        marks: pv.eff.trackOf ? (pv.eff.trackOf(pv.o) ? trackMarks(pv.eff.trackOf(pv.o), song, X) : null) : pv.eff.id === 'vumeter' ? trackMarks(pv.o.track, song, X) : null,
                         raw: { name: row.xl.name, settings, pal: palStr },
                     });
                     count++;
@@ -340,7 +340,9 @@ const Sequencer = (() => {
             else spans = marks(trig).filter(m => m.s >= ws - 0.001 && m.s < we).map(m => ({ s: m.s, e: Math.min(m.e, we) }));
             const barIndex = t => { const bs = song.grid.bars; let lo = 0, hi = bs.length - 1; while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (bs[mid].s <= t + 0.01) lo = mid; else hi = mid - 1; } return lo; };
             const alt = row.chop ? row.alt || '' : '';
-            const vuMarks = eff.id === 'vumeter' ? trackMarks(opts.track, song, X) : null;
+            // effects that follow a timing track (beat meters, fireworks on the beat)
+            const trackName = eff.trackOf ? eff.trackOf(opts) : eff.id === 'vumeter' ? opts.track : null;
+            const vuMarks = trackName ? trackMarks(trackName, song, X) : null;
             spans.forEach((sp, n) => {
                 const index = row.colourBy === 'bar' ? barIndex(sp.s) : n;
                 const sMs = snap(sp.s), eMs = snap(sp.e);
@@ -383,7 +385,7 @@ const Sequencer = (() => {
                     const fx = { sMs, eMs, eff, o, colors: spanColors, pal: spanPal, index, rowId: row.id, isGroup, perModel: perModel || (isGroup && !!row.overlay && !eff.dmx), overlay: isGroup && !!row.overlay && !eff.dmx, blend, level: eff.dmx ? 100 : level, endFade: ef, startFade: sf, target,
                         inTr, outTr, sparkles: eff.dmx ? 0 : Math.max(0, Math.min(200, +row.sparkles || 0)), music: !!row.musicSparkles, spin: eff.dmx ? 0 : Math.max(0, Math.min(20, +row.spin || 0)), marks: vuMarks };
                     if (eff.blackout) { offs.push(fx); count++; return; }
-                    place(target, fx, isEvent || blend ? 1 : 0);
+                    place(target, fx, isEvent || blend || eff.canvas ? 1 : 0);
                     count++;
                 }
             });
@@ -444,7 +446,8 @@ const Sequencer = (() => {
             });
             const m = show.models.get(name);
             const grp = show.groups.get(name);
-            if (m) { N.w = NM.w = Math.max(8, m.bufW); N.h = NM.h = Math.max(8, m.bufH); }
+            // tw x th: the buffer's true size (w x h is at least 8 x 8 for the simpler drawings)
+            if (m) { N.w = NM.w = Math.max(8, m.bufW); N.h = NM.h = Math.max(8, m.bufH); N.tw = NM.tw = m.bufW; N.th = NM.th = m.bufH; }
             else if (!grp && list[0].bw) { N.w = list[0].bw; N.h = list[0].bh; }
             else if (grp) {
                 // A group's own buffer (xLights ModelGroup, "minimalGrid"): its members' spread on
@@ -618,7 +621,9 @@ const Sequencer = (() => {
             for (let li = 0; li < tgt.layers.length; li++) {
                 const fx = activeAt(tgt.layers[li], ms);
                 if (!fx) continue;
-                const p = { t: (ms - fx.sMs) / (fx.eMs - fx.sMs), sec: (ms - fx.sMs) / 1000, dur: (fx.eMs - fx.sMs) / 1000, pal: fx.pal, o: fx.o, index: fx.index, word: word && word.text, abs: t, start: fx.sMs / 1000, marks: fx.marks };
+                const p = { t: (ms - fx.sMs) / (fx.eMs - fx.sMs), sec: (ms - fx.sMs) / 1000, dur: (fx.eMs - fx.sMs) / 1000, pal: fx.pal, o: fx.o, index: fx.index, word: word && word.text, abs: t, start: fx.sMs / 1000, marks: fx.marks, fx, song, below: acc, any, model: tgt.model,
+                    // xLights draws with an alpha channel on a Normal layer (the bottom one here); some effects differ by that
+                    alpha: fx.raw ? fx.mix === 'normal' : !fx.blend && li === 0 };
                 if (fx.eff.blackout) { acc.fill(0); any = true; blackout = true; continue; }
                 if (fx.eff.id === 'faces') {
                     if (!any) acc.fill(0);
@@ -648,7 +653,9 @@ const Sequencer = (() => {
                 if (fx.outTr && p.dur - p.sec < fx.endFade) reveal(fx.outTr, base, tmp, 1 - (p.dur - p.sec) / fx.endFade, true);
                 if (fx.sparkles > 0) sparkle(tmp, N, ms, fx.music ? Math.round(fx.sparkles * loudAt(song, t)) : fx.sparkles);
                 const mode = fx.blend || (fx.raw && fx.mix !== 'add' ? fx.mix : null);
-                if (mode) {
+                // a layer tool's picture replaces the layers it was given
+                if (fx.eff.canvas) { acc.set(tmp); any = true; }
+                else if (mode) {
                     if (!any) { acc.fill(0); any = true; }
                     blendInto(mode, acc, tmp, N.n);
                 } else if (!any) { acc.set(tmp); any = true; }
@@ -674,7 +681,8 @@ const Sequencer = (() => {
     function toXsq(gen, song, show, meta) {
         const pals = [], palIdx = new Map();
         const db = [], dbIdx = new Map();
-        const ctx = { lyricTrack: LYRIC_TRACK };
+        // version: settings keys changed in newer xLights; effects write the ones this sequence's version reads
+        const ctx = { lyricTrack: LYRIC_TRACK, version: (gen.imported && gen.imported.version) || meta.version || '2025.09' };
         // Overlay: every member draws the same picture. Same-size props sit centred
         // in one shared buffer; mixed sizes are each scaled to it (as the preview draws).
         const overlayCache = new Map();
@@ -705,7 +713,7 @@ const Sequencer = (() => {
             // Off has to sit on top as a Normal layer to hide what is under it
             if (fx.eff.blackout) { /* Normal */ }
             else if (fx.blend && Effects.BLENDS[fx.blend]) s += `,T_CHOICE_LayerMethod=${Effects.BLENDS[fx.blend].xl}`;
-            else if (fx.above) s += Effects.ADD;
+            else if (fx.above && !fx.eff.canvas) s += Effects.ADD;
             if (!dbIdx.has(s)) { dbIdx.set(s, db.length); db.push(s); }
             return dbIdx.get(s);
         };
@@ -809,6 +817,8 @@ const Sequencer = (() => {
             // the music's own hits, for beat meters and for hand sequencing in xLights
             ['Note Onsets', [marksFor('onsets', song).map(m => ({ s: m.s, e: m.e, label: '' }))]],
         ];
+        // the sung melody as MIDI note numbers, for Piano and Guitar effects
+        if (song.lyr && song.lyr.notes && song.lyr.notes.length) timings.push(['Vocal Notes', [song.lyr.notes.map(n => ({ s: n.s, e: n.e, label: String(Math.round(n.midi)) }))]]);
         if (song.lyr) {
             timings.push([LYRIC_TRACK, [
                 song.lyr.lines.map(x => ({ s: x.s, e: x.e, label: x.text })),

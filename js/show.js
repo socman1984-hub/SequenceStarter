@@ -165,6 +165,7 @@ const Show = (() => {
             // every submodel xLights knows, including ones the preview can't draw
             m.subNames = new Set([...el.querySelectorAll(':scope > subModel')].map(s => s.getAttribute('name')).filter(Boolean));
             m.faces = safe(() => [...el.querySelectorAll(':scope > faceInfo')].map(f => safe(() => faceInfo(f, m), null)).filter(Boolean), []);
+            m.states = safe(() => [...el.querySelectorAll(':scope > stateInfo')].map(f => safe(() => stateInfo(f, m), null)).filter(Boolean), []);
             show.models.set(m.name, m);
             show.nodeCount += m.nodes.length;
         }
@@ -224,6 +225,21 @@ const Show = (() => {
         const colors = {};
         for (const at of el.attributes) if (/-Color$/.test(at.name) && at.value) colors[at.name.replace(/-Color$/, '')] = at.value;
         return { name, states, colors };
+    }
+
+    // A state list (xLights' State effect): s1="1-5" s1-Name="On" s1-Color="#FF0000" ...
+    function stateInfo(el, m) {
+        const name = el.getAttribute('Name');
+        if (!name || (el.getAttribute('Type') || 'NodeRange') !== 'NodeRange') return null;
+        const list = [];
+        for (const at of el.attributes) {
+            if (!/^s\d+$/.test(at.name)) continue;
+            const nodes = ranges(at.value, m.nodes.length);
+            if (!nodes.length) continue;
+            list.push({ key: at.name, name: el.getAttribute(at.name + '-Name') || at.name, nodes, color: el.getAttribute(at.name + '-Color') || '' });
+        }
+        list.sort((a, b) => parseInt(a.key.slice(1), 10) - parseInt(b.key.slice(1), 10));
+        return list.length ? { name, list } : null;
     }
 
     // ---------- geometry ----------
