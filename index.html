@@ -396,11 +396,16 @@
           <div class="fxp-bar">
             <button type="button" class="btn primary" id="fxpFolder">📂 Choose a folder of sequences…</button>
             <input type="file" id="fxpFolderFiles" webkitdirectory multiple hidden>
-            <label class="chk" title="Sequences exported from this app would only teach it what it already does"><input type="checkbox" id="fxpSkipMade" checked> Skip sequences made with this app</label>
             <span class="status" id="fxpScan" aria-live="polite"></span>
           </div>
           <div id="fxpPick" hidden>
             <div class="fxp-pickcols">
+              <div>
+                <h4>Sequences <span class="muted small">(learn from the ticked ones)</span></h4>
+                <input type="search" id="fxpSeqFind" placeholder="Find a sequence…" aria-label="Find a sequence">
+                <div class="btnrow tight"><button type="button" class="btn tiny" id="fxpSeqsAll" title="Tick every sequence the search shows">Select all</button><button type="button" class="btn tiny" id="fxpSeqsNone" title="Untick every sequence the search shows">Deselect all</button> <span class="muted small" id="fxpSeqsN"></span></div>
+                <div class="pick-list fxp-picklist" id="fxpSeqs"></div>
+              </div>
               <div>
                 <h4>Kinds of prop</h4>
                 <div class="btnrow tight"><button type="button" class="btn tiny" id="fxpKindsAll">Select all</button><button type="button" class="btn tiny" id="fxpKindsNone">Deselect all</button> <span class="muted small" id="fxpKindsN"></span></div>

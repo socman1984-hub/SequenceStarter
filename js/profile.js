@@ -160,5 +160,31 @@ const Profiles = (() => {
         return EffectPrefs.saveProfile(name, sel, about);
     }
 
-    return { readXsq, effectOf, emptyStats, addSequence, summary, build, kindOf, HIT_SEC };
+    // One sequence on its own, so the user can tick which ones a profile learns from:
+    // { file, made, effects, stats } (stats null when it has nothing to learn from).
+    function readOne(fileName, text) {
+        const stats = emptyStats();
+        addSequence(stats, fileName, text, { skipMade: false });
+        const effects = readXsq(text).effects.length;
+        return { file: fileName, made: /Made with (SequenceStarter|Lights Auto Sequencer)/.test(text), effects, stats: stats.sequences.length ? stats : null };
+    }
+    // The ticked sequences put together, as if read in one go.
+    function merge(list) {
+        const out = emptyStats();
+        for (const s of list) {
+            if (!s) continue;
+            out.sequences.push(...s.sequences);
+            for (const [t, T] of Object.entries(s.targets)) {
+                const M = out.targets[t] || (out.targets[t] = { look: {}, hit: {}, opts: {}, seqs: [], unknown: {} });
+                for (const [k, v] of Object.entries(T.look)) M.look[k] = (M.look[k] || 0) + v;
+                for (const [k, v] of Object.entries(T.hit)) M.hit[k] = (M.hit[k] || 0) + v;
+                for (const [k, v] of Object.entries(T.unknown)) M.unknown[k] = (M.unknown[k] || 0) + v;
+                for (const [id, L] of Object.entries(T.opts)) { const A = M.opts[id] || (M.opts[id] = []); for (const o of L) if (A.length < 16 && !A.some(x => JSON.stringify(x) === JSON.stringify(o))) A.push(o); }
+                for (const f of T.seqs) if (!M.seqs.includes(f)) M.seqs.push(f);
+            }
+        }
+        return out;
+    }
+
+    return { readXsq, effectOf, emptyStats, addSequence, readOne, merge, summary, build, kindOf, HIT_SEC };
 })();

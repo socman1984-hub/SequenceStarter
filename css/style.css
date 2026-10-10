@@ -680,3 +680,6 @@ td.chg .fxw { box-shadow: inset 0 -2px 0 var(--ok); }
 .fxp-pickcols input[type=search] { font: inherit; padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); width: 100%; box-sizing: border-box; }
 #fxpProfName { font: inherit; padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); min-width: 220px; }
 .fxp-propcol { background: color-mix(in srgb, var(--accent) 10%, var(--surface)) !important; }
+
+.fxp-picklist label.off { opacity: .55; }
+.fxp-pickcols input[type=search] { margin-bottom: 4px; }

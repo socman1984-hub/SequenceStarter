@@ -190,26 +190,54 @@
         }
         return out;
     }
+    // every sequence in the folder, read once: { file, made, effects, stats }
+    let seqs = [];
+    const pickedSeqs = new Set();
     async function readAll(files) {
-        stats = Profiles.emptyStats();
-        const skipMade = $('fxpSkipMade').checked;
+        seqs = [];
         $('fxpPick').hidden = true;
         if (!files.length) { $('fxpScan').textContent = 'No sequences (.xsq) in that folder.'; return; }
+        files.sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: 'base' }));
         for (let i = 0; i < files.length; i++) {
             $('fxpScan').textContent = `Reading ${i + 1} of ${files.length}: ${files[i].path}`;
-            try { Profiles.addSequence(stats, files[i].path, await (await files[i].get()).text(), { skipMade }); }
-            catch (err) { stats.skipped.push({ file: files[i].path, why: 'could not be read' }); }
+            try { seqs.push(Profiles.readOne(files[i].path, await (await files[i].get()).text())); }
+            catch (err) { seqs.push({ file: files[i].path, made: false, effects: 0, stats: null, error: true }); }
             await new Promise(r => setTimeout(r, 0));
         }
-        const sk = stats.skipped.length ? ` Skipped ${stats.skipped.length} (${[...new Set(stats.skipped.map(s => s.why))].join(', ')}).` : '';
-        $('fxpScan').textContent = `Read ${stats.sequences.length} sequence${stats.sequences.length === 1 ? '' : 's'}.${sk}${showNow() ? '' : ' Tip: open your show (2. Make a sequence) so props are recognized by your layout, not only by name.'}`;
-        if (!stats.sequences.length) return;
-        found = Profiles.summary(stats, showNow());
-        pickedKinds.clear(); shownKinds().forEach(k => pickedKinds.add(k)); pickedProps.clear();
+        // sequences this app made would only teach it what it already does: start unticked
+        pickedSeqs.clear();
+        for (const s of seqs) if (s.stats && !s.made) pickedSeqs.add(s.file);
+        seenKinds.clear(); pickedKinds.clear(); pickedProps.clear();
         $('fxpProfName').value = 'My style' + (folderName ? ' (' + folderName + ')' : '');
-        drawPick();
+        $('fxpSeqFind').value = '';
         $('fxpPick').hidden = false;
+        refresh();
     }
+    // what the ticked sequences hold: the kinds of prop and props to pick from
+    const seenKinds = new Set();
+    function refresh() {
+        stats = Profiles.merge(seqs.filter(s => s.stats && pickedSeqs.has(s.file)).map(s => s.stats));
+        found = Profiles.summary(stats, showNow());
+        // kinds turning up for the first time start ticked; the user's own ticks stay
+        for (const k of shownKinds()) if (!seenKinds.has(k)) { seenKinds.add(k); pickedKinds.add(k); }
+        const usable = seqs.filter(s => s.stats).length;
+        $('fxpScan').textContent = `Found ${seqs.length} sequence${seqs.length === 1 ? '' : 's'}${usable < seqs.length ? ` (${seqs.length - usable} with nothing to learn from)` : ''}.${showNow() ? '' : ' Tip: open your show (2. Make a sequence) so props are recognized by your layout, not only by name.'}`;
+        drawSeqs();
+        drawPick();
+    }
+    function drawSeqs() {
+        const q = $('fxpSeqFind').value.trim().toLowerCase();
+        $('fxpSeqs').innerHTML = seqs.filter(s => !q || s.file.toLowerCase().includes(q)).map(s => {
+            const note = s.error ? 'could not be read' : !s.stats ? 'no effects' : s.made ? `made with this app, ${s.effects} effects` : `${s.effects} effects`;
+            return `<label class="chk${s.stats ? '' : ' off'}"><input type="checkbox" data-seq="${esc(s.file)}" ${pickedSeqs.has(s.file) ? 'checked' : ''} ${s.stats ? '' : 'disabled'}> ${esc(s.file)} <span class="muted small">${note}</span></label>`;
+        }).join('') || '<p class="muted small">No sequence matches.</p>';
+        $('fxpSeqsN').textContent = `${pickedSeqs.size} of ${seqs.filter(s => s.stats).length} ticked`;
+    }
+    const shownSeqs = () => { const q = $('fxpSeqFind').value.trim().toLowerCase(); return seqs.filter(s => s.stats && (!q || s.file.toLowerCase().includes(q))).map(s => s.file); };
+    $('fxpSeqFind').addEventListener('input', drawSeqs);
+    $('fxpSeqsAll').addEventListener('click', () => { shownSeqs().forEach(f => pickedSeqs.add(f)); refresh(); });
+    $('fxpSeqsNone').addEventListener('click', () => { shownSeqs().forEach(f => pickedSeqs.delete(f)); refresh(); });
+    $('fxpSeqs').addEventListener('change', e => { const f = e.target.dataset.seq; if (!f) return; if (e.target.checked) pickedSeqs.add(f); else pickedSeqs.delete(f); refresh(); });
     function drawPick() {
         if (!found) return;
         $('fxpKinds').innerHTML = found.kinds.filter(k => EffectPrefs.CLASSES.includes(k.kind)).map(k => `<label class="chk" title="${k.targets} rows in your sequences"><input type="checkbox" data-kind="${k.kind}" ${pickedKinds.has(k.kind) ? 'checked' : ''}> ${esc(label(k.kind))} <span class="muted small">${fmtMin(k.sec)} of looks, ${k.hits} hits, in ${k.seqs} sequences</span></label>`).join('') || '<p class="muted small">No props found.</p>';
@@ -251,6 +279,7 @@
     });
     $('fxpBuildGo').addEventListener('click', () => {
         if (!stats || !found) return;
+        if (!stats.sequences.length) { $('fxpScan').textContent = 'Tick at least one sequence to learn from.'; return; }
         const kinds = [...pickedKinds];
         const props = [...pickedProps];
         if (!kinds.length && !props.length) { $('fxpScan').textContent = 'Tick at least one kind of prop or one prop.'; return; }

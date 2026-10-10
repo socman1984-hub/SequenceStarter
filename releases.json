@@ -4,7 +4,7 @@
     "date": "2026-10-10",
     "title": "Profiles: ideas that sequence like you",
     "items": [
-      ["new", "Profiles from your own sequences: on the 🎛 Effects for props tab, choose a folder of finished xLights sequences and the app learns which effects you use on each prop, how often, and with which settings. Ideas, Another idea and 🎲 Randomize then sequence more like you do."],
+      ["new", "Profiles from your own sequences: on the 🎛 Effects for props tab, choose a folder of finished xLights sequences, tick which ones to learn from, and the app learns which effects you use on each prop, how often, and with which settings. Ideas, Another idea and 🎲 Randomize then sequence more like you do."],
       ["new", "Build a profile for every kind of prop, or only the ones you pick (just the mega tree, say), with Select all / Deselect all for both lists. Single props can get their own column too, and groups made of them follow it."],
       ["new", "Profiles are saved in a Profile list: switch between them, change and save them, rename, delete, go back to Default, and export / import them as files."]
     ]
