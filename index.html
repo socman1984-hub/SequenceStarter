@@ -403,12 +403,13 @@
             <div class="fxp-pickcols">
               <div>
                 <h4>Kinds of prop</h4>
-                <label class="chk"><input type="checkbox" id="fxpAllKinds" checked> <b>All</b></label>
+                <div class="btnrow tight"><button type="button" class="btn tiny" id="fxpKindsAll">Select all</button><button type="button" class="btn tiny" id="fxpKindsNone">Deselect all</button> <span class="muted small" id="fxpKindsN"></span></div>
                 <div class="pick-list fxp-picklist" id="fxpKinds"></div>
               </div>
               <div>
                 <h4>Single props <span class="muted small">(optional: each gets its own column)</span></h4>
                 <input type="search" id="fxpPropFind" placeholder="Find a prop…" aria-label="Find a prop">
+                <div class="btnrow tight"><button type="button" class="btn tiny" id="fxpPropsAll" title="Tick every prop the search shows">Select all</button><button type="button" class="btn tiny" id="fxpPropsNone" title="Untick every prop the search shows">Deselect all</button> <span class="muted small" id="fxpPropsN"></span></div>
                 <div class="pick-list fxp-picklist" id="fxpProps"></div>
               </div>
             </div>

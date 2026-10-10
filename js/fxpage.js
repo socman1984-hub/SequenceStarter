@@ -205,22 +205,34 @@
         $('fxpScan').textContent = `Read ${stats.sequences.length} sequence${stats.sequences.length === 1 ? '' : 's'}.${sk}${showNow() ? '' : ' Tip: open your show (2. Make a sequence) so props are recognized by your layout, not only by name.'}`;
         if (!stats.sequences.length) return;
         found = Profiles.summary(stats, showNow());
+        pickedKinds.clear(); shownKinds().forEach(k => pickedKinds.add(k)); pickedProps.clear();
         $('fxpProfName').value = 'My style' + (folderName ? ' (' + folderName + ')' : '');
         drawPick();
         $('fxpPick').hidden = false;
     }
     function drawPick() {
         if (!found) return;
-        const all = $('fxpAllKinds').checked;
-        $('fxpKinds').innerHTML = found.kinds.filter(k => EffectPrefs.CLASSES.includes(k.kind)).map(k => `<label class="chk" title="${k.targets} rows in your sequences"><input type="checkbox" data-kind="${k.kind}" ${all ? 'checked disabled' : ''}> ${esc(label(k.kind))} <span class="muted small">${fmtMin(k.sec)} of looks, ${k.hits} hits, in ${k.seqs} sequences</span></label>`).join('') || '<p class="muted small">No props found.</p>';
+        $('fxpKinds').innerHTML = found.kinds.filter(k => EffectPrefs.CLASSES.includes(k.kind)).map(k => `<label class="chk" title="${k.targets} rows in your sequences"><input type="checkbox" data-kind="${k.kind}" ${pickedKinds.has(k.kind) ? 'checked' : ''}> ${esc(label(k.kind))} <span class="muted small">${fmtMin(k.sec)} of looks, ${k.hits} hits, in ${k.seqs} sequences</span></label>`).join('') || '<p class="muted small">No props found.</p>';
         const q = $('fxpPropFind').value.trim().toLowerCase();
         const props = found.props.filter(p => !q || p.name.toLowerCase().includes(q));
         $('fxpProps').innerHTML = props.slice(0, 300).map(p => `<label class="chk"><input type="checkbox" data-prop="${esc(p.name)}" ${pickedProps.has(p.name) ? 'checked' : ''}> ${esc(p.name)} <span class="muted small">${esc(label(p.kind))}, ${p.seqs} sequences</span></label>`).join('') || '<p class="muted small">No prop matches.</p>';
+        pickCount();
     }
-    const pickedProps = new Set();
-    $('fxpAllKinds').addEventListener('change', drawPick);
+    const pickedProps = new Set(), pickedKinds = new Set();
+    const shownKinds = () => (found ? found.kinds.filter(k => EffectPrefs.CLASSES.includes(k.kind)).map(k => k.kind) : []);
+    // the props the search shows (select / deselect all works on those)
+    const shownProps = () => { const q = $('fxpPropFind').value.trim().toLowerCase(); return found ? found.props.filter(p => !q || p.name.toLowerCase().includes(q)).map(p => p.name) : []; };
+    const pickCount = () => {
+        $('fxpKindsN').textContent = `${pickedKinds.size} of ${shownKinds().length} ticked`;
+        $('fxpPropsN').textContent = `${pickedProps.size} ticked`;
+    };
+    $('fxpKindsAll').addEventListener('click', () => { shownKinds().forEach(k => pickedKinds.add(k)); drawPick(); });
+    $('fxpKindsNone').addEventListener('click', () => { pickedKinds.clear(); drawPick(); });
+    $('fxpPropsAll').addEventListener('click', () => { shownProps().forEach(p => pickedProps.add(p)); drawPick(); });
+    $('fxpPropsNone').addEventListener('click', () => { shownProps().forEach(p => pickedProps.delete(p)); drawPick(); });
+    $('fxpKinds').addEventListener('change', e => { const k = e.target.dataset.kind; if (k) { if (e.target.checked) pickedKinds.add(k); else pickedKinds.delete(k); pickCount(); } });
     $('fxpPropFind').addEventListener('input', drawPick);
-    $('fxpProps').addEventListener('change', e => { const p = e.target.dataset.prop; if (p) { if (e.target.checked) pickedProps.add(p); else pickedProps.delete(p); } });
+    $('fxpProps').addEventListener('change', e => { const p = e.target.dataset.prop; if (p) { if (e.target.checked) pickedProps.add(p); else pickedProps.delete(p); pickCount(); } });
     $('fxpFolder').addEventListener('click', async () => {
         if (window.showDirectoryPicker) {
             let dir;
@@ -239,7 +251,7 @@
     });
     $('fxpBuildGo').addEventListener('click', () => {
         if (!stats || !found) return;
-        const kinds = $('fxpAllKinds').checked ? found.kinds.map(k => k.kind) : [...$('fxpKinds').querySelectorAll('input:checked')].map(i => i.dataset.kind);
+        const kinds = [...pickedKinds];
         const props = [...pickedProps];
         if (!kinds.length && !props.length) { $('fxpScan').textContent = 'Tick at least one kind of prop or one prop.'; return; }
         const name = $('fxpProfName').value.trim() || 'My style';
