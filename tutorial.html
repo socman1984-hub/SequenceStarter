@@ -206,14 +206,14 @@
       (marked <i>imported</i>). Change the lights or colors of those rows, mute or remove them, or press 🎲 on a part to
       add new lights on top. When you export, everything you didn't change goes back to xLights exactly as it was,
       in the sequence's own row order.</p>
-      <p>The preview draws imported effects closely, but not perfectly. Pictures, videos and shaders play in the preview
-      when their files are in your show folder (where xLights keeps them too); effects the preview can't draw show as a
-      soft twinkle so you can still see where they play.</p>
+      <p>The preview draws imported effects closely, but not perfectly: every xLights effect has a drawing here, read from
+      its own settings. Pictures, videos and shaders play in the preview when their files are in your show folder (where
+      xLights keeps them too); Glediator recordings and Duplicate show as a soft twinkle so you can still see where they play.</p>
     </li>
     <li id="tweak">
       <h3>Change parts by hand</h3>
-      <p>Open a part to see its <b>light rows</b>. Each row says which lights, when (the whole time, every beat, drum
-      hits, while someone sings, ...), the effect and the colors. Click a row to change it. Handy tools:</p>
+      <p>Open a part to see its <b>light rows</b>. Each row starts with its lights (in bold), then the effect, when it plays
+      (the whole time, every beat, drum hits, while someone sings, ...) and its colors. Click a row to change it. Handy tools:</p>
       <ul>
         <li><b>🔁 Loop</b> plays one part over and over while you work on it.</li>
         <li><b>🎲 Randomize</b> gives just that part a new idea.</li>
@@ -230,9 +230,14 @@
         <li><b>🎨</b> changes only the colors. A part you recolor (or whose row colors you change by hand) keeps
           <i>its own colors</i>: its 🎲 Randomize and new ideas use them instead of the main scheme. The part shows
           "own colors" with a ✕ to go back to the main scheme.</li>
-        <li><b>Effects</b> to choose from include solid, wash, chase, bars, spirals, pinwheel, twinkle, shockwave,
-          marquee, butterfly, fan, ripple, spirograph, wave, meteors, curtain, morph, snowflakes, strobe, a beat meter,
-          Off (dark), singing faces and words on a matrix.</li>
+        <li><b>Effects</b>: every xLights effect, in a list grouped by kind (solid colors and washes, chases and sweeps,
+          shapes and spins, sparkle, snow and fire, music, words and pictures, layer tools, DMX). Their settings show
+          under the row. For a picture, video, shader or Glediator recording, <b>Choose…</b> lists the files in your show
+          folder (open it with <b>Choose show folder…</b>). Warp, Kaleidoscope and Adjust change the rows under them on the
+          same lights.</li>
+        <li><b>Singing face</b> is in the Effect list of any row whose lights include a prop with a face set up in xLights
+          (first in the list for those props). The face sings along with the words, so find them first (step 4).
+          Piano and Guitar play the sung melody the same way.</li>
         <li><b>Moving heads</b> get the <b>Moving head</b> effect: pick a pattern (circle, figure-8, square…), its size, where
           it aims, how many rounds per part, how far apart the heads move and how bright. Ideas and 🎲 Randomize include them
           (calm, slow shapes in quiet parts; big, fast ones in loud parts), and the preview draws each head's beam.
@@ -300,7 +305,8 @@
       shows a ⚠ note listing them: press <b>Fix…</b> to swap each for one of your props, or leave it out. Props that aren't
       in your show are never written into the saved sequence.</dd>
     <dt>A prop gets odd effects, or isn't used.</dt>
-    <dd>Use <b>Prop types…</b> to say what it is, and <b>Prop mix…</b> to use it more.</dd>
+    <dd>Use <b>Prop types…</b> to say what it is, and <b>Prop mix…</b> to use it more. <b>🎛 Effects for props</b> sets which
+      effects each kind of prop gets.</dd>
     <dt>A prop shows as a single dot in the preview.</dt>
     <dd>That kind of model isn't drawn yet (for example DMX fixtures other than moving heads). The saved sequence still
       works in xLights. Please report it on <a href="https://github.com/socman1984-hub/SequenceStarter/issues">GitHub</a>.</dd>
@@ -309,8 +315,9 @@
       back to the processor, which is slower.</dd>
     <dt>The ideas don't look like my style.</dt>
     <dd>The ideas start from one person's sequencing style (which effects suit which props and how they're put
-      together, learned from 56 finished sequences and a few professional ones). Use Feeling, Prop mix and Prop types to
-      steer them, and keep the rows you like.</dd>
+      together, learned from 56 finished sequences and a few professional ones). <a href="#effects">Build a profile from your
+      own sequences</a> and the ideas use your effects, mostly with your own settings. Feeling, Prop mix, Prop types and
+      Effects for props steer them too, and you can keep the rows you like.</dd>
     <dt>An imported sequence looks different in the preview.</dt>
     <dd>The preview is a close guide, not xLights itself: some effects and settings are only approximated, and
       pictures, videos and shaders need their files in your show folder. The exported sequence is always exact, so

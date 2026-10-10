@@ -3,7 +3,7 @@
 One running list for the web sequencer. New ideas get added here; when one is built it
 moves to **Done** with the date.
 
-## Where things stand (2026-10-09)
+## Where things stand (2026-10-10)
 
 - **Name:** *SequenceStarter – a head start on your xLights sequences* (renamed 2026-10-09 from Lights Auto
   Sequencer: another project uses "Auto Sequencer"; repo and site moved to SequenceStarter; the old LightsAutoSequencer repo is a forwarding page).
@@ -12,19 +12,22 @@ moves to **Done** with the date.
   https://discord.gg/xjgWweqCEs. Posted to the xLights Facebook group; testers active on Discord.
   Outside contributors send pull requests (MGXAe: preview zoom + Props only, computergeek1507:
   preview clipping); after a merge on GitHub, pull locally, test, credit in What's new.
-- **Everything built is live** (latest release 2026.10.07, pushed 2026-10-07): xLights sequence
-  import (exact round trip; preview draws imported pictures, videos, shaders, value curves),
-  Halloween schemes, per-part colors, Randomize the whole sequence, prop names in 5 languages,
-  render order (groups first) with the full layout in every export, Find-words repeats and
-  "ah-ah" fills, preview zoom / Props only, docs and tour updated.
-- **Pushed 2026-10-09:** every xLights effect and the *🎛 Effects for props* tab (release 2026.10.09).
+- **Everything built is live** (latest release 2026.10.10.2, pushed 2026-10-10): every xLights effect
+  and the *🎛 Effects for props* tab; profiles built from a folder of the user's sequences (sequence list,
+  prop kinds and single props, Select all / Deselect all); the rename to SequenceStarter with the new
+  address and forwarding page; words on the matrix no longer lose lines at part edges; rows show props
+  first; Singing face offered on any row for a prop with faces. Guide, tour, README and page notes cover
+  all of it. Earlier: xLights sequence import, Halloween schemes, per-part colors, Randomize the whole
+  sequence, prop names in 5 languages, render order, Find-words repeats, preview zoom / Props only.
 - **Waiting on testers:** imported videos in a real browser tab (the hidden test browser never
   decodes video frames); the xLights 2023 show folder that crashed (need its
   `xlights_rgbeffects.xml` or the copied error).
 - **Needs checking in a real browser:** the pop-out window, Chrome's *Allow on every visit*
   prompt, the native open/save dialogs, imported videos.
 - **Needs checking in a real browser:** *Choose…* (show-folder file list) needs a folder opened with
-  *Choose show folder…*; the test browser loads the show by URL, so the listing itself is untested.
+  *Choose show folder…*; the test browser loads the show by URL, so the listing itself is untested. Same
+  for the profile builder's *Choose a folder of sequences…* dialog (its reading was tested through the
+  folder input).
 - **Next up:** the open items in *Lessons from the owner's show folder* and *Lessons from pro sequences*;
   closer previews for the approximated effects (see *Known weak spots*).
 

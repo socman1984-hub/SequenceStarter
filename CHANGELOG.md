@@ -2,6 +2,12 @@
 
 Release notes for SequenceStarter, newest first. The same list is in the app under **✨ What's new**.
 
+## 2026.10.10.3 — Guide and tour up to date
+
+_2026-10-10_
+
+- **Better:** The guide (How to use), the Show me around tour and the page notes now cover everything new: every xLights effect, the Effects for props tab, profiles from your own sequences, Singing face on any prop with a face, rows that show their props first, and where to find files with Choose….
+
 ## 2026.10.10.2 — Profiles: ideas that sequence like you
 
 _2026-10-10_

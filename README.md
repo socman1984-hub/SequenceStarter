@@ -114,7 +114,9 @@ Ctrl+Z undoes. Edits are kept per song (keyed by word position + word), survive
 - **Plan, per section**: every section (plus a *Whole song* layer underneath) has its
   own rows of *lights* (groups, models, submodels) → *when* (the whole time, every beat,
   first beat of a bar, kick, snare, while singing, each line, each word) → *effect* +
-  colors + options. Sections are collapsible cards; click the strip under the preview to
+  colors + options. Rows read lights first, then the effect. Sung lines, words and notes
+  belong to the part holding most of each and play whole (a line sung just before a chorus
+  or running over into the next part keeps its words). Sections are collapsible cards; click the strip under the preview to
   play from there, Ctrl+click a part (or use
   *Go to a section*) to jump there and open its card; the playing part is
   highlighted.
@@ -249,7 +251,7 @@ between visits, but the project file is the copy to trust.
 - **Effects** (`js/effects.js`): Solid, Flash-and-fade, Color wash, Chase, Bars,
   Spirals, Pinwheel, Twinkle, Shockwave, Marquee, Butterfly, Fan, Ripple, Spirograph,
   Wave, Meteors, Curtain, Morph, Snowflakes, Strobe, Off, Beat meter (VU Meter timing-event
-  flash / sweep on the Beats, Bars or Note Onsets track), Moving head, Singing face (Faces, driven by the Lyrics track), Show the words (Text on a
+  flash / sweep on the Beats, Bars or Note Onsets track), Moving head, Singing face (Faces, driven by the Lyrics track; offered on any row whose lights include a prop with a face), Show the words (Text on a
   matrix, driven by the Lyrics track). Each has a browser renderer for the preview and an
   xLights settings string taken from working effects in real sequences (Fan, Ripple and
   Spirograph previews are ports of xLights' own render code). On group rows the buffer is
