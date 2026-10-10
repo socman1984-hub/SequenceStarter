@@ -2,6 +2,12 @@
 
 Release notes for SequenceStarter, newest first. The same list is in the app under **✨ What's new**.
 
+## 2026.10.10 — Light rows show their props first
+
+_2026-10-10_
+
+- **Better:** Each light row now starts with its props, then the effect ("All Flood · Color wash" instead of "Color wash · All Flood"), so it's easier to find the row for a prop. Thanks to Fame28 on Discord for the suggestion!
+
 ## 2026.10.09.3 — Words on the matrix no longer go missing
 
 _2026-10-09_

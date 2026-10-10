@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026.10.10",
+    "date": "2026-10-10",
+    "title": "Light rows show their props first",
+    "items": [
+      ["better", "Each light row now starts with its props, then the effect (\"All Flood · Color wash\" instead of \"Color wash · All Flood\"), so it's easier to find the row for a prop. Thanks to Fame28 on Discord for the suggestion!"]
+    ]
+  },
+  {
     "version": "2026.10.09.3",
     "date": "2026-10-09",
     "title": "Words on the matrix no longer go missing",
