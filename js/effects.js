@@ -756,7 +756,7 @@ const Effects = (() => {
             },
         },
         {
-            id: 'faces', label: 'Singing face', xl: 'Faces', use: ['vocal'], needsFace: true,
+            id: 'faces', label: 'Singing face', xl: 'Faces', use: ['vocal', 'part'], needsFace: true, random: false, menu: false,
             options: { face: '' },
             settings: (o, ctx) => `E_CHECKBOX_Faces_Outline=1,E_CHOICE_Faces_EyeBlinkFrequency=Normal,E_CHOICE_Faces_Eyes=Auto,E_CHOICE_Faces_FaceDefinition=${o.face},E_CHOICE_Faces_TimingTrack=${ctx.lyricTrack},T_TEXTCTRL_Fadein=.2,T_TEXTCTRL_Fadeout=.3`,
             render(p, N, out) {

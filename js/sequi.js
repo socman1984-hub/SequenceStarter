@@ -1491,7 +1491,11 @@
         else list = Effects.LIST.filter(e => e.use.includes('hit'));
         const heads = S.show && targets.length && targets.every(x => S.show.models.has(x) ? !!S.show.models.get(x).mh : Show.movingHeadsIn(S.show, x).length > 0);
         if (heads) return Effects.LIST.filter(e => e.dmx || e.anyModel);
-        return list.filter(e => !e.dmx);
+        // Singing face only for props with a face set up in xLights; listed first for them
+        const faces = S.show && targets.some(x => { const m = S.show.models.get(x); return m && m.faces && m.faces.length; });
+        list = list.filter(e => !e.dmx && (!e.needsFace || faces));
+        if (faces) list.sort((a, b) => (b.needsFace ? 1 : 0) - (a.needsFace ? 1 : 0));
+        return list;
     }
 
     // Choose a file from the show folder (pictures, videos, shaders, recordings).
@@ -1906,6 +1910,7 @@
                 opts.insertAdjacentHTML('beforeend', `<label title="${esc((eff.tips && eff.tips[k]) || '')}">${label} <input type="number" data-k="${k}" value="${val}" step="${typeof def === 'number' && def % 1 !== 0 ? 0.1 : 1}"${rg && rg[0] != null ? ` min="${rg[0]}"` : ''}${rg && rg[1] != null ? ` max="${rg[1]}"` : ''}></label>`);
             }
         }
+        if (eff.needsFace && !haveWords) opts.insertAdjacentHTML('beforeend', '<span class="hint">The face sings along with the words: find them first in <b>1. Song &amp; words</b>.</span>');
         el.querySelector('.pick').addEventListener('click', () => openPicker(r, 'targets', 'Choose lights'));
         el.querySelector('.trig').addEventListener('change', e => commit(() => {
             r.trigger = e.target.value;

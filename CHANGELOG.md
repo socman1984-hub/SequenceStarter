@@ -2,11 +2,12 @@
 
 Release notes for SequenceStarter, newest first. The same list is in the app under **✨ What's new**.
 
-## 2026.10.10 — Light rows show their props first
+## 2026.10.10 — Light rows show their props first, and Singing face is easy to find
 
 _2026-10-10_
 
 - **Better:** Each light row now starts with its props, then the effect ("All Flood · Color wash" instead of "Color wash · All Flood"), so it's easier to find the row for a prop. Thanks to Fame28 on Discord for the suggestion!
+- **Fixed:** Singing face was hard to find: it only showed in the Effect list when the row was set to a singing option, which stays off until the words are found. It now shows on any row whose lights include a prop with a face set up in xLights (first in the list for those props), with a reminder to find the words when they are missing. Thanks to Fame28 for asking!
 
 ## 2026.10.09.3 — Words on the matrix no longer go missing
 

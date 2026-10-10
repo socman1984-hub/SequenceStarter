@@ -2,9 +2,10 @@
   {
     "version": "2026.10.10",
     "date": "2026-10-10",
-    "title": "Light rows show their props first",
+    "title": "Light rows show their props first, and Singing face is easy to find",
     "items": [
-      ["better", "Each light row now starts with its props, then the effect (\"All Flood · Color wash\" instead of \"Color wash · All Flood\"), so it's easier to find the row for a prop. Thanks to Fame28 on Discord for the suggestion!"]
+      ["better", "Each light row now starts with its props, then the effect (\"All Flood · Color wash\" instead of \"Color wash · All Flood\"), so it's easier to find the row for a prop. Thanks to Fame28 on Discord for the suggestion!"],
+      ["fixed", "Singing face was hard to find: it only showed in the Effect list when the row was set to a singing option, which stays off until the words are found. It now shows on any row whose lights include a prop with a face set up in xLights (first in the list for those props), with a reminder to find the words when they are missing. Thanks to Fame28 for asking!"]
     ]
   },
   {
