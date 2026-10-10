@@ -2,6 +2,14 @@
 
 Release notes for SequenceStarter, newest first. The same list is in the app under **✨ What's new**.
 
+## 2026.10.10.2 — Profiles: ideas that sequence like you
+
+_2026-10-10_
+
+- **New:** Profiles from your own sequences: on the 🎛 Effects for props tab, choose a folder of finished xLights sequences and the app learns which effects you use on each prop, how often, and with which settings. Ideas, Another idea and 🎲 Randomize then sequence more like you do.
+- **New:** Build a profile for every kind of prop, or only the ones you pick (just the mega tree, say). Single props can get their own column too, and groups made of them follow it.
+- **New:** Profiles are saved in a Profile list: switch between them, change and save them, rename, delete, go back to Default, and export / import them as files.
+
 ## 2026.10.10 — Light rows show their props first, and Singing face is easy to find
 
 _2026-10-10_

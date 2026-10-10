@@ -671,3 +671,12 @@ td.chg .fxw { box-shadow: inset 0 -2px 0 var(--ok); }
 .file-item { font: inherit; font-size: 13px; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line); color: var(--text); padding: 5px 8px; cursor: pointer; }
 .file-item:hover, .file-item:focus { background: var(--lane); }
 .opts .wide-opt input[type=text] { min-width: 220px; }
+
+.fxp-build { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin: 8px 0 12px; background: var(--lane); }
+.fxp-build > summary { cursor: pointer; }
+.fxp-pickcols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-top: 8px; }
+.fxp-pickcols h4 { margin: 4px 0; }
+.fxp-picklist { max-height: 260px; overflow: auto; display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.fxp-pickcols input[type=search] { font: inherit; padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); width: 100%; box-sizing: border-box; }
+#fxpProfName { font: inherit; padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); min-width: 220px; }
+.fxp-propcol { background: color-mix(in srgb, var(--accent) 10%, var(--surface)) !important; }

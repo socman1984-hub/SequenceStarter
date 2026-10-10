@@ -68,11 +68,14 @@ const EffectPrefs = (() => {
         { id: 'every', name: 'Every effect', builtin: true, make: builtinEvery, note: 'The default, plus every other effect now and then on every kind of prop.' },
     ];
 
-    // A saved set keeps every weight it was given; effects added in later versions
-    // come in at their default weight.
+    // A saved set (a profile) keeps every weight it was given; effects added in later
+    // versions come in at their default weight. Profiles built from sequences also
+    // carry single props' own weights (props), the settings those sequences used
+    // (looks: { 'class:megatree' | 'target:MegaTree': { effectId: [options] } }) and
+    // where they were learned (about).
     function fill(sel) {
         const d = builtinDefault();
-        const out = { steady: {}, hits: {} };
+        const out = { steady: {}, hits: {}, props: {}, looks: {}, about: null };
         for (const part of ['steady', 'hits']) {
             for (const c of CLASSES) {
                 out[part][c] = { ...d[part][c] };
@@ -80,9 +83,19 @@ const EffectPrefs = (() => {
                 if (s) for (const [k, v] of Object.entries(s)) if (k in out[part][c]) out[part][c][k] = Math.max(0, Math.min(1000, +v || 0));
             }
         }
+        for (const [name, pw] of Object.entries((sel && sel.props) || {})) {
+            out.props[name] = {};
+            for (const part of ['steady', 'hits']) {
+                out.props[name][part] = Object.fromEntries(Object.keys(d[part].generic).map(k => [k, 0]));
+                for (const [k, v] of Object.entries((pw && pw[part]) || {})) if (k in out.props[name][part]) out.props[name][part][k] = Math.max(0, Math.min(1000, +v || 0));
+            }
+        }
+        if (sel && sel.looks && typeof sel.looks === 'object') out.looks = sel.looks;
+        if (sel && sel.about) out.about = sel.about;
         return out;
     }
-    const same = (a, b) => CLASSES.every(c => ['steady', 'hits'].every(p => Object.keys(a[p][c]).every(k => (a[p][c][k] || 0) === (b[p][c][k] || 0))));
+    const same = (a, b) => CLASSES.every(c => ['steady', 'hits'].every(p => Object.keys(a[p][c]).every(k => (a[p][c][k] || 0) === (b[p][c][k] || 0))))
+        && JSON.stringify(a.props || {}) === JSON.stringify(b.props || {});
 
     const KEY = 'xlweb-fxprefs';
     let st = { active: 'default', presets: [], working: null };
@@ -91,12 +104,17 @@ const EffectPrefs = (() => {
         if (v && typeof v === 'object') st = { active: v.active || 'default', presets: Array.isArray(v.presets) ? v.presets.filter(p => p && p.id && p.name) : [], working: v.working || null };
     } catch (e) { /* defaults */ }
     const save = () => {
-        try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* storage blocked */ }
+        try { localStorage.setItem(KEY, JSON.stringify(st)); }
+        catch (e) {
+            // profiles with many looks can outgrow the browser's storage: keep the weights
+            for (const p of st.presets) if (p.looks) for (const k of Object.keys(p.looks)) for (const id of Object.keys(p.looks[k])) p.looks[k][id] = p.looks[k][id].slice(0, 4);
+            try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e2) { /* storage blocked */ }
+        }
         document.dispatchEvent(new CustomEvent('xl:fxprefs'));
     };
 
     const presetOf = id => BUILTIN.find(b => b.id === id) || st.presets.find(p => p.id === id) || null;
-    const selOf = p => (p.builtin ? p.make() : fill(p));
+    const selOf = p => (p.builtin ? fill(p.make()) : fill(p));
     if (!presetOf(st.active)) st.active = 'default';
 
     // What ideas use now: the active set, with any unsaved changes.
@@ -108,10 +126,13 @@ const EffectPrefs = (() => {
     const changed = () => { cache = null; };
     const dirty = () => !!st.working && !same(fill(st.working), selOf(presetOf(st.active)));
 
-    function setWeight(part, cls, eff, w) {
-        const cur = current();
-        const next = JSON.parse(JSON.stringify(cur));
-        next[part][cls][eff] = Math.max(0, Math.min(1000, Math.round(+w || 0)));
+    // col: a kind of prop, or 'prop:<name>' for a single prop's own column
+    const tableOf = (sel, part, col) => (col.startsWith('prop:') ? sel.props[col.slice(5)] && sel.props[col.slice(5)][part] : sel[part][col]);
+    function setWeight(part, col, eff, w) {
+        const next = JSON.parse(JSON.stringify(current()));
+        const t = tableOf(next, part, col);
+        if (!t) return;
+        t[eff] = Math.max(0, Math.min(1000, Math.round(+w || 0)));
         st.working = next;
         changed();
         if (!dirty()) st.working = null;
@@ -131,10 +152,16 @@ const EffectPrefs = (() => {
         st.active = id; st.working = null; changed(); save();
     }
     const newId = () => 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    const pack = (sel, extra) => ({ steady: sel.steady, hits: sel.hits, props: sel.props || {}, looks: sel.looks || {}, about: sel.about || null, ...extra });
+    function uniqueName(name) {
+        name = String(name || 'My profile').slice(0, 60);
+        const names = new Set(BUILTIN.map(b => b.name).concat(st.presets.map(p => p.name)));
+        if (names.has(name)) { let i = 2; while (names.has(`${name} (${i})`)) i++; name = `${name} (${i})`; }
+        return name;
+    }
     // Save: into the active set, or (for a built-in) as a new named set.
     function saveAs(name) {
-        const sel = current();
-        const p = { id: newId(), name: String(name).slice(0, 60), steady: sel.steady, hits: sel.hits };
+        const p = pack(current(), { id: newId(), name: uniqueName(name) });
         st.presets.push(p);
         st.active = p.id; st.working = null; changed(); save();
         return p;
@@ -142,10 +169,16 @@ const EffectPrefs = (() => {
     function saveActive() {
         const p = presetOf(st.active);
         if (!p || p.builtin) return false;
-        const sel = current();
-        p.steady = sel.steady; p.hits = sel.hits;
+        Object.assign(p, pack(current(), {}));
         st.working = null; changed(); save();
         return true;
+    }
+    // A profile built from someone's sequences: saved and put in use.
+    function saveProfile(name, sel, about) {
+        const p = pack(fill({ ...sel, about }), { id: newId(), name: uniqueName(name) });
+        st.presets.push(p);
+        st.active = p.id; st.working = null; changed(); save();
+        return p;
     }
     function rename(id, name) {
         const p = st.presets.find(x => x.id === id);
@@ -156,6 +189,8 @@ const EffectPrefs = (() => {
         if (st.active === id) { st.active = 'default'; st.working = null; }
         changed(); save();
     }
+    // Take a single prop's own column out (it goes back to its kind's weights).
+    const removeProp = name => edit(s => { delete s.props[name]; if (s.looks) delete s.looks['target:' + name]; });
     const discard = () => { st.working = null; changed(); save(); };
     const resetToDefault = () => { st.active = 'default'; st.working = null; changed(); save(); };
 
@@ -163,15 +198,11 @@ const EffectPrefs = (() => {
     function exportData(id = st.active) {
         const p = presetOf(id);
         const sel = id === st.active ? current() : selOf(p);
-        return { type: FILE_TYPE, version: 1, name: p ? p.name : 'My effect choices', steady: sel.steady, hits: sel.hits };
+        return { type: FILE_TYPE, version: 2, name: p ? p.name : 'My profile', ...pack(sel, {}) };
     }
     function importData(data) {
-        if (!data || (data.type && data.type !== FILE_TYPE) || (!data.steady && !data.hits)) throw new Error('This file is not a set of effect choices.');
-        const sel = fill(data);
-        let name = String(data.name || 'Imported').slice(0, 60);
-        const names = new Set(BUILTIN.map(b => b.name).concat(st.presets.map(p => p.name)));
-        if (names.has(name)) { let i = 2; while (names.has(`${name} (${i})`)) i++; name = `${name} (${i})`; }
-        const p = { id: newId(), name, steady: sel.steady, hits: sel.hits };
+        if (!data || (data.type && data.type !== FILE_TYPE) || (!data.steady && !data.hits)) throw new Error('This file is not a profile or a set of effect choices.');
+        const p = pack(fill(data), { id: newId(), name: uniqueName(data.name || 'Imported') });
         st.presets.push(p);
         st.active = p.id; st.working = null; changed(); save();
         return p;
@@ -179,17 +210,29 @@ const EffectPrefs = (() => {
 
     // ---------- for ideas ----------
 
-    // Weights for one kind of prop: { effectId: weight } with only the ones in use.
-    function weights(part, cls, sel = current()) {
-        const t = (sel[part] && (sel[part][cls] || sel[part].generic)) || {};
+    // Weights for one kind of prop, or for a single prop that has its own:
+    // { effectId: weight } with only the ones in use.
+    function table(part, cls, sel, target) {
+        if (target && sel.props && sel.props[target] && sel.props[target][part]) return sel.props[target][part];
+        return (sel[part] && (sel[part][cls] || sel[part].generic)) || {};
+    }
+    function weights(part, cls, sel = current(), target = null) {
         const out = {};
-        for (const [k, v] of Object.entries(t)) if (v > 0) out[k] = v;
+        for (const [k, v] of Object.entries(table(part, cls, sel, target))) if (v > 0) out[k] = v;
         return out;
     }
-    const allowed = (part, cls, id, sel = current()) => ((sel[part] && (sel[part][cls] || sel[part].generic) || {})[id] || 0) > 0;
+    const allowed = (part, cls, id, sel = current(), target = null) => (table(part, cls, sel, target)[id] || 0) > 0;
+    // Settings someone's own sequences used for this effect on this prop (or kind of prop): a list, or null.
+    function looksFor(cls, target, id, sel = current()) {
+        const L = sel.looks || {};
+        const a = target && L['target:' + target] && L['target:' + target][id];
+        if (a && a.length) return a;
+        const b = L['class:' + cls] && L['class:' + cls][id];
+        return b && b.length ? b : null;
+    }
 
     return {
-        CLASSES, BUILTIN, current, weights, allowed, setWeight, edit, choose, saveAs, saveActive, rename, remove, discard, resetToDefault,
+        CLASSES, BUILTIN, current, weights, allowed, looksFor, setWeight, edit, choose, saveAs, saveActive, saveProfile, rename, remove, removeProp, discard, resetToDefault,
         exportData, importData, steadyList, hitList, handOnly, builtinDefault, fill,
         get active() { return presetOf(st.active); }, get presets() { return BUILTIN.concat(st.presets); }, dirty,
     };

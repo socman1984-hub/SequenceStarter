@@ -136,7 +136,11 @@ Ctrl+Z undoes. Edits are kept per song (keyed by word position + word), survive
   often, comes from the *🎛 Effects for props* tab (`js/fxprefs.js`, `js/fxpage.js`): its
   *Default* set is what the owner's own sequences use on that kind of prop; users change the
   weights, save named sets (kept in the browser, exported / imported as `.effects.json`), and
-  ideas skip a kind of prop with nothing switched on. Choices are then shifted by the section's energy.
+  ideas skip a kind of prop with nothing switched on. *Profiles* (`js/profile.js`) learn those weights from a
+  folder of the user's own `.xsq` files: effect time share per prop kind (looks) and counts of short
+  effects (hits, < 1.2 s), for all kinds, picked kinds, or single props (own columns, which groups made
+  of them follow), plus up to 16 real setting combinations per effect that ideas reuse 75% of the time.
+  Choices are then shifted by the section's energy.
   Undo/Redo (Ctrl+Z / Ctrl+Y on this tab) step back through tries.
 
 ### Editing while watching

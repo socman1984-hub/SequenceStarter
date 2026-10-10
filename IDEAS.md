@@ -375,6 +375,17 @@ show); 7 the test hooks stay on purpose (harmless, used for testing); 8 not need
 
 ## Done
 
+- **2026-10-10:** *Profiles from the user's own sequences* (requested 2026-10-10). Effects for props tab:
+  choose a folder of `.xsq` (File System Access, `webkitdirectory` fallback; backups and this app's own exports
+  skipped), `js/profile.js` reads each with regexes (EffectDB, palettes, model / submodel / strand layers), maps
+  every effect through `Effects.fromXl` (looks >= 1.2 s by time share, hits by count, < 1% dropped, Off never a
+  look), then builds a profile for all or picked prop kinds and optional single props (own grid columns;
+  a group uses the column of the prop making up most of it). Up to 16 real option sets per effect are reused
+  by ideas 75% of the time (rows, hits, masks, overlays). Profiles are EffectPrefs sets (props, looks, about),
+  saved / renamed / deleted / exported. Tested on Christmas 2024 (35 sequences in ~1 s): arches learned chase
+  38% / wash 18%; two thirds of planned looks reuse the owner's settings; export renders in xLights with no
+  warnings, preview vs xLights r = 0.95.
+
 - **2026-10-09:** *Every xLights effect, and which effects each prop may get* (requested 2026-10-07).
   All 56 xLights effects are in the app (`js/effects-more.js`; settings from xLights' metadata,
   `js/xlmeta.js` via `tools/xlmeta.js`). Previews ported from xLights' render code and checked in a lab

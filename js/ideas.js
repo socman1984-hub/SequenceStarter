@@ -116,8 +116,35 @@ const Ideas = (() => {
     // choices (EffectPrefs: the "Effects for props" page; its Default is the
     // survey of his 44 sequences). sel: those choices, passed in with the options.
     const selOr = sel => sel || (typeof EffectPrefs !== 'undefined' ? EffectPrefs.current() : null);
-    const steadyWeights = (cls, sel) => cls === 'movinghead' ? { moving: 1 } : EffectPrefs.weights('steady', cls, selOr(sel));
-    const hitWeights = (cls, sel) => EffectPrefs.weights('hits', cls, selOr(sel));
+    // target: a single prop or group with its own weights in a profile (else its kind's)
+    // The prop whose own column (in a profile) a target uses: itself, the prop a part
+    // belongs to, or, for a group, the prop with its own column that makes up most of it
+    // ("All Mega Tree" uses the MegaTree column).
+    let ownShow = null;
+    const ownCache = new Map();
+    function ownOf(target, sel) {
+        const props = sel && sel.props;
+        if (!target || !props || !Object.keys(props).length) return target;
+        if (props[target]) return target;
+        if (target.includes('/') && props[target.slice(0, target.indexOf('/'))]) return target.slice(0, target.indexOf('/'));
+        if (!ownShow || !ownShow.groups.has(target)) return target;
+        const key = target + '|' + Object.keys(props).join('|');
+        if (!ownCache.has(key)) {
+            const members = [...modelsOf(ownShow, [target])];
+            const mine = members.filter(m => props[m]);
+            ownCache.set(key, mine.length && mine.length >= members.length / 2 ? mine[0] : target);
+            if (ownCache.size > 500) ownCache.clear();
+        }
+        return ownCache.get(key);
+    }
+    const steadyWeights = (cls, sel, target = null) => cls === 'movinghead' ? { moving: 1 } : EffectPrefs.weights('steady', cls, selOr(sel), ownOf(target, selOr(sel)));
+    const hitWeights = (cls, sel, target = null) => EffectPrefs.weights('hits', cls, selOr(sel), ownOf(target, selOr(sel)));
+    // A profile's own settings for an effect on this prop, most of the time, so ideas
+    // reuse looks from the user's sequences rather than made-up ones.
+    const learned = (effect, rng, ctx, cls, target) => {
+        const lk = EffectPrefs.looksFor(cls, ownOf(target, selOr(ctx.fx)), effect, selOr(ctx.fx));
+        return lk && rng() < 0.75 ? { ...lk[Math.floor(rng() * lk.length)] } : null;
+    };
     const okFor = (part, cls, id, sel) => EffectPrefs.allowed(part, cls, id, selOr(sel));
     // weights with the effects this kind of prop may not use taken out
     const onlyAllowed = (w, cls, sel, part = 'steady') => { const o = {}; for (const [k, v] of Object.entries(w)) if (v > 0 && okFor(part, cls, k, sel)) o[k] = v; return o; };
@@ -333,7 +360,7 @@ const Ideas = (() => {
         if (cls === 'face') {
             return { id: Sequencer.newId(), trigger: 'singing', targets: [target], effect: 'faces', options: {}, colors: ['#FFFFFF'], scheme: 'white' };
         }
-        const w = { ...steadyWeights(cls, ctx.fx) };
+        const w = { ...steadyWeights(cls, ctx.fx, target) };
         for (const k of Object.keys(w)) if (!usable(k, ctx)) delete w[k];
         if (!anyOf(w)) { skipped.add(cls); return null; }
         const e = ctx.style;
@@ -353,7 +380,7 @@ const Ideas = (() => {
             effect = weighted(rng, base);
         }
         const colors = pick(rng, ctx.cp.base).slice();
-        let options = optionsFor(effect, rng, { ...ctx, energy: e, cls });
+        let options = learned(effect, rng, ctx, cls, target) || optionsFor(effect, rng, { ...ctx, energy: e, cls });
         if (ctx.flip) options = flipOptions(effect, options);
         const row = {
             id: Sequencer.newId(), trigger: 'span', targets: [target], effect, options,
@@ -396,11 +423,11 @@ const Ideas = (() => {
     const BIG = new Set(['megatree', 'matrix', 'roof', 'flood']);
 
     // Options for an effect used as a hit.
-    const hitOptions = (effect, rng, ctx, cls) => effect === 'shockwave' ? { width: ibetween(rng, 25, 50) } : effect === 'pulse' ? {} : optionsFor(effect, rng, { ...ctx, hit: true, cls });
+    const hitOptions = (effect, rng, ctx, cls, target = null) => effect === 'pulse' ? {} : learned(effect, rng, ctx, cls, target) || (effect === 'shockwave' ? { width: ibetween(rng, 25, 50) } : optionsFor(effect, rng, { ...ctx, hit: true, cls }));
 
     function hitRow(show, target, rng, ctx) {
         const cls = classify(show, target);
-        const w = hitWeights(cls, ctx.fx);
+        const w = hitWeights(cls, ctx.fx, target);
         if (!anyOf(w)) return null;
         const effect = weighted(rng, w);
         let trigger;
@@ -410,7 +437,7 @@ const Ideas = (() => {
         const colors = ctx.cp.hit.slice();
         const row = {
             id: Sequencer.newId(), trigger, targets: [target], effect,
-            options: hitOptions(effect, rng, ctx, cls),
+            options: hitOptions(effect, rng, ctx, cls, target),
             colors, scheme: schemeTag(colors, ctx.scheme),
         };
         if (show.groups.has(target) && ROUND.has(cls)) row.overlay = true;
@@ -531,6 +558,7 @@ const Ideas = (() => {
     // mhParts: the parts moving heads join (null: every part)
     function sectionIdea(section, song, show, { pool, seed, scheme, feel = 'auto', intensity = null, exclude = [], mix = null, energy = null, style = null, turn = null, flip = false, matrixWords = false, mhParts = null, fx = null }) {
         const excluded = exclude instanceof Set ? exclude : modelsOf(show, exclude);
+        ownShow = show;
         if (pool && pool.length && excluded.size) pool = pool.filter(t => ![...modelsOf(show, [t])].some(m => excluded.has(m)));
         const rng = rngFrom(seed);
         const bars = Math.max(1, section.bars || Math.round((section.e - section.s) / (song.grid.T * song.grid.meter)));
@@ -565,7 +593,7 @@ const Ideas = (() => {
                 if (lv === 'never') continue;
                 // a kind of prop with no effect switched on sits this idea out
                 const ec = e.key.startsWith('class:') ? e.key.slice(6) : classify(show, e.targets[0]);
-                if (!anyOf(steadyWeights(ec, fx))) { skipped.add(ec); continue; }
+                if (!anyOf(steadyWeights(ec, fx, e.targets.length === 1 ? e.targets[0] : null)) && !e.targets.some(t => anyOf(steadyWeights(ec, fx, t)))) { skipped.add(ec); continue; }
                 if (e.key === 'class:movinghead' && mhParts && !mhParts.includes(section.id)) continue;
                 if (lv === 'always') always.push(e); else rest.push({ e, w: LEVEL_WEIGHT[lv] });
             }
@@ -654,12 +682,12 @@ const Ideas = (() => {
                     const beds = onlyAllowed({ butterfly: 2, wash: 1 }, cls, ctx.fx);
                     if (!anyOf(shapes) || !anyOf(beds)) continue;
                     r.effect = weighted(lr, beds);
-                    r.options = optionsFor(r.effect, lr, ctx);
+                    r.options = learned(r.effect, lr, ctx, cls, r.targets[0]) || optionsFor(r.effect, lr, ctx);
                     const bed = ctx.cp.base.reduce((a, b) => (b.length > a.length ? b : a), []).slice();
                     if (bed.length < 2 && ctx.cp.accent && !bed.includes(ctx.cp.accent)) bed.push(ctx.cp.accent);
                     r.colors = bed; r.scheme = schemeTag(bed, ctx.scheme);
                     const shape = weighted(lr, shapes);
-                    let options = optionsFor(shape, lr, { ...ctx, cls });
+                    let options = learned(shape, lr, ctx, cls, r.targets[0]) || optionsFor(shape, lr, { ...ctx, cls });
                     if (ctx.flip) options = flipOptions(shape, options);
                     rows.push({ id: Sequencer.newId(), trigger: 'span', targets: r.targets.slice(), effect: shape, options, colors: ['#FFFFFF'], scheme: 'white', level: r.level ?? 100, blend: 'unmask', softIn: r.softIn, softOut: r.softOut });
                     continue;
@@ -670,7 +698,7 @@ const Ideas = (() => {
                 const over = weighted(lr, overs);
                 if (over === r.effect) continue;
                 const colors = [ctx.cp.accent || r.colors[0]];
-                let options = optionsFor(over, lr, ctx);
+                let options = learned(over, lr, ctx, cls, r.targets[0]) || optionsFor(over, lr, ctx);
                 if (ctx.flip) options = flipOptions(over, options);
                 rows.push({ id: Sequencer.newId(), trigger: 'span', targets: r.targets.slice(), effect: over, options, colors, scheme: schemeTag(colors, ctx.scheme), level: Math.round((r.level ?? 100) * 0.7 / 5) * 5 });
             }
@@ -681,7 +709,7 @@ const Ideas = (() => {
         const dimmed = new Set();
         const hitCount = energy < 0.3 ? 0 : energy > 0.7 || f.beats ? 2 : 1;
         if (hitCount) {
-            const cand = chosen.filter(e => e.targets.some(t => !['face', 'movinghead'].includes(classify(show, t)) && !screen.has(t) && anyOf(hitWeights(classify(show, t), ctx.fx))));
+            const cand = chosen.filter(e => e.targets.some(t => !['face', 'movinghead'].includes(classify(show, t)) && !screen.has(t) && anyOf(hitWeights(classify(show, t), ctx.fx, t))));
             const picked = [];
             const hr = rngFrom(seed ^ 0x5bd1e995);
             while (picked.length < hitCount && cand.length) {
@@ -715,11 +743,11 @@ const Ideas = (() => {
                 const trigs = both ? (i === 0 ? ['kick', 'snare'] : ['snare']) : (i === 0 ? ['beats'] : []);
                 for (const trig of trigs) {
                     if (have.has(trig) || (trig !== 'beats' && have.has('beats'))) continue;
-                    const hw = hitWeights(classify(show, t), ctx.fx);
+                    const hw = hitWeights(classify(show, t), ctx.fx, t);
                     if (!anyOf(hw)) continue;
                     const effect = weighted(hr, hw);
                     const colors = trig === 'snare' ? [ctx.cp.accent || ctx.cp.hit[0]] : ctx.cp.hit.slice();
-                    const row = { id: Sequencer.newId(), trigger: trig, targets: [t], effect, options: hitOptions(effect, hr, ctx, classify(show, t)), colors, scheme: schemeTag(colors, ctx.scheme) };
+                    const row = { id: Sequencer.newId(), trigger: trig, targets: [t], effect, options: hitOptions(effect, hr, ctx, classify(show, t), t), colors, scheme: schemeTag(colors, ctx.scheme) };
                     if (show.groups.has(t)) row.overlay = true;
                     rows.push(row);
                 }
@@ -735,9 +763,9 @@ const Ideas = (() => {
             if (small.length && energy >= 0.3 && mr() < 0.35) {
                 const t = pick(mr, small);
                 const trig = sung ? 'notes' : (song.model.onsets.all || []).length ? 'onsets' : null;
-                const mw = hitWeights(classify(show, t), ctx.fx);
-                const me = okFor('hits', classify(show, t), 'pulse', ctx.fx) ? 'pulse' : anyOf(mw) ? weighted(mr, mw) : null;
-                if (trig && me) rows.push({ id: Sequencer.newId(), trigger: trig, targets: [t], effect: me, options: hitOptions(me, mr, ctx, classify(show, t)), colors: [ctx.cp.accent || ctx.cp.hit[0]], scheme: 'custom', level: 80 });
+                const mw = hitWeights(classify(show, t), ctx.fx, t);
+                const me = mw.pulse ? 'pulse' : anyOf(mw) ? weighted(mr, mw) : null;
+                if (trig && me) rows.push({ id: Sequencer.newId(), trigger: trig, targets: [t], effect: me, options: hitOptions(me, mr, ctx, classify(show, t), t), colors: [ctx.cp.accent || ctx.cp.hit[0]], scheme: 'custom', level: 80 });
             }
         }
         // Loud parts: the whole house hits together over a dimmer base. One prop
