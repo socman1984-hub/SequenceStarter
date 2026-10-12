@@ -1426,7 +1426,16 @@
     S.solo = new Set();
     S.mute = new Set();
     S.rowOpen = new Set();
+    // Rows get removed in many places; a leftover id would hide every other row.
+    function pruneSoloMute() {
+        if (!S.plan || (!S.solo.size && !S.mute.size)) return;
+        const live = new Set(S.plan.whole.rows.map(r => r.id));
+        for (const c of Object.values(S.plan.sections)) for (const r of c.rows) live.add(r.id);
+        for (const id of [...S.solo]) if (!live.has(id)) S.solo.delete(id);
+        for (const id of [...S.mute]) if (!live.has(id)) S.mute.delete(id);
+    }
     function previewPlan() {
+        pruneSoloMute();
         if (!S.solo.size && !S.mute.size) return S.plan;
         const keep = r => S.solo.size ? S.solo.has(r.id) : !S.mute.has(r.id);
         const p = { ...S.plan, whole: { ...S.plan.whole, rows: S.plan.whole.rows.filter(keep) }, sections: {} };
@@ -1594,6 +1603,7 @@
         const song = XLWeb.song();
         $('randAllBar').hidden = !(S.show && song && S.plan);
         if (!S.show || !song || !S.plan) { box.innerHTML = ''; return; }
+        pruneSoloMute();
         // header controls
         if (S.hl) setHighlight(null);
         renderExclude();
