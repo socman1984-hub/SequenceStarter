@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026.10.12",
+    "date": "2026-10-12",
+    "title": "Solo no longer blanks the preview",
+    "items": [
+      ["fixed", "Removing a light row you had soloed left the whole preview dark, because it still showed only that missing row. Solo and Mute now let go of rows that are gone. Thanks to Jeff Lauterbach for the fix!"]
+    ]
+  },
+  {
     "version": "2026.10.10.3",
     "date": "2026-10-10",
     "title": "Guide and tour up to date",

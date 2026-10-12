@@ -2,6 +2,12 @@
 
 Release notes for SequenceStarter, newest first. The same list is in the app under **✨ What's new**.
 
+## 2026.10.12 — Solo no longer blanks the preview
+
+_2026-10-12_
+
+- **Fixed:** Removing a light row you had soloed left the whole preview dark, because it still showed only that missing row. Solo and Mute now let go of rows that are gone. Thanks to Jeff Lauterbach for the fix!
+
 ## 2026.10.10.3 — Guide and tour up to date
 
 _2026-10-10_

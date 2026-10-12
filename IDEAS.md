@@ -11,7 +11,7 @@ moves to **Done** with the date.
   `socman1984-hub/SequenceStarter`, GPLv3). Guide: `tutorial.html`. Feedback: Discord
   https://discord.gg/xjgWweqCEs. Posted to the xLights Facebook group; testers active on Discord.
   Outside contributors send pull requests (MGXAe: preview zoom + Props only, computergeek1507:
-  preview clipping); after a merge on GitHub, pull locally, test, credit in What's new.
+  preview clipping, jjlauterbach / Jeff Lauterbach: solo/mute on removed rows, PR #5); after a merge on GitHub, pull locally, test, credit in What's new.
 - **Everything built is live** (latest release 2026.10.10.2, pushed 2026-10-10): every xLights effect
   and the *🎛 Effects for props* tab; profiles built from a folder of the user's sequences (sequence list,
   prop kinds and single props, Select all / Deselect all); the rename to SequenceStarter with the new
