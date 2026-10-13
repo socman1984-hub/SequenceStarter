@@ -1274,6 +1274,7 @@
 
     function undo() {
         if (!S.history.length) return;
+        closePalette();
         S.future.push(snapshot());
         S.plan = JSON.parse(S.history.pop());
         renderPlan();
@@ -1283,6 +1284,7 @@
     }
     function redo() {
         if (!S.future.length) return;
+        closePalette();
         S.history.push(snapshot());
         S.plan = JSON.parse(S.future.pop());
         renderPlan();
@@ -1426,6 +1428,7 @@
     S.solo = new Set();
     S.mute = new Set();
     S.rowOpen = new Set();
+    S.rowFind = new Map();   // part id -> its row filter text
     // Rows get removed in many places; a leftover id would hide every other row.
     function pruneSoloMute() {
         if (!S.plan || (!S.solo.size && !S.mute.size)) return;
@@ -1709,7 +1712,32 @@
             if (clr) clr.addEventListener('click', () => commit(() => { c.pool = []; }));
             body.appendChild(pool);
         }
-        for (const r of c.rows) body.appendChild(rowEditor(r, c));
+        if (c.rows.length >= 4) {
+            const fb = document.createElement('div');
+            fb.className = 'row-find';
+            fb.innerHTML = `<input type="search" placeholder="Filter by light or effect…" aria-label="Filter these rows by light or effect" value="${esc(S.rowFind.get(id) || '')}"> <span class="muted small"></span>`;
+            body.appendChild(fb);
+        }
+        const rowEls = c.rows.map(r => {
+            const el = rowEditor(r, c);
+            const eff = Effects.get(r.effect);
+            const trig = Sequencer.TRIGGERS.find(t => t.id === r.trigger);
+            el.dataset.find = [...r.targets, r.of, r.xl && r.xl.name, eff && eff.label, trig && r.trigger !== 'fixed' && trig.label].filter(Boolean).join(' ').toLowerCase();
+            body.appendChild(el);
+            return el;
+        });
+        const fb = body.querySelector('.row-find');
+        if (fb) {
+            const inp = fb.querySelector('input');
+            const apply = () => {
+                const words = inp.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+                let n = 0;
+                for (const el of rowEls) { const hit = words.every(w => el.dataset.find.includes(w)); el.hidden = !hit; if (hit) n++; }
+                fb.querySelector('span').textContent = words.length ? `${n} of ${rowEls.length} rows` : '';
+            };
+            inp.addEventListener('input', () => { if (inp.value.trim()) S.rowFind.set(id, inp.value); else S.rowFind.delete(id); apply(); });
+            apply();
+        }
         const foot = document.createElement('div');
         foot.className = 'btnrow tight';
         foot.innerHTML = `<button type="button" class="btn small add">+ Add lights</button>${!isWhole ? `<button type="button" class="btn small splitHere" title="Split this section where the song is now">Split at playhead</button><button type="button" class="btn small ren">Rename</button>` : ''}${c.rows.length ? '<button type="button" class="btn small clearSec">Clear</button>' : ''}${!isWhole ? `<label class="chk small" title="The lights of this part stop 1.5 beats before it ends, so the next part lands on a dark house"><input type="checkbox" class="dipChk" ${c.dip > 0 ? 'checked' : ''}> Hold a breath at the end</label>` : ''}`;
@@ -1833,6 +1861,8 @@
         const hidden = muted || (S.solo.size && !soloed);
         const trigLabel = r.trigger !== 'span' ? (Sequencer.TRIGGERS.find(t => t.id === r.trigger) || {}).label : '';
         const tShort = r.targets.length ? r.targets.slice(0, 3).join(', ') + (r.targets.length > 3 ? ` +${r.targets.length - 3}` : '') : 'no lights chosen';
+        const rollable = r.targets.length > 0 && r.effect !== 'faces';
+        const canBack = rowBackable(r);
         el.classList.toggle('open', open);
         el.classList.toggle('dim', !!hidden);
         el.classList.toggle('kept', !!r.keep);
@@ -1841,7 +1871,9 @@
               <input type="checkbox" class="rkeep" ${r.keep ? '' : 'checked'} title="Ticked: randomizing may replace this row. Untick to keep it as it is.">
               <button type="button" class="rtw" aria-expanded="${open}" title="${open ? 'Hide settings' : 'Show settings'}">${open ? '▾' : '▸'}</button>
               <span class="rl-text"><b>${esc(tShort)}</b> · ${esc(eff.label)}${trigLabel ? ` · <span class="muted">${esc(trigLabel)}</span>` : ''}${r.level != null && r.level !== 100 ? ` · <span class="muted" title="Brightness">${r.level}%</span>` : ''}${r.bars ? ` · <span class="muted" title="Only these bars of the part">bars ${r.bars[0] + 1}–${r.bars[1] >= 9999 ? 'end' : r.bars[1]}</span>` : ''}${r.blend && Effects.BLENDS[r.blend] ? ` · <span class="muted" title="${esc(Effects.BLENDS[r.blend].label)}">${r.blend === 'mask' ? 'cut-out' : 'mask'}</span>` : ''}${r.of ? ` · <span class="muted" title="One part of each ${esc(r.of)} prop">part of ${esc(r.of)}</span>` : ''}</span>
-              <span class="rl-sw">${r.colors.map(col => `<i style="background:${col}"></i>`).join('')}</span>
+              <button type="button" class="rl-sw pal" title="Choose colors from your palettes">${r.colors.map(col => `<i style="background:${col}"></i>`).join('')}</button>
+              ${canBack ? '<button type="button" class="btn tiny rback" title="Back to what this row had before its last 🎲">↶</button>' : ''}
+              ${rollable ? '<button type="button" class="btn tiny rrnd" title="A new effect and colors for just these lights. Press again for another; ↶ goes back.">🎲</button>' : ''}
               <button type="button" class="btn tiny solo${soloed ? ' on' : ''}" aria-pressed="${soloed}" title="Solo: show only this row in the preview">Solo</button>
               <button type="button" class="btn tiny mute${muted ? ' on' : ''}" aria-pressed="${muted}" title="Mute: hide this row in the preview (it is still saved)">Mute</button>
             </div>
@@ -1851,7 +1883,7 @@
               <label>When <select class="trig">${trigOpts}</select></label>
               <label>Effect <select class="eff">${effectOptions(effs, r.effect)}</select></label>
               <label>Colors <select class="scheme">${schemeOpts}</select></label>
-              <span class="swatches">${r.colors.map((col, i) => `<input type="color" value="${col}" data-i="${i}" aria-label="Color ${i + 1}">`).join('')}${r.colors.length < 6 ? '<button type="button" class="btn tiny addc" title="Add a color">+</button>' : ''}${r.colors.length > 1 ? '<button type="button" class="btn tiny delc" title="Remove the last color">−</button>' : ''}</span>
+              <span class="swatches"><button type="button" class="btn tiny pal" title="Choose colors from your palettes">🎨</button>${r.colors.map((col, i) => `<input type="color" value="${col}" data-i="${i}" aria-label="Color ${i + 1}">`).join('')}${r.colors.length < 6 ? '<button type="button" class="btn tiny addc" title="Add a color">+</button>' : ''}${r.colors.length > 1 ? '<button type="button" class="btn tiny delc" title="Remove the last color">−</button>' : ''}</span>
               <span class="opts"></span>
               <label title="Only part of the section: from this bar to that bar (empty = the whole part)">Bars <span class="bars-in"><input type="number" class="bfrom" min="1" step="1" value="${r.bars ? r.bars[0] + 1 : ''}" placeholder="1"> to <input type="number" class="bto" min="1" step="1" value="${r.bars && r.bars[1] < 9999 ? r.bars[1] : ''}" placeholder="end"></span></label>
               ${eff.id !== 'faces' && !eff.dmx ? `<label title="How bright this row is (xLights' Brightness slider)">Brightness % <input type="number" class="lvl" min="0" max="100" step="5" value="${r.level ?? 100}"></label>` : ''}
@@ -1886,6 +1918,11 @@
             el.classList.toggle('kept', keep);
         });
         el.querySelector('.rl-text').addEventListener('click', flip);
+        el.querySelectorAll('.pal').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openPalette(b, r, c); }));
+        const rr = el.querySelector('.rrnd');
+        if (rr) rr.addEventListener('click', () => randomizeRow(r, c));
+        const rb = el.querySelector('.rback');
+        if (rb) rb.addEventListener('click', () => rowBack(r, c));
         el.querySelector('.solo').addEventListener('click', () => { if (soloed) S.solo.delete(r.id); else S.solo.add(r.id); renderPlan(); regenerate(); });
         el.querySelector('.mute').addEventListener('click', () => { if (muted) S.mute.delete(r.id); else S.mute.add(r.id); renderPlan(); regenerate(); });
         el.addEventListener('mouseenter', () => setHighlight(r.targets));
@@ -2289,6 +2326,129 @@
         setPlanStatus(`Copied "${copyFrom.name}" to ${ids.map(id => song.sections.find(s => s.id === id).name).join(', ')}. Each copy can now be changed on its own.`);
     });
     $('copyCancel').addEventListener('click', () => copyDlg.close());
+
+    // ---------- one row: its own 🎲, a way back, and colors from the palettes ----------
+
+    // What a row was before each of its 🎲 presses (newest last), so ↶ can take
+    // back just that row. Plain Undo works too; this only reaches one row.
+    const rowBefore = new Map();
+    const rowJson = r => JSON.stringify({ ...r, id: undefined });
+    function rowBackable(r) {
+        const st = rowBefore.get(r.id);
+        // a step that Undo has already taken back is no step at all
+        while (st && st.length && st[st.length - 1] === rowJson(r)) st.pop();
+        return !!(st && st.length);
+    }
+    function sectionOf(c) {
+        const song = XLWeb.song();
+        if (c === S.plan.whole) return { id: 'whole', name: 'Whole song', s: 0, e: song.model.duration };
+        const id = Object.keys(S.plan.sections).find(k => S.plan.sections[k] === c);
+        return song.sections.find(s => s.id === id);
+    }
+    function randomizeRow(r, c) {
+        const song = XLWeb.song(), sec = sectionOf(c);
+        if (!song || !sec) return;
+        const mood = ideaMood();
+        const allowed = new Set(effectsFor(r.trigger, r.targets).filter(e => e.random !== false).map(e => e.id));
+        const idea = Ideas.rowIdea(r, sec, song, S.show, { seed: Math.floor(Math.random() * 2 ** 31), scheme: partScheme(c) || ideaScheme(), feel: mood.feel, intensity: mood.intensity, fx: mood.fx, allowed });
+        if (!idea) { setPlanStatus(`No other effects are switched on for these lights. Turn more on in 🎛 Effects for props.`); return; }
+        const st = rowBefore.get(r.id) || [];
+        st.push(rowJson(r));
+        if (st.length > 30) st.shift();
+        rowBefore.set(r.id, st);
+        commit(() => {
+            if (idea.effect !== r.effect) delete r.perModel;
+            Object.assign(r, idea);
+        });
+        setPlanStatus(`${r.targets.slice(0, 3).join(', ')}${r.targets.length > 3 ? ' …' : ''}: ${Effects.get(r.effect).label}. Press 🎲 again for another, or ↶ to go back.`);
+    }
+    function rowBack(r, c) {
+        const st = rowBefore.get(r.id);
+        if (!st || !st.length) return;
+        const prev = JSON.parse(st.pop());
+        commit(() => {
+            for (const k of Object.keys(r)) if (k !== 'id') delete r[k];
+            Object.assign(r, prev, { id: r.id });
+        });
+        setPlanStatus('That row is back to how it was.');
+    }
+
+    // Colors for a row from a little palette box: your color schemes (all of a
+    // row's colors at once) or single colors for the color you pick.
+    const PAL_COLORS = ['#FF0000', '#FF4000', '#FF8000', '#FFB000', '#FFFF00', '#80FF00', '#00FF00', '#00FF80', '#00FFFF', '#0080FF', '#0000FF', '#4000FF',
+        '#8000FF', '#FF00FF', '#FF0080', '#FF8080', '#FFFFFF', '#FFE6B4', '#FFC864', '#C0C0C0', '#808080', '#804000', '#008040', '#000080'];
+    let pal = null;   // { el, r, c, slot }
+    function closePalette() {
+        if (!pal) return;
+        pal.el.remove();
+        pal = null;
+        document.removeEventListener('pointerdown', palOutside, true);
+        document.removeEventListener('keydown', palKey, true);
+    }
+    const palOutside = e => { if (pal && !pal.el.contains(e.target) && !e.target.closest('.pal')) closePalette(); };
+    const palKey = e => { if (e.key === 'Escape') { e.stopPropagation(); closePalette(); } };
+    function setRowColors(r, c, colors) {
+        commit(() => {
+            r.colors = colors;
+            const s = Effects.SCHEMES.find(x => x.colors.join() === colors.join());
+            r.scheme = s ? s.id : 'custom';
+            if (c !== S.plan.whole) { c.colors = partColoursFromRows(c); delete c.scheme; }
+        });
+    }
+    function drawPalette() {
+        const { el, r, c } = pal;
+        const slot = Math.min(pal.slot, r.colors.length);
+        const used = c ? partColoursFromRows(c).filter(x => !PAL_COLORS.includes(x)) : [];
+        const sw = (col, cls, extra = '') => `<button type="button" class="${cls}" style="background:${col}" data-col="${col}" title="${col}" ${extra}></button>`;
+        el.innerHTML = `
+            <div class="pal-head"><b>Colors</b> <button type="button" class="link pal-x" title="Close">✕</button></div>
+            <div class="pal-slots"><span class="muted small">Change:</span> ${r.colors.map((col, i) => `<button type="button" class="pal-slot${i === slot ? ' on' : ''}" data-i="${i}" style="background:${col}" title="Color ${i + 1}: pick it, then a color below"></button>`).join('')}${r.colors.length < 6 ? `<button type="button" class="pal-slot add${slot === r.colors.length ? ' on' : ''}" data-i="${r.colors.length}" title="Add a color">+</button>` : ''}${r.colors.length > 1 ? '<button type="button" class="btn tiny pal-del" title="Remove the color picked above">−</button>' : ''}</div>
+            <div class="pal-grid">${PAL_COLORS.map(col => sw(col, 'pal-c')).join('')}</div>
+            ${used.length ? `<div class="muted small">In this part</div><div class="pal-grid">${used.map(col => sw(col, 'pal-c')).join('')}</div>` : ''}
+            <div class="muted small">Your palettes <span class="muted">(all colors at once)</span></div>
+            <div class="pal-schemes">${Effects.SCHEMES.map(s => `<button type="button" class="pal-scheme${s.colors.join() === r.colors.join() ? ' on' : ''}" data-s="${s.id}"><span class="rl-sw">${s.colors.map(col => `<i style="background:${col}"></i>`).join('')}</span> ${esc(s.label)}</button>`).join('')}</div>`;
+        el.querySelector('.pal-x').addEventListener('click', closePalette);
+        el.querySelectorAll('.pal-slot').forEach(b => b.addEventListener('click', () => { pal.slot = +b.dataset.i; drawPalette(); }));
+        const del = el.querySelector('.pal-del');
+        if (del) del.addEventListener('click', () => {
+            const i = Math.min(slot, r.colors.length - 1);
+            setRowColors(r, c, r.colors.filter((_, k) => k !== i));
+            pal.slot = Math.max(0, i - 1);
+            drawPalette();
+        });
+        el.querySelectorAll('.pal-c').forEach(b => b.addEventListener('click', () => {
+            const cols = r.colors.slice();
+            cols[slot] = b.dataset.col;
+            setRowColors(r, c, cols);
+            // straight on to the next color, so a pair is two clicks
+            pal.slot = Math.min(slot + 1, r.colors.length - 1);
+            drawPalette();
+        }));
+        el.querySelectorAll('.pal-scheme').forEach(b => b.addEventListener('click', () => {
+            const s = Effects.SCHEMES.find(x => x.id === b.dataset.s);
+            if (s) setRowColors(r, c, s.colors.slice());
+            closePalette();
+        }));
+    }
+    function openPalette(anchor, r, c) {
+        const again = pal && pal.r === r;
+        closePalette();
+        if (again) return;
+        const el = document.createElement('div');
+        el.className = 'pal-pop';
+        el.setAttribute('role', 'dialog');
+        el.setAttribute('aria-label', 'Colors for this row');
+        document.body.appendChild(el);
+        pal = { el, r, c, slot: 0 };
+        drawPalette();
+        const a = anchor.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
+        const x = Math.max(8, Math.min(a.left + window.scrollX, window.scrollX + document.documentElement.clientWidth - w - 8));
+        const below = a.bottom + h + 8 < window.innerHeight;
+        el.style.left = x + 'px';
+        el.style.top = (below ? a.bottom + 4 : Math.max(8, a.top - h - 4)) + window.scrollY + 'px';
+        document.addEventListener('pointerdown', palOutside, true);
+        document.addEventListener('keydown', palKey, true);
+    }
 
     // ---------- ideas ----------
 

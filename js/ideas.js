@@ -444,6 +444,57 @@ const Ideas = (() => {
         return row;
     }
 
+    // A new look for one row, from the same choices a part's idea uses: the
+    // row keeps its lights and when it plays; the effect, its settings and colors
+    // change. Words and faces keep their effect and only get new settings and colors.
+    // allowed: the effect ids the row's editor offers for its trigger and lights.
+    function rowIdea(row, section, song, show, { seed, scheme, feel = 'auto', intensity = null, fx = null, allowed = null }) {
+        ownShow = show;
+        const rng = rngFrom(seed);
+        const f = FEELS[feel] || FEELS.auto;
+        const clampE = x => Math.max(0.05, Math.min(0.95, x));
+        let energy = partEnergies(song).get(section.id) ?? section.energy ?? 0.5;
+        energy = intensity != null ? intensity : clampE(energy + f.shift);
+        const bars = Math.max(1, section.bars || Math.round((section.e - section.s) / (song.grid.T * song.grid.meter)));
+        const lift = LIFT.test(section.name) || energy >= 0.75;
+        const cp = colourPlan(scheme, energy, lift, Math.max(0, turnOf(song, section)));
+        const ctx = { energy, style: energy, bars, scheme, feel: f, speed: f.speed, level: levelFor(energy), cp, fx: selOr(fx), song };
+        const target = row.of || row.targets[0];
+        const cls = classify(show, target);
+        const steady = row.trigger === 'span';
+        const cur = Effects.get(row.effect);
+        let effect = row.effect;
+        if (!(cur && (cur.needsFace || row.effect === 'lyrictext'))) {
+            const w = { ...(steady ? steadyWeights(cls, ctx.fx, target) : hitWeights(cls, ctx.fx, target)) };
+            const tool = !!(cur && cur.canvas);
+            for (const k of Object.keys(w)) {
+                const e = Effects.get(k);
+                if (!(w[k] > 0) || !usable(k, ctx) || (allowed && !allowed.has(k)) || !!(e && e.canvas) !== tool) delete w[k];
+                else if (steady && ctx.feel && ctx.feel.mul[k]) w[k] *= ctx.feel.mul[k];
+            }
+            // the moving shape of a mask stays a shape (blades, spirals, a ring)
+            if (row.blend === 'unmask') {
+                const shapes = new Set(['fan', 'spirals', 'pinwheel', 'ripple', 'bars', 'spirograph', ...Effects.LIST.filter(x => x.maskShape).map(x => x.id)]);
+                if (Object.keys(w).some(k => shapes.has(k))) for (const k of Object.keys(w)) if (!shapes.has(k)) delete w[k];
+            }
+            // always something different from what it has now, when there is a choice
+            if (Object.keys(w).length > 1) delete w[row.effect];
+            if (!anyOf(w)) return null;
+            effect = weighted(rng, w);
+        }
+        let options;
+        if (effect === 'faces') options = { ...row.options };
+        else if (steady) options = learned(effect, rng, ctx, cls, target) || optionsFor(effect, rng, { ...ctx, cls });
+        else options = hitOptions(effect, rng, ctx, cls, target);
+        if (rng() < 0.5) options = flipOptions(effect, options);
+        let colors = row.colors.slice();
+        if (effect !== 'faces' && effect !== 'lyrictext') {
+            const sets = [...cp.base, cp.hit, cp.house].filter(s => s && s.length && s.join() !== row.colors.join());
+            if (sets.length) colors = pick(rng, sets).slice();
+        }
+        return { effect, options, colors, scheme: schemeTag(colors, scheme) };
+    }
+
     // Mean loudness between two times, and the scale that maps it to 0 (the
     // quietest part of the song) .. 1 (the loudest part).
     function rawLoud(song, t0, t1) {
@@ -1026,5 +1077,5 @@ const Ideas = (() => {
     // the kinds of prop the last ideas left out (nothing switched on for them), then forgets them
     const takeSkipped = () => { const s = [...skipped]; skipped = new Set(); return s; };
 
-    return { takeSkipped, movingHeadIdea, TRANSITIONS, applyTransition, transitionProps, guessClass, CLASS_LABELS, sectionIdea, partIdea, planIdea, partEnergies, phrases, classify, candidates, mixEntries, FEELS, INTENSITIES, LEVELS };
+    return { takeSkipped, rowIdea, movingHeadIdea, TRANSITIONS, applyTransition, transitionProps, guessClass, CLASS_LABELS, sectionIdea, partIdea, planIdea, partEnergies, phrases, classify, candidates, mixEntries, FEELS, INTENSITIES, LEVELS };
 })();

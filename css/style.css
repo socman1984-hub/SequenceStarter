@@ -683,3 +683,24 @@ td.chg .fxw { box-shadow: inset 0 -2px 0 var(--ok); }
 
 .fxp-picklist label.off { opacity: .55; }
 .fxp-pickcols input[type=search] { margin-bottom: 4px; }
+
+/* one row: palette box, its own randomize / back, and the rows filter */
+.row-line .rl-sw.pal { background: none; border: 1px solid transparent; border-radius: 5px; padding: 3px; cursor: pointer; }
+.row-line .rl-sw.pal:hover, .row-line .rl-sw.pal:focus-visible { border-color: var(--line); background: var(--lane); }
+.row-line .rrnd, .row-line .rback { padding-left: 6px; padding-right: 6px; }
+.row-find { display: flex; align-items: center; gap: 8px; margin: 2px 0 6px; }
+.row-find input { flex: 1; max-width: 320px; min-width: 0; }
+.pal-pop { position: absolute; z-index: 60; width: 272px; max-width: calc(100vw - 16px); background: var(--surface); color: var(--text);
+    border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px 10px; box-shadow: 0 8px 24px rgba(0,0,0,.22); font-size: 13px;
+    display: flex; flex-direction: column; gap: 6px; }
+.pal-head { display: flex; justify-content: space-between; align-items: center; }
+.pal-slots { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.pal-slot { width: 24px; height: 24px; border-radius: 5px; border: 1px solid var(--line); cursor: pointer; padding: 0; color: var(--muted); background: var(--lane); }
+.pal-slot.on { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pal-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+.pal-c { aspect-ratio: 1; border-radius: 4px; border: 1px solid var(--line); cursor: pointer; padding: 0; }
+.pal-c:hover, .pal-c:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+.pal-schemes { display: flex; flex-direction: column; gap: 2px; max-height: 180px; overflow: auto; }
+.pal-scheme { display: flex; align-items: center; gap: 8px; text-align: left; background: none; border: 1px solid transparent; border-radius: 6px; padding: 3px 5px; cursor: pointer; color: var(--text); font: inherit; }
+.pal-scheme:hover, .pal-scheme:focus-visible { background: var(--lane); }
+.pal-scheme.on { border-color: var(--accent); }

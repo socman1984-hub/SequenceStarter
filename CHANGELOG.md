@@ -2,6 +2,14 @@
 
 Release notes for SequenceStarter, newest first. The same list is in the app under **✨ What's new**.
 
+## 2026.10.12.2 — Randomize one row, pick colors from a palette
+
+_2026-10-12_
+
+- **New:** Every light row has its own 🎲 next to Solo and Mute: just those lights get a new effect and colors, from the part's palette and your effect choices. Press again for another; ↶ takes that row back a step (Undo works too).
+- **New:** Click a row's colors (or 🎨 in its settings) for a palette box: pick one of the row's colors, then any color in the grid or one already in the part, or click one of your palettes to set them all at once.
+- **New:** Parts with many rows get a filter box above them: type a light or an effect (like "mega" or "chase") to show only those rows.
+
 ## 2026.10.12 — Solo no longer blanks the preview
 
 _2026-10-12_
