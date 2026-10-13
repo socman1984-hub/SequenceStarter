@@ -170,6 +170,7 @@ const Show = (() => {
             show.nodeCount += m.nodes.length;
         }
         for (const el of doc.querySelectorAll('modelGroups > modelGroup')) addGroup(el);
+        show.farAway = safe(() => farAway(show), []);
         if (netText) {
             try {
                 const nd = new DOMParser().parseFromString(netText, 'application/xml');
@@ -177,6 +178,26 @@ const Show = (() => {
             } catch (e) { /* optional */ }
         }
         return show;
+    }
+
+    // Props placed far outside xLights' preview area (a typo in a position, or a
+    // prop dragged miles away): xLights simply doesn't show them, but framing the
+    // view around them would shrink the house to a few dots. Only when the rest
+    // of the show (at least half its lights) is near the preview area.
+    function farAway(show) {
+        const W = show.previewW, H = show.previewH, dx = show.center0 ? W / 2 : 0;
+        const far = [];
+        let farLights = 0;
+        for (const m of show.models.values()) {
+            let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+            for (const nd of m.nodes) for (const p of nd.pts) {
+                const x = p.x + dx, y = H - p.y;
+                if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+            }
+            if (!Number.isFinite(x0)) continue;
+            if (x1 < -2 * W || x0 > 3 * W || y1 < -2 * H || y0 > 3 * H) { far.push(m.name); farLights += m.nodes.length; }
+        }
+        return far.length && farLights <= show.nodeCount / 2 ? far : [];
     }
 
     // "1-5,7,9-12" -> zero-based node indexes

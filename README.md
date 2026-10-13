@@ -91,7 +91,9 @@ Ctrl+Z undoes. Edits are kept per song (keyed by word position + word), survive
 - **Show folder**: picked with the browser's folder picker (Chrome/Edge) and reopened by
   itself on later visits (quietly if the browser still allows reading it, otherwise with one
   OK when you open *Make a sequence*); or pick `xlights_rgbeffects.xml` (+ `xlights_networks.xml`, house photo) as
-  files. Only read, unless you press *Save into show folder*.
+  files. Only read, unless you press *Save into show folder*. Once loaded, *↻ Reload show* reads the
+  same folder again (after layout changes in xLights) and *Pick different files…* swaps the files; the plan stays.
+  Props placed far outside the preview area (`Show.farAway`) are drawn but don't set the view's framing.
 - **Layout**: `js/show.js` ports xLights' model geometry (Custom, Matrix, Tree, Star,
   Single Line, Poly Line, Arches, Window Frame, Cube). Checked against a real layout:
   every prop lands on the house photo, and node numbering matches xLights exactly

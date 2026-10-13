@@ -2,6 +2,14 @@
 
 Release notes for SequenceStarter, newest first. The same list is in the app under **✨ What's new**.
 
+## 2026.10.13 — Every layout shows up in the preview, and Reload show
+
+_2026-10-13_
+
+- **Fixed:** A layout with one prop placed far outside the xLights preview area showed only a couple of dots: the preview zoomed out to fit that prop. Props that far away are now left out of the view, and the show line names them so you can move them back in xLights.
+- **New:** Reload your show without starting over: ↻ Reload show reads your show folder again (after changing the layout in xLights), and Pick different files… swaps the files if you picked the wrong ones. Your plan stays.
+- **Better:** Both found and suggested by Fame28 on Discord. Thank you!
+
 ## 2026.10.12.2 — Randomize one row, palette colors, filter and sort rows
 
 _2026-10-12_

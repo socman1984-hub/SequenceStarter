@@ -45,11 +45,14 @@
             loadPropTypes();
             const faces = [...show.models.values()].filter(m => m.faces.length).length;
             const skipped = show.skipped && show.skipped.length ? ` · ${show.skipped.length} prop${show.skipped.length > 1 ? 's' : ''} couldn't be read and ${show.skipped.length > 1 ? 'are' : 'is'} left out (${show.skipped.slice(0, 3).join(', ')}${show.skipped.length > 3 ? ', …' : ''})` : '';
-            setShowStatus(`Show: "${show.folderName}"${show.xlightsVersion ? ` (xLights ${show.xlightsVersion})` : ''} · ${show.models.size} models, ${show.groups.size} groups, ${show.nodeCount.toLocaleString()} lights${faces ? `, ${faces} singing face${faces > 1 ? 's' : ''}` : ''}${show.backgroundUrl ? '' : ' · no house photo found'}${skipped}`);
+            const far = show.farAway && show.farAway.length ? ` · ${show.farAway.length} prop${show.farAway.length > 1 ? 's are' : ' is'} placed far outside the xLights preview, so the view leaves ${show.farAway.length > 1 ? 'them' : 'it'} out (${show.farAway.slice(0, 3).join(', ')}${show.farAway.length > 3 ? ', …' : ''}); move ${show.farAway.length > 1 ? 'them' : 'it'} back in xLights' Layout to see ${show.farAway.length > 1 ? 'them' : 'it'} here` : '';
+            setShowStatus(`Show: "${show.folderName}"${show.xlightsVersion ? ` (xLights ${show.xlightsVersion})` : ''} · ${show.models.size} models, ${show.groups.size} groups, ${show.nodeCount.toLocaleString()} lights${faces ? `, ${faces} singing face${faces > 1 ? 's' : ''}` : ''}${show.backgroundUrl ? '' : ' · no house photo found'}${skipped}${far}`);
             // once loaded the panel is one line; the folder can still be changed
             $('showPanel').classList.add('loaded');
             $('pickShow').textContent = 'Choose a different folder…';
             $('pickShow').classList.remove('primary');
+            $('pickShowFiles').textContent = show.folder ? 'Or pick the two files…' : 'Pick different files…';
+            $('reloadShow').hidden = !show.folder;
             $('previewPanel').hidden = false;
             $('gridPanel').hidden = false;
             $('planPanel').hidden = false;
@@ -79,7 +82,16 @@
             return Show.loadFromFolder(h);
         });
     });
-    $('pickShowFiles').addEventListener('click', () => $('showFiles').click());
+    // read the same folder again (after changing the layout in xLights); the plan stays
+    $('reloadShow').addEventListener('click', () => {
+        const h = S.show && S.show.folder;
+        if (!h) return;
+        useShow(async () => {
+            if (!(await Show.permission(h, 'read'))) throw new Error('Permission to read the folder was not given.');
+            return Show.loadFromFolder(h);
+        });
+    });
+    $('pickShowFiles').addEventListener('click', () => { $('showFiles').value = ''; $('showFiles').click(); });
     $('showFiles').addEventListener('change', e => {
         const files = e.target.files;
         if (files && files.length) useShow(() => Show.loadFromFiles(files));
@@ -140,6 +152,9 @@
             });
         });
         S.view = { px, py, pn, ps, pm, models, total: offset };
+        // props placed miles away (see Show.farAway) stay drawn but don't set the view
+        const farSet = new Set(show.farAway || []);
+        S.view.far = new Set(models.map((m, mi) => farSet.has(m.name) ? mi : -1).filter(mi => mi >= 0));
         // moving heads: their spot on the house, for drawing beams
         S.view.heads = [];
         models.forEach((m, mi) => {
@@ -177,7 +192,7 @@
         if (V.px.length) {
             let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
             for (let k = 0; k < V.px.length; k++) {
-                if (only.size && !only.has(V.pm[k])) continue;
+                if (only.size ? !only.has(V.pm[k]) : V.far.has(V.pm[k])) continue;
                 const x = V.px[k], y = V.py[k];
                 if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
             }

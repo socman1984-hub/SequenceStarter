@@ -1,5 +1,15 @@
 [
   {
+    "version": "2026.10.13",
+    "date": "2026-10-13",
+    "title": "Every layout shows up in the preview, and Reload show",
+    "items": [
+      ["fixed", "A layout with one prop placed far outside the xLights preview area showed only a couple of dots: the preview zoomed out to fit that prop. Props that far away are now left out of the view, and the show line names them so you can move them back in xLights."],
+      ["new", "Reload your show without starting over: ↻ Reload show reads your show folder again (after changing the layout in xLights), and Pick different files… swaps the files if you picked the wrong ones. Your plan stays."],
+      ["better", "Both found and suggested by Fame28 on Discord. Thank you!"]
+    ]
+  },
+  {
     "version": "2026.10.12.2",
     "date": "2026-10-12",
     "title": "Randomize one row, palette colors, filter and sort rows",
