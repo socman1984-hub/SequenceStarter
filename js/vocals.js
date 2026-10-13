@@ -569,7 +569,7 @@ const Vocals = (() => {
         lines.forEach((ln, li) => {
             const ws = words.filter(w => w.line === li);
             if (!ws.length) return;
-            ph.push({ s: ws[0].s, e: Math.max(ws[ws.length - 1].e, ws[0].s + 300), text: ln });
+            ph.push({ s: ws[0].s, e: Math.max(ws[ws.length - 1].e, ws[0].s + 300), text: ln, li });
         });
         for (let i = 0; i < ph.length; i++) {
             if (i && ph[i].s < ph[i - 1].e) ph[i].s = ph[i - 1].e;

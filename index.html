@@ -162,7 +162,7 @@
         <button type="button" class="btn primary" id="findWords">Find words &amp; vocals</button>
         <button type="button" class="btn" id="useHeard" hidden>Start from what it heard</button>
         <label class="chk" id="voiceOnlyWrap" hidden><input type="checkbox" id="voiceOnly"> Play the voice only</label>
-        <button type="button" class="btn" id="resetEdits" hidden>Undo all timing edits</button>
+        <button type="button" class="btn" id="resetEdits" hidden>Undo all word edits</button>
       </div>
       <p class="panel-note edit-help" id="editHelp" hidden><b>Fixing timing:</b> in the timeline's <i>Words</i> row, drag a word's left edge to move where it starts, or drag the word to move it. Drag a line in the <i>Lyrics</i> row to move the whole line. Starts snap to where the voice comes in (hold Alt to place freely). Click a word, then use ← → to nudge it 10 ms (Shift: 50 ms). Ctrl+Z undoes.</p>
       <div class="vocal-status">
@@ -173,7 +173,7 @@
         <p id="vocalStats" class="fit good"></p>
         <div class="lyric-scroll">
           <table class="sections lyric-lines">
-            <thead><tr><th>Starts</th><th>Line</th></tr></thead>
+            <thead><tr><th>Starts</th><th>Line</th><th aria-label="Remove"></th></tr></thead>
             <tbody id="lyricRows"></tbody>
           </table>
         </div>

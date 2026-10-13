@@ -606,6 +606,8 @@
         } else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && state.lyr && state.lyr.selected != null) {
             const step = (e.shiftKey ? 50 : 10) * (e.key === 'ArrowLeft' ? -1 : 1);
             if (nudgeSelected(step)) e.preventDefault();
+        } else if ((e.key === 'Delete' || e.key === 'Backspace') && state.lyr && state.lyr.selected != null) {
+            if (removeSelectedWord()) e.preventDefault();
         } else if (e.key === 'Escape' && state.lyr) {
             state.lyr.selected = null;
             draw();
@@ -966,7 +968,8 @@
                     // start handle: this is what dragging moves
                     c.fillStyle = sel ? '#7a4b00' : 'rgba(255,255,255,0.75)';
                     c.fillRect(Math.round(x0), y + 2, 2, h - 4);
-                    if (edited && edited.has(wi + '|' + state.lyrRaw.words[wi].key)) {
+                    const rw = edited && state.lyrWordsMs[wi];
+                    if (rw && edited.has(rw.ri + '|' + rw.key)) {
                         c.fillStyle = 'hsl(45, 95%, 60%)';
                         c.fillRect(x0, y + h - 4, Math.max(2, x1 - x0 - 1), 2);
                     }
@@ -1133,12 +1136,16 @@
 
     const wordKey = (w, i) => i + '|' + w.key;
 
-    // Raw aligned words (ms) with the user's edits on top.
+    // Raw aligned words (ms) with the user's edits on top. An edit of [-1, -1]
+    // removes the word (a misheard "ah-ha", say). ri: the word's index in lyrRaw.
     function applyWordEdits() {
-        const words = state.lyrRaw.words.map(w => ({ ...w }));
-        words.forEach((w, i) => {
-            const ed = state.wordEdits.get(wordKey(w, i));
+        const words = [];
+        state.lyrRaw.words.forEach((w0, i) => {
+            const w = { ...w0, ri: i };
+            const ed = state.wordEdits.get(wordKey(w0, i));
+            if (ed && ed[0] < 0) return;
             if (ed) { w.s = ed[0]; w.e = ed[1]; }
+            words.push(w);
         });
         for (let i = 0; i + 1 < words.length; i++) if (words[i].e > words[i + 1].s) words[i].e = words[i + 1].s;
         for (const w of words) if (w.e < w.s + 40) w.e = w.s + 40;
@@ -1147,12 +1154,21 @@
 
     function relayoutWords(wordsMs) {
         const r = state.lyrRaw;
-        const re = Vocals.relayout(r.lineTexts, wordsMs);
+        // a line that lost some of its words reads as the words it has left
+        let texts = r.lineTexts;
+        if (wordsMs.length < r.words.length) {
+            const left = new Map();
+            for (const w of wordsMs) { if (!left.has(w.line)) left.set(w.line, []); left.get(w.line).push(w.text); }
+            const all = new Map();
+            for (const w of r.words) all.set(w.line, (all.get(w.line) || 0) + 1);
+            texts = r.lineTexts.map((t, li) => left.has(li) && left.get(li).length < (all.get(li) || 0) ? left.get(li).join(' ') : t);
+        }
+        const re = Vocals.relayout(texts, wordsMs);
         const sec = x => ({ s: x.s / 1000, e: x.e / 1000 });
         state.lyrWordsMs = wordsMs;
         state.lyr = {
             source: r.source,
-            lines: re.lines.map(x => ({ ...sec(x), text: x.text })),
+            lines: re.lines.map(x => ({ ...sec(x), text: x.text, li: x.li })),
             words: wordsMs.map(x => ({ ...sec(x), text: x.text, line: x.line })),
             phonemes: re.phonemes.map(x => ({ ...sec(x), text: x.label })),
             vseg: state.voc.vseg.map(([a, b]) => ({ s: a / 1000, e: b / 1000 })),
@@ -1161,7 +1177,7 @@
             selected: state.lyr && state.lyr.selected,
         };
         $('resetEdits').hidden = !state.wordEdits.size;
-        $('resetEdits').textContent = `Undo all timing edits (${state.wordEdits.size})`;
+        $('resetEdits').textContent = `Undo all word edits (${state.wordEdits.size})`;
         document.dispatchEvent(new CustomEvent('xl:lyrics'));
     }
 
@@ -1170,14 +1186,35 @@
         state.editUndo.push(new Map(state.wordEdits));
         if (state.editUndo.length > 50) state.editUndo.shift();
         for (const [i, s, e] of changes) {
-            const w = state.lyrRaw.words[i];
-            state.wordEdits.set(wordKey(w, i), [Math.round(s), Math.round(e)]);
+            const ri = state.lyrWordsMs[i].ri;
+            state.wordEdits.set(wordKey(state.lyrRaw.words[ri], ri), [Math.round(s), Math.round(e)]);
         }
         saveWordEdits();
         relayoutWords(applyWordEdits());
         renderLyrics();
         draw();
         if (label) setVocalStatus(label, null);
+    }
+
+    // Take words out (by raw index); Ctrl+Z or "Undo all word edits" brings them back.
+    function removeWords(ris, label) {
+        if (!ris.length) return;
+        state.editUndo.push(new Map(state.wordEdits));
+        if (state.editUndo.length > 50) state.editUndo.shift();
+        for (const ri of ris) state.wordEdits.set(wordKey(state.lyrRaw.words[ri], ri), [-1, -1]);
+        saveWordEdits();
+        if (state.lyr) state.lyr.selected = null;
+        relayoutWords(applyWordEdits());
+        renderLyrics();
+        draw();
+        setVocalStatus(label + ' Ctrl+Z brings ' + (ris.length > 1 ? 'them' : 'it') + ' back.', null);
+    }
+    function removeSelectedWord() {
+        const i = state.lyr && state.lyr.selected;
+        if (i == null || !state.lyrWordsMs[i]) return false;
+        const w = state.lyrWordsMs[i];
+        removeWords([w.ri], `Removed "${w.text}".`);
+        return true;
     }
 
     function undoWordEdit() {
@@ -1187,7 +1224,7 @@
         relayoutWords(applyWordEdits());
         renderLyrics();
         draw();
-        setVocalStatus('Undid the last timing edit.', null);
+        setVocalStatus('Undid the last word edit.', null);
         return true;
     }
 
@@ -1286,7 +1323,11 @@
     function endWordDrag() {
         const d = wordDrag;
         wordDrag = null;
-        if (!d.moved) { draw(); return; }
+        if (!d.moved) {
+            draw();
+            if (d.kind !== 'line' && state.lyrWordsMs[d.i]) setVocalStatus(`"${state.lyrWordsMs[d.i].text}" picked: drag it or use the arrow keys to move it, Delete to remove it.`, null);
+            return;
+        }
         // Only record what actually changed.
         const changed = d.out.filter(([i, s, e]) => {
             const o = d.orig.find(x => x[0] === i);
@@ -1318,7 +1359,7 @@
         relayoutWords(applyWordEdits());
         renderLyrics();
         draw();
-        setVocalStatus('Timing edits removed. Ctrl+Z brings them back.', null);
+        setVocalStatus('Word edits undone: every word is back where it was found. Ctrl+Z brings the edits back.', null);
     });
 
     function renderLyrics() {
@@ -1330,7 +1371,8 @@
             `<b>${L.vseg.length}</b> sung passages, <b>${L.notes.length}</b> notes`,
         ];
         if (st.repeatsAdded) parts.push(`<b>${st.repeatsAdded}</b> repeated lines added where the song sings more than your lyrics list`);
-        if (st.fillers) parts.push(`<b>${st.fillers}</b> more sung "${esc(st.filler)}" parts filled in`);
+        const fillers = state.lyrWordsMs ? state.lyrWordsMs.filter(w => w.filler) : [];
+        if (st.fillers && fillers.length) parts.push(`<b>${st.fillers}</b> more sung "${esc(st.filler)}" parts filled in <button type="button" class="link" id="dropFillers" title="Take out every filled-in &quot;${esc(st.filler)}&quot; (keeps the ones in your lyrics)">remove them</button>`);
         let warn = '';
         if (L.error) warn = L.error;
         else if (L.source === 'lyrics' && st.words && st.anchored / st.words < 0.4) {
@@ -1342,12 +1384,15 @@
         }
         $('vocalStats').innerHTML = (L.source === 'lyrics' ? 'Using your lyrics. ' : 'Using the words it heard. Paste the real lyrics above for exact words. ') +
             parts.join(' · ') + (warn ? `<div class="warn">${esc(warn)}</div>` : '');
+        const df = $('dropFillers');
+        if (df) df.addEventListener('click', () => removeWords(fillers.map(w => w.ri), `Removed ${fillers.length} filled-in "${st.filler}" words.`));
         const tb = $('lyricRows');
         tb.innerHTML = '';
         for (const ln of L.lines) {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td class="num"><button type="button" class="link seek">${fmtTime(ln.s, true)}</button></td><td>${esc(ln.text)}</td>`;
+            tr.innerHTML = `<td class="num"><button type="button" class="link seek">${fmtTime(ln.s, true)}</button></td><td>${esc(ln.text)}</td><td class="num"><button type="button" class="link drop" title="Remove this line's words (Ctrl+Z brings them back)" aria-label="Remove this line">✕</button></td>`;
             tr.querySelector('.seek').addEventListener('click', () => seek(ln.s, true));
+            tr.querySelector('.drop').addEventListener('click', () => removeWords(state.lyrWordsMs.filter(w => w.line === ln.li).map(w => w.ri), `Removed "${ln.text}" at ${fmtTime(ln.s, true)}.`));
             tb.appendChild(tr);
         }
     }

@@ -83,6 +83,8 @@ land on the wrong repeat. Fix it in xLights after import.
 In the timeline's **Words** row, drag a word's left edge to move its start, or drag the
 word to move it; drag a line in the **Lyrics** row to move the whole line. Starts snap to
 vocal onsets (Alt places freely). Click a word and use ← → to nudge 10 ms (Shift 50 ms).
+Delete removes the picked word; ✕ in the line list removes a line's words; *remove them*
+next to the filled-in sounds removes every filled-in word (stored as a [-1, -1] edit).
 Ctrl+Z undoes. Edits are kept per song (keyed by word position + word), survive
 "Update words" when the lyrics around them are unchanged, and can be removed in one go.
 
