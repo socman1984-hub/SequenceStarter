@@ -22,7 +22,7 @@ moves to **Done** with the date.
 - **Built 2026-10-12 (release 2026.10.12.2):** a 🎲 and ↶ on every light row (Ideas.rowIdea: new effect, settings
   and colors for just that row; ↶ is a per-row history kept outside the plan, Undo works too), a palette box
   from a row's colors (single colors per slot, colors in the part, or a whole palette), and a filter box plus
-  a display-only Sort list on parts with 4+ rows.
+  a display-only Sort list on parts with 4+ rows. All suggested by Fame28 (Discord).
 - **Waiting on testers:** imported videos in a real browser tab (the hidden test browser never
   decodes video frames); the xLights 2023 show folder that crashed (need its
   `xlights_rgbeffects.xml` or the copied error).
