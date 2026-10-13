@@ -976,7 +976,7 @@ const Ideas = (() => {
     }
 
     // schemes: { [sectionId]: scheme } for parts that have their own colours
-    function planIdea(song, show, { seed, scheme, alike, pools, sections, whole = true, feel = 'auto', intensity = null, exclude = [], mix = null, matrixWords = false, phrased = true, mhParts = null, schemes = null, fx = null }) {
+    function planIdea(song, show, { seed, scheme, alike, pools, sections, whole = true, feel = 'auto', intensity = null, exclude = [], mix = null, matrixWords = false, phrased = true, mhParts = null, schemes = null, fx = null, louds = null }) {
         const rng = rngFrom(seed);
         const plan = Sequencer.emptyPlan();
         const excluded = modelsOf(show, exclude);
@@ -989,6 +989,8 @@ const Ideas = (() => {
             const last = liftParts[liftParts.length - 1];
             energies.set(last.id, Math.min(1, energies.get(last.id) + 0.1));
         }
+        // parts the user set a loudness for (0..1) are that loud, exactly
+        if (louds) for (const [id, v] of Object.entries(louds)) if (energies.has(id)) energies.set(id, v);
         const ending = endingFade(song);
         if (whole && cands.has('flood')) {
             const row = { id: Sequencer.newId(), trigger: 'span', targets: cands.get('flood').targets, effect: 'wash', options: { cycles: Math.max(1, Math.round(song.model.duration / 30)) }, colors: scheme.colors.slice(), scheme: scheme.id, level: 60 };
@@ -1012,7 +1014,7 @@ const Ideas = (() => {
             const pool = pools && pools[s.id];
             const own = !alike || !!(pool && pool.length);
             const rows = partIdea(s, song, show, {
-                pool, seed: own ? Math.floor(rng() * 2 ** 31) : kindSeed.get(kind), scheme: (schemes && schemes[s.id]) || scheme, feel, intensity, exclude: excluded, mix,
+                pool, seed: own ? Math.floor(rng() * 2 ** 31) : kindSeed.get(kind), scheme: (schemes && schemes[s.id]) || scheme, feel, intensity: louds && louds[s.id] != null ? louds[s.id] : intensity, exclude: excluded, mix,
                 energy: energies.get(s.id), style: own ? null : avg(kindStyle.get(kind)), matrixWords, phrased, mhParts, fx,
             });
             plan.sections[s.id] = { rows, pool: pool || [] };

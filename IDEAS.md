@@ -26,7 +26,8 @@ moves to **Done** with the date.
 - **Built 2026-10-13 (release 2026.10.13):** props far outside the preview area (Show.farAway: bbox beyond 2x the
   preview size, only if the rest holds half the lights) no longer set the view framing; Fame28's layout had one
   polyline at -6 million. Plus ↻ Reload show (same folder) and Pick different files…. From Fame28 (Discord). Also removing words (Delete on a picked word, ✕ per
-  line, remove all filled-in sounds; a [-1,-1] word edit), asked for by Rogue Killa ZA (Discord).
+  line, remove all filled-in sounds; a [-1,-1] word edit), asked for by Rogue Killa ZA (Discord). And per-part Brightness (c.bright, 0-200%, scales
+  export Brightness; not DMX/imported) and Loudness (c.loud, used as the idea intensity for that part).
 - **Waiting on testers:** imported videos in a real browser tab (the hidden test browser never
   decodes video frames); the xLights 2023 show folder that crashed (need its
   `xlights_rgbeffects.xml` or the copied error).

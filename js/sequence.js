@@ -255,10 +255,10 @@ const Sequencer = (() => {
         };
 
         // containers: the whole song first, then each section in order
-        const containers = [{ s: 0, e: song.model.duration, rows: (plan.whole && plan.whole.rows) || [], whole: true }];
+        const containers = [{ s: 0, e: song.model.duration, rows: (plan.whole && plan.whole.rows) || [], whole: true, bright: plan.whole && plan.whole.bright }];
         for (const sec of song.sections) {
             const c = plan.sections && plan.sections[sec.id];
-            if (c && c.rows.length) containers.push({ s: sec.s, e: Math.max(sec.s + 0.1, sec.e - (c.dip > 0 ? c.dip * song.grid.T : 0)), rows: c.rows, sectionId: sec.id, bars: song.grid.bars.filter(b => b.s >= sec.s - 0.05 && b.s < sec.e - 0.05) });
+            if (c && c.rows.length) containers.push({ s: sec.s, e: Math.max(sec.s + 0.1, sec.e - (c.dip > 0 ? c.dip * song.grid.T : 0)), rows: c.rows, sectionId: sec.id, bright: c.bright, bars: song.grid.bars.filter(b => b.s >= sec.s - 0.05 && b.s < sec.e - 0.05) });
         }
         // Off rows go on a layer above everything else on their lights (placed last)
         const offs = [];
@@ -368,7 +368,9 @@ const Sequencer = (() => {
                     const o = eff.needsFace ? { ...spanOpts, face: spanOpts.face || show.models.get(target).faces[0].name } : spanOpts;
                     const isGroup = show.groups.has(target);
                     const perModel = isGroup && (eff.dmx || (row.perModel ?? eff.perModel));
-                    const level = row.level != null ? Math.max(0, Math.min(100, row.level)) : 100;
+                    let level = row.level != null ? Math.max(0, Math.min(100, row.level)) : 100;
+                    // the part's brightness on top (xLights' Brightness goes to 400); never on DMX channels
+                    if (c.bright != null && c.bright !== 100 && !eff.dmx) level = Math.max(0, Math.min(400, Math.round(level * c.bright / 100)));
                     const endFade = row.endFade > 0 && n === spans.length - 1 ? Math.min(row.endFade, (eMs - sMs) / 1000) : 0;
                     let startFade = row.startFade > 0 && n === 0 ? Math.min(row.startFade, (eMs - sMs) / 1000) : 0;
                     // soft edges on every effect of the row, never more than 40% of it

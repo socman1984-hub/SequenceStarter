@@ -2,13 +2,14 @@
 
 Release notes for SequenceStarter, newest first. The same list is in the app under **✨ What's new**.
 
-## 2026.10.13 — Every layout in the preview, Reload show, remove words
+## 2026.10.13 — Part brightness and loudness, remove words, Reload show
 
 _2026-10-13_
 
 - **Fixed:** A layout with one prop placed far outside the xLights preview area showed only a couple of dots: the preview zoomed out to fit that prop. Props that far away are now left out of the view, and the show line names them so you can move them back in xLights.
 - **New:** Reload your show without starting over: ↻ Reload show reads your show folder again (after changing the layout in xLights), and Pick different files… swaps the files if you picked the wrong ones. Your plan stays.
 - **New:** Remove words that shouldn't be there, like an "Ah-ha" it heard in the music: click a word in the timeline and press Delete, press ✕ on a line in the word list, or remove all the filled-in sounds at once. Ctrl+Z brings them back.
+- **New:** Brightness and Loudness for each part: open a part to dim or brighten all its lights (0 to 200%), or tell the ideas how lively it should be. 🎲 Randomize then makes an idea at that loudness. ↺ puts either back.
 - **Better:** The preview fix and Reload show were found and suggested by Fame28, and removing words by Rogue Killa ZA, both on Discord. Thank you!
 
 ## 2026.10.12.2 — Randomize one row, palette colors, filter and sort rows

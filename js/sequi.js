@@ -1668,7 +1668,9 @@
         const el = document.createElement('section');
         el.className = 'sec-card' + (open ? ' open' : '') + (S.nowId === sec.id ? ' now' : '') + (ideaPicked(isWhole ? 'whole' : sec.id) ? ' idea-on' : '');
         el.dataset.id = sec.id;
-        const energy = sec.energy != null ? `<span class="meter" title="Energy"><span style="width:${Math.round(sec.energy * 100)}%"></span></span>` : '';
+        const loud = !isWhole && c.loud != null ? c.loud / 100 : sec.energy;
+        const energy = loud != null ? `<span class="meter${!isWhole && c.loud != null ? ' own' : ''}" title="${!isWhole && c.loud != null ? `Loudness, set by you: ${c.loud}%` : 'Energy'}"><span style="width:${Math.round(loud * 100)}%"></span></span>` : '';
+        const brightChip = c.bright != null && c.bright !== 100 ? `<span class="tr-chip" title="Every light in this part at ${c.bright}% brightness">☀ ${c.bright}%</span>` : '';
         el.innerHTML = `
             <div class="sec-head">
               <button type="button" class="tw" aria-expanded="${open}" title="${open ? 'Collapse' : 'Expand'}">${open ? '▾' : '▸'}</button>
@@ -1678,7 +1680,7 @@
                 ${!isWhole && c.transition && c.transition !== 'cut' ? `<span class="tr-chip" title="How this part comes in (change it inside the part)">↗ ${esc((Ideas.TRANSITIONS.find(t => t[0] === c.transition) || [, c.transition])[1].replace(/ \(.*\)$/, ''))}</span>` : ''}
                 <span class="muted">${isWhole ? 'under every section' : `${fmt(sec.s)}–${fmt(sec.e)}${sec.bars ? ` · ${sec.bars} bars` : ''}`}</span>
                 ${!isWhole && partScheme(c) ? `<span class="own-cols" title="This part's own colors: its 🎲 Randomize and new ideas use them instead of the palette in Idea settings"><span class="rl-sw">${partScheme(c).colors.map(col => `<i style="background:${col}"></i>`).join('')}</span> own colors <button type="button" class="link clr-cols" title="Use the palette from Idea settings again">✕</button></span>` : ''}
-                ${energy}
+                ${brightChip}${energy}
               </div>
               <div class="sec-btns">
                 ${isWhole ? '' : '<button type="button" class="btn tiny jump" title="Jump the song to this section">▶ Jump</button>'}
@@ -1730,6 +1732,34 @@
         return rows.map((r, i) => i).sort((i, j) => key(rows[i], rows[j]) || i - j).map(i => els[i]);
     }
 
+    // A part's brightness (every light in it, on top of each row's own) and,
+    // for a section, how loud ideas treat it (instead of what the song measures).
+    function levelsBox(sec, c, isWhole) {
+        const song = XLWeb.song();
+        const measured = isWhole || !song ? null : Math.round((Ideas.partEnergies(song).get(sec.id) ?? sec.energy ?? 0.5) * 100);
+        const box = document.createElement('div');
+        box.className = 'part-levels';
+        const b = c.bright ?? 100;
+        box.innerHTML = `<label title="Every light in this ${isWhole ? 'whole-song layer' : 'part'}, on top of each row's own brightness (moving heads and imported rows keep theirs)">Brightness <input type="range" class="pbright" min="0" max="200" step="5" value="${b}"> <span class="pv">${b}%</span></label>${b !== 100 ? '<button type="button" class="link pbright0" title="Back to 100%">↺</button>' : ''}` +
+            (isWhole ? '' : `<label title="How lively new ideas for this part are: more lights, faster and busier effects, more hits when loud. Starts from how loud the song is here.">Loudness <input type="range" class="ploud" min="0" max="100" step="5" value="${c.loud ?? measured}"> <span class="pv">${c.loud != null ? c.loud + '%' : `${measured}% (from the song)`}</span></label>${c.loud != null ? '<button type="button" class="link ploud0" title="Back to how loud the song is here">↺</button>' : ''}`);
+        const br = box.querySelector('.pbright');
+        br.addEventListener('input', () => { br.nextElementSibling.textContent = br.value + '%'; });
+        br.addEventListener('change', () => commit(() => { const v = +br.value; if (v === 100) delete c.bright; else c.bright = v; }));
+        const b0 = box.querySelector('.pbright0');
+        if (b0) b0.addEventListener('click', () => commit(() => { delete c.bright; }));
+        const ld = box.querySelector('.ploud');
+        if (ld) {
+            ld.addEventListener('input', () => { ld.nextElementSibling.textContent = ld.value + '%'; });
+            ld.addEventListener('change', () => {
+                commit(() => { c.loud = +ld.value; });
+                setPlanStatus(`"${sec.name}" now counts as ${ld.value}% loud for new ideas. Press 🎲 Randomize on it (or a row's 🎲) to use it.`);
+            });
+        }
+        const l0 = box.querySelector('.ploud0');
+        if (l0) l0.addEventListener('click', () => commit(() => { delete c.loud; }));
+        return box;
+    }
+
     function fillBody(body, sec, isWhole) {
         const id = isWhole ? 'whole' : sec.id;
         const c = isWhole ? S.plan.whole : container(id);
@@ -1774,6 +1804,7 @@
             inp.addEventListener('input', () => { if (inp.value.trim()) S.rowFind.set(id, inp.value); else S.rowFind.delete(id); apply(); });
             apply();
         }
+        body.appendChild(levelsBox(sec, c, isWhole));
         const foot = document.createElement('div');
         foot.className = 'btnrow tight';
         foot.innerHTML = `<button type="button" class="btn small add">+ Add lights</button>${!isWhole ? `<button type="button" class="btn small splitHere" title="Split this section where the song is now">Split at playhead</button><button type="button" class="btn small ren">Rename</button>` : ''}${c.rows.length ? '<button type="button" class="btn small clearSec">Clear</button>' : ''}${!isWhole ? `<label class="chk small" title="The lights of this part stop 1.5 beats before it ends, so the next part lands on a dark house"><input type="checkbox" class="dipChk" ${c.dip > 0 ? 'checked' : ''}> Hold a breath at the end</label>` : ''}`;
@@ -2386,7 +2417,7 @@
         if (!song || !sec) return;
         const mood = ideaMood();
         const allowed = new Set(effectsFor(r.trigger, r.targets).filter(e => e.random !== false).map(e => e.id));
-        const idea = Ideas.rowIdea(r, sec, song, S.show, { seed: Math.floor(Math.random() * 2 ** 31), scheme: partScheme(c) || ideaScheme(), feel: mood.feel, intensity: mood.intensity, fx: mood.fx, allowed });
+        const idea = Ideas.rowIdea(r, sec, song, S.show, { seed: Math.floor(Math.random() * 2 ** 31), scheme: partScheme(c) || ideaScheme(), feel: mood.feel, intensity: c.loud != null ? c.loud / 100 : mood.intensity, fx: mood.fx, allowed });
         if (!idea) { setPlanStatus(`No other effects are switched on for these lights. Turn more on in 🎛 Effects for props.`); return; }
         const st = rowBefore.get(r.id) || [];
         st.push(rowJson(r));
@@ -2514,7 +2545,9 @@
         const song = XLWeb.song();
         const c = container(sec.id);
         Ideas.takeSkipped();
-        const rows = Ideas.partIdea(sec, song, S.show, { pool: c.pool, seed: Math.floor(Math.random() * 2 ** 31), scheme: partScheme(c) || ideaScheme(), ...ideaMood() });
+        const mood = ideaMood();
+        if (c.loud != null) mood.intensity = c.loud / 100;
+        const rows = Ideas.partIdea(sec, song, S.show, { pool: c.pool, seed: Math.floor(Math.random() * 2 ** 31), scheme: partScheme(c) || ideaScheme(), ...mood });
         const note = skippedNote();
         commit(() => { const cc = container(sec.id); cc.rows = withKept(cc.rows, rows); S.open.add(sec.id); });
         saveOpen();
@@ -2616,16 +2649,21 @@
         if (!sections.length && !whole) { setPlanStatus('Choose at least one section under "For:" first.'); return; }
         const pools = {};
         for (const [id, c] of Object.entries(S.plan.sections)) if (c.pool && c.pool.length) pools[id] = c.pool;
-        const make = () => Ideas.planIdea(song, S.show, { seed: Math.floor(Math.random() * 2 ** 31), scheme: ideaScheme(), alike: $('ideaAlike').checked, pools, sections, whole, schemes: partSchemes(), ...ideaMood() });
+        const louds = {};
+        for (const [id, c] of Object.entries(S.plan.sections)) if (c.loud != null) louds[id] = c.loud / 100;
+        const make = () => Ideas.planIdea(song, S.show, { seed: Math.floor(Math.random() * 2 ** 31), scheme: ideaScheme(), alike: $('ideaAlike').checked, pools, sections, whole, schemes: partSchemes(), louds, ...ideaMood() });
         // only the chosen parts change; everything else keeps its lights
         const merged = idea => {
-            const p = { ...S.plan, whole: whole ? { ...idea.whole, rows: withKept(S.plan.whole.rows, idea.whole.rows) } : S.plan.whole, sections: { ...S.plan.sections } };
+            const p = { ...S.plan, whole: whole ? { ...S.plan.whole, ...idea.whole, rows: withKept(S.plan.whole.rows, idea.whole.rows) } : S.plan.whole, sections: { ...S.plan.sections } };
             for (const s of sections) {
                 const old = S.plan.sections[s.id] || {};
                 p.sections[s.id] = { ...idea.sections[s.id], rows: withKept(old.rows, idea.sections[s.id].rows) };
                 // a part's own colours stay with it
                 if (old.scheme) p.sections[s.id].scheme = old.scheme;
                 if (old.colors) p.sections[s.id].colors = old.colors;
+                // and so do its brightness and loudness
+                if (old.bright != null) p.sections[s.id].bright = old.bright;
+                if (old.loud != null) p.sections[s.id].loud = old.loud;
             }
             return p;
         };

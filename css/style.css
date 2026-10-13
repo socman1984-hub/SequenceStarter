@@ -704,3 +704,10 @@ td.chg .fxw { box-shadow: inset 0 -2px 0 var(--ok); }
 .pal-scheme { display: flex; align-items: center; gap: 8px; text-align: left; background: none; border: 1px solid transparent; border-radius: 6px; padding: 3px 5px; cursor: pointer; color: var(--text); font: inherit; }
 .pal-scheme:hover, .pal-scheme:focus-visible { background: var(--lane); }
 .pal-scheme.on { border-color: var(--accent); }
+
+/* a part's brightness and loudness */
+.part-levels { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 13px; margin: 6px 0 2px; }
+.part-levels label { display: inline-flex; align-items: center; gap: 6px; }
+.part-levels input[type=range] { width: 130px; }
+.part-levels .pv { min-width: 4ch; color: var(--muted); font-variant-numeric: tabular-nums; }
+.meter.own > span { background: var(--playhead); }
