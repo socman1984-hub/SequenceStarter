@@ -161,7 +161,8 @@ Ctrl+Z undoes. Edits are kept per song (keyed by word position + word), survive
   props on the house. *Solo* / *Mute* change the preview only, never the saved sequence.
 - A row's *🎲* gives just its lights a new effect and colors (from the part's palette and the
   effect choices); *↶* takes that row back a step. Clicking a row's colors opens a palette box:
-  single colors for the picked color, or a whole palette at once. Parts with 4+ rows get a filter box.
+  single colors for the picked color, or a whole palette at once. Parts with 4+ rows get a filter box and a
+  Sort list (as planned / lights / effect / when; display only, the plan's order is the layering).
 - Click a prop on the house to see what lights it in the playing section, add lights for
   it (or one of its groups), or use it for randomizing. Drag a box to pick several.
 - Ideas take a *Feeling* (peaceful, joyful, playful, powerful, magical) and an

@@ -1700,6 +1700,21 @@
         return el;
     }
 
+    // How a part's rows are listed (display only; the plan keeps its order, which is the layering)
+    const ROW_SORTS = [['plan', 'As planned'], ['lights', 'Lights A–Z'], ['effect', 'Effect A–Z'], ['when', 'When it plays']];
+    S.rowSort = (() => { try { const v = localStorage.getItem('xlweb-rowsort'); return ROW_SORTS.some(s => s[0] === v) ? v : 'plan'; } catch (e) { return 'plan'; } })();
+    function sortRows(rows, els) {
+        if (S.rowSort === 'plan') return els;
+        const az = (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+        const lights = r => r.targets.join(', ') || '~';
+        const effect = r => r.trigger === 'fixed' ? (r.xl ? r.xl.name : '') : (Effects.get(r.effect) || {}).label || r.effect;
+        const when = r => { const i = Sequencer.TRIGGERS.findIndex(t => t.id === r.trigger); return i < 0 ? 999 : i; };
+        const key = { lights: (a, b) => az(lights(a), lights(b)) || az(effect(a), effect(b)),
+            effect: (a, b) => az(effect(a), effect(b)) || az(lights(a), lights(b)),
+            when: (a, b) => when(a) - when(b) || az(lights(a), lights(b)) }[S.rowSort];
+        return rows.map((r, i) => i).sort((i, j) => key(rows[i], rows[j]) || i - j).map(i => els[i]);
+    }
+
     function fillBody(body, sec, isWhole) {
         const id = isWhole ? 'whole' : sec.id;
         const c = isWhole ? S.plan.whole : container(id);
@@ -1715,7 +1730,7 @@
         if (c.rows.length >= 4) {
             const fb = document.createElement('div');
             fb.className = 'row-find';
-            fb.innerHTML = `<input type="search" placeholder="Filter by light or effect…" aria-label="Filter these rows by light or effect" value="${esc(S.rowFind.get(id) || '')}"> <span class="muted small"></span>`;
+            fb.innerHTML = `<input type="search" placeholder="Filter by light or effect…" aria-label="Filter these rows by light or effect" value="${esc(S.rowFind.get(id) || '')}"> <label class="small" title="Only how the list looks here: the rows keep their order (and layering) in the sequence">Sort <select class="rsort">${ROW_SORTS.map(([k, label]) => `<option value="${k}" ${k === S.rowSort ? 'selected' : ''}>${label}</option>`).join('')}</select></label> <span class="muted small"></span>`;
             body.appendChild(fb);
         }
         const rowEls = c.rows.map(r => {
@@ -1723,11 +1738,17 @@
             const eff = Effects.get(r.effect);
             const trig = Sequencer.TRIGGERS.find(t => t.id === r.trigger);
             el.dataset.find = [...r.targets, r.of, r.xl && r.xl.name, eff && eff.label, trig && r.trigger !== 'fixed' && trig.label].filter(Boolean).join(' ').toLowerCase();
-            body.appendChild(el);
             return el;
         });
         const fb = body.querySelector('.row-find');
+        const ordered = fb ? sortRows(c.rows, rowEls) : rowEls;
+        for (const el of ordered) body.appendChild(el);
         if (fb) {
+            fb.querySelector('.rsort').addEventListener('change', e => {
+                S.rowSort = e.target.value;
+                try { localStorage.setItem('xlweb-rowsort', S.rowSort); } catch (err) { }
+                renderPlan();
+            });
             const inp = fb.querySelector('input');
             const apply = () => {
                 const words = inp.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
