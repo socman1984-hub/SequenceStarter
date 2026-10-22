@@ -571,6 +571,8 @@ const Vocals = (() => {
             if (!ws.length) return;
             ph.push({ s: ws[0].s, e: Math.max(ws[ws.length - 1].e, ws[0].s + 300), text: ln, li });
         });
+        // lines the user added come after the found ones in the list, not in time
+        ph.sort((a, b) => a.s - b.s);
         for (let i = 0; i < ph.length; i++) {
             if (i && ph[i].s < ph[i - 1].e) ph[i].s = ph[i - 1].e;
             if (ph[i].e <= ph[i].s) ph[i].e = ph[i].s + 300;
@@ -884,5 +886,5 @@ const Vocals = (() => {
         return (await build(v, '')).lines.map(l => l.text).join('\n');
     }
 
-    return { analyze, addText, build, relayout, loadDict, heardText, SR, ENV_FPS, HOP, _debug: { envelope, voicedSegments, onsetEdges, align, parseLyrics, linesFromWhisper, numberWords } };
+    return { analyze, addText, build, relayout, loadDict, heardText, norm, displayWord, SR, ENV_FPS, HOP, _debug: { envelope, voicedSegments, onsetEdges, align, parseLyrics, linesFromWhisper, numberWords } };
 })();

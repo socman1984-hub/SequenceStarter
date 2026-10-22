@@ -2,6 +2,15 @@
 
 Release notes for SequenceStarter, newest first. The same list is in the app under **✨ What's new**.
 
+## 2026.10.21 — Change and add words, resize from either end
+
+_2026-10-21_
+
+- **New:** Change the words: double-click a word in the timeline (or press Enter on a picked one) and type the right ones. Typing several words splits its time between them. Double-click a line, or press ✎ in the word list, to retype the whole line.
+- **New:** Add words that were missed: double-click an empty spot in the Words row and type them.
+- **Better:** Words can be resized from the right edge too, not only the left.
+- **Better:** Asked for by Rogue Killa ZA on Discord. Thank you!
+
 ## 2026.10.13 — Part brightness and loudness, remove words, Reload show
 
 _2026-10-13_

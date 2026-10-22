@@ -28,6 +28,9 @@ moves to **Done** with the date.
   polyline at -6 million. Plus ↻ Reload show (same folder) and Pick different files…. From Fame28 (Discord). Also removing words (Delete on a picked word, ✕ per
   line, remove all filled-in sounds; a [-1,-1] word edit), asked for by Rogue Killa ZA (Discord). And per-part Brightness (c.bright, 0-200%, scales
   export Brightness; not DMX/imported) and Loudness (c.loud, used as the idea intensity for that part).
+- **Built 2026-10-21 (release 2026.10.21):** editing words (double-click a word / line / empty spot, ✎ per line,
+  Enter or F2 on the picked word; word edits gain [s,e,text] and add:<id> [s,e,text,line]) and a right-edge resize
+  handle. Asked for by Rogue Killa ZA (Discord).
 - **Waiting on testers:** imported videos in a real browser tab (the hidden test browser never
   decodes video frames); the xLights 2023 show folder that crashed (need its
   `xlights_rgbeffects.xml` or the copied error).

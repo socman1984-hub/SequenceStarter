@@ -606,6 +606,9 @@
         } else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && state.lyr && state.lyr.selected != null) {
             const step = (e.shiftKey ? 50 : 10) * (e.key === 'ArrowLeft' ? -1 : 1);
             if (nudgeSelected(step)) e.preventDefault();
+        } else if ((e.key === 'Enter' || e.key === 'F2') && e.target.tagName !== 'BUTTON' && state.lyr && state.lyr.selected != null) {
+            e.preventDefault();
+            editWord(state.lyr.selected);
         } else if ((e.key === 'Delete' || e.key === 'Backspace') && state.lyr && state.lyr.selected != null) {
             if (removeSelectedWord()) e.preventDefault();
         } else if (e.key === 'Escape' && state.lyr) {
@@ -715,6 +718,16 @@
         if (state.lyr) state.lyr.selected = null;
         seek(state.view.t0 + (e.offsetX - LABEL_W) / state.view.pxPerSec);
     });
+    tl.addEventListener('dblclick', e => {
+        if (!state.lyr || !state.lyrWordsMs || e.offsetX < LABEL_W) return;
+        const lane = laneAt(e.offsetY);
+        if (!lane || (lane.id !== 'words' && lane.id !== 'lines')) return;
+        e.preventDefault();
+        const hit = hitWord(e.offsetX, lane.id);
+        if (hit && hit.kind === 'line') editLine(hit.line);
+        else if (hit) editWord(hit.i);
+        else if (lane.id === 'words') addWordsAt((state.view.t0 + (e.offsetX - LABEL_W) / state.view.pxPerSec) * 1000);
+    });
     // index of the section whose START is under x (boundary with the one before), or -1
     let sectionDrag = null;
     function boundaryAt(xPx) {
@@ -741,7 +754,7 @@
         if (lane && lane.id === 'sections' && e.offsetX >= LABEL_W) { tl.style.cursor = boundaryAt(e.offsetX) > 0 ? 'ew-resize' : ''; return; }
         if (!state.lyr) { tl.style.cursor = ''; return; }
         const hit = lane && e.offsetX >= LABEL_W && hitWord(e.offsetX, lane.id);
-        tl.style.cursor = !hit ? '' : hit.kind === 'start' ? 'ew-resize' : 'grab';
+        tl.style.cursor = !hit ? '' : hit.kind === 'start' || hit.kind === 'end' ? 'ew-resize' : 'grab';
     });
     window.addEventListener('mouseup', () => {
         dragOverview = false;
@@ -968,8 +981,10 @@
                     // start handle: this is what dragging moves
                     c.fillStyle = sel ? '#7a4b00' : 'rgba(255,255,255,0.75)';
                     c.fillRect(Math.round(x0), y + 2, 2, h - 4);
+                    // end handle, fainter: dragging it changes how long the word lasts
+                    if (x1 - x0 > 12) { c.fillStyle = sel ? 'rgba(122,75,0,0.6)' : 'rgba(255,255,255,0.4)'; c.fillRect(Math.round(x1) - 3, y + 5, 2, h - 10); }
                     const rw = edited && state.lyrWordsMs[wi];
-                    if (rw && edited.has(rw.ri + '|' + rw.key)) {
+                    if (rw && edited.has(editKeyOf(rw))) {
                         c.fillStyle = 'hsl(45, 95%, 60%)';
                         c.fillRect(x0, y + h - 4, Math.max(2, x1 - x0 - 1), 2);
                     }
@@ -1125,7 +1140,7 @@
     function loadWordEdits() {
         state.wordEdits = new Map();
         try {
-            for (const [k, s, e] of JSON.parse(localStorage.getItem(editsKey()) || '[]')) state.wordEdits.set(k, [s, e]);
+            for (const [k, ...v] of JSON.parse(localStorage.getItem(editsKey()) || '[]')) state.wordEdits.set(k, v);
         } catch (e) { /* none */ }
         state.editUndo = [];
     }
@@ -1136,17 +1151,32 @@
 
     const wordKey = (w, i) => i + '|' + w.key;
 
-    // Raw aligned words (ms) with the user's edits on top. An edit of [-1, -1]
-    // removes the word (a misheard "ah-ha", say). ri: the word's index in lyrRaw.
+    // Raw aligned words (ms) with the user's edits on top. An edit is
+    // [s, e] (new times), [s, e, text] (also new words), or [-1, -1] (removed: a
+    // misheard "ah-ha", say). Words the user adds are kept as "add:<id>" edits:
+    // [s, e, text, line], line being a found line's index or a new line's name.
+    // ri: the word's index in lyrRaw; ak: an added word's key.
     function applyWordEdits() {
         const words = [];
         state.lyrRaw.words.forEach((w0, i) => {
-            const w = { ...w0, ri: i };
+            const w = { ...w0, ri: i, ref: w0.line };
             const ed = state.wordEdits.get(wordKey(w0, i));
             if (ed && ed[0] < 0) return;
             if (ed) { w.s = ed[0]; w.e = ed[1]; }
+            if (ed && ed[2] != null) { w.text = ed[2]; w.key = Vocals.norm(ed[2]); w.renamed = true; }
             words.push(w);
         });
+        const nLines = state.lyrRaw.lineTexts.length, newLines = new Map();
+        for (const [k, v] of state.wordEdits) {
+            if (!k.startsWith('add:') || !(v[0] >= 0)) continue;
+            let line = v[3];
+            if (typeof line !== 'number' || line >= nLines) {
+                if (!newLines.has(line)) newLines.set(line, nLines + newLines.size);
+                line = newLines.get(line);
+            }
+            words.push({ s: v[0], e: v[1], text: v[2], key: Vocals.norm(v[2]), line, ref: v[3], ak: k, added: true });
+        }
+        words.sort((a, b) => a.s - b.s);
         for (let i = 0; i + 1 < words.length; i++) if (words[i].e > words[i + 1].s) words[i].e = words[i + 1].s;
         for (const w of words) if (w.e < w.s + 40) w.e = w.s + 40;
         return words;
@@ -1154,14 +1184,19 @@
 
     function relayoutWords(wordsMs) {
         const r = state.lyrRaw;
-        // a line that lost some of its words reads as the words it has left
+        // a line whose words were removed, changed or added to reads as the words it has now
         let texts = r.lineTexts;
-        if (wordsMs.length < r.words.length) {
-            const left = new Map();
-            for (const w of wordsMs) { if (!left.has(w.line)) left.set(w.line, []); left.get(w.line).push(w.text); }
-            const all = new Map();
+        if (state.wordEdits.size) {
+            const now = new Map(), all = new Map();
+            for (const w of wordsMs) { if (!now.has(w.line)) now.set(w.line, []); now.get(w.line).push(w); }
             for (const w of r.words) all.set(w.line, (all.get(w.line) || 0) + 1);
-            texts = r.lineTexts.map((t, li) => left.has(li) && left.get(li).length < (all.get(li) || 0) ? left.get(li).join(' ') : t);
+            const top = Math.max(r.lineTexts.length - 1, ...wordsMs.map(w => w.line));
+            texts = [];
+            for (let li = 0; li <= top; li++) {
+                const ws = now.get(li) || [];
+                const changed = li >= r.lineTexts.length || ws.length !== (all.get(li) || 0) || ws.some(w => w.renamed || w.added);
+                texts.push(changed ? ws.map(w => w.text).join(' ') : r.lineTexts[li]);
+            }
         }
         const re = Vocals.relayout(texts, wordsMs);
         const sec = x => ({ s: x.s / 1000, e: x.e / 1000 });
@@ -1186,8 +1221,9 @@
         state.editUndo.push(new Map(state.wordEdits));
         if (state.editUndo.length > 50) state.editUndo.shift();
         for (const [i, s, e] of changes) {
-            const ri = state.lyrWordsMs[i].ri;
-            state.wordEdits.set(wordKey(state.lyrRaw.words[ri], ri), [Math.round(s), Math.round(e)]);
+            const w = state.lyrWordsMs[i];
+            const k = editKeyOf(w), old = state.wordEdits.get(k);
+            state.wordEdits.set(k, [Math.round(s), Math.round(e), ...(old && old.length > 2 ? old.slice(2) : [])]);
         }
         saveWordEdits();
         relayoutWords(applyWordEdits());
@@ -1196,25 +1232,118 @@
         if (label) setVocalStatus(label, null);
     }
 
-    // Take words out (by raw index); Ctrl+Z or "Undo all word edits" brings them back.
-    function removeWords(ris, label) {
-        if (!ris.length) return;
-        state.editUndo.push(new Map(state.wordEdits));
+    const editKeyOf = w => w.ak || wordKey(state.lyrRaw.words[w.ri], w.ri);
+    function wordsChanged(label) {
         if (state.editUndo.length > 50) state.editUndo.shift();
-        for (const ri of ris) state.wordEdits.set(wordKey(state.lyrRaw.words[ri], ri), [-1, -1]);
         saveWordEdits();
         if (state.lyr) state.lyr.selected = null;
         relayoutWords(applyWordEdits());
         renderLyrics();
         draw();
-        setVocalStatus(label + ' Ctrl+Z brings ' + (ris.length > 1 ? 'them' : 'it') + ' back.', null);
+        if (label) setVocalStatus(label, null);
+    }
+    const dropWord = w => { if (w.ak) state.wordEdits.delete(w.ak); else state.wordEdits.set(editKeyOf(w), [-1, -1]); };
+
+    // Take words out; Ctrl+Z or "Undo all word edits" brings them back.
+    function removeWords(ws, label) {
+        if (!ws.length) return;
+        state.editUndo.push(new Map(state.wordEdits));
+        ws.forEach(dropWord);
+        wordsChanged(label + ' Ctrl+Z brings ' + (ws.length > 1 ? 'them' : 'it') + ' back.');
     }
     function removeSelectedWord() {
         const i = state.lyr && state.lyr.selected;
         if (i == null || !state.lyrWordsMs[i]) return false;
         const w = state.lyrWordsMs[i];
-        removeWords([w.ri], `Removed "${w.text}".`);
+        removeWords([w], `Removed "${w.text}".`);
         return true;
+    }
+
+    // New words for some words (or for an empty stretch, when old is empty): the
+    // same number of words keep their times; otherwise they share the span by length.
+    // line: the line the new words belong to (a found line's index or a new line's name).
+    let addSeq = 0;
+    function replaceWords(old, text, span, line) {
+        const parts = String(text).split(/\s+/).map(Vocals.displayWord).filter(t => Vocals.norm(t));
+        const before = old.map(w => w.text).join(' ');
+        if (parts.join(' ') === before) return;
+        state.editUndo.push(new Map(state.wordEdits));
+        if (parts.length && parts.length === old.length) {
+            old.forEach((w, k) => {
+                const v = [Math.round(w.s), Math.round(w.e), parts[k]];
+                state.wordEdits.set(editKeyOf(w), w.ak ? [...v, w.ref] : v);
+            });
+        } else {
+            old.forEach(dropWord);
+            const weight = parts.map(p => p.length + 1), sum = weight.reduce((a, b) => a + b, 0);
+            let t = span[0];
+            parts.forEach((p, k) => {
+                const e = k === parts.length - 1 ? span[1] : t + (span[1] - span[0]) * weight[k] / sum;
+                state.wordEdits.set(`add:${Date.now().toString(36)}${(addSeq++).toString(36)}`, [Math.round(t), Math.round(e), p, line]);
+                t = e;
+            });
+        }
+        const what = !parts.length ? `Removed "${before}".` : !old.length ? `Added "${parts.join(' ')}".` : `"${before}" is now "${parts.join(' ')}".`;
+        wordsChanged(what + ' Ctrl+Z undoes it.');
+    }
+
+    // A little text box over the timeline for typing words.
+    let wordBox = null;
+    function closeWordBox() { if (wordBox) { wordBox.remove(); wordBox = null; } }
+    function openWordBox(xPx, value, hint, done) {
+        closeWordBox();
+        const r = tl.getBoundingClientRect();
+        const box = document.createElement('div');
+        box.className = 'word-box';
+        box.innerHTML = `<input type="text" aria-label="${esc(hint)}" placeholder="${esc(hint)}"><span class="muted small">Enter to keep, Esc to cancel</span>`;
+        document.body.appendChild(box);
+        wordBox = box;
+        const inp = box.querySelector('input');
+        inp.value = value;
+        const w = box.offsetWidth;
+        box.style.left = Math.max(window.scrollX + 8, Math.min(window.scrollX + r.left + xPx - 20, window.scrollX + document.documentElement.clientWidth - w - 8)) + 'px';
+        box.style.top = (window.scrollY + r.top + Math.max(0, wordsLaneTop() - 6)) + 'px';
+        let finished = false;
+        const finish = keep => { if (finished) return; finished = true; const v = inp.value; closeWordBox(); if (keep) done(v); };
+        inp.addEventListener('keydown', e => {
+            e.stopPropagation();
+            if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+            else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+        });
+        inp.addEventListener('blur', () => finish(inp.value !== value));
+        inp.focus();
+        inp.select();
+    }
+    function wordsLaneTop() {
+        let top = 0;
+        for (const l of LANES) { if (l.id === 'words') return top; top += l.h + 1; }
+        return 0;
+    }
+    const xOfMs = ms => LABEL_W + (ms / 1000 - state.view.t0) * state.view.pxPerSec;
+    function editWord(i) {
+        const w = state.lyrWordsMs[i];
+        if (!w) return;
+        openWordBox(xOfMs(w.s), w.text, 'Words (several split its time)', v => replaceWords([w], v, [w.s, w.e], w.ref));
+    }
+    // the words of a line: by its index in the found lines (or a new line's)
+    function editLine(li) {
+        const ws = state.lyrWordsMs.filter(w => w.line === li);
+        if (!ws.length) return;
+        openWordBox(xOfMs(ws[0].s), ws.map(w => w.text).join(' '), 'Words for this line', v => replaceWords(ws, v, [ws[0].s, ws[ws.length - 1].e], ws[0].ref));
+    }
+    // a new word (or several) where nothing is sung yet, from the clicked time
+    function addWordsAt(ms) {
+        const ws = state.lyrWordsMs;
+        const next = ws.find(w => w.s > ms);
+        const prev = [...ws].reverse().find(w => w.s <= ms);
+        const s = Math.max(ms, prev ? prev.e : 0);
+        const e = Math.min(next ? next.s : state.buffer.duration * 1000, s + 1200);
+        if (e - s < 80) return;
+        // inside a sung line: part of it; otherwise a line of its own
+        const ln = state.lyr.lines.find(l => ms >= l.s * 1000 && ms <= l.e * 1000);
+        const lw = ln && ws.find(w => w.line === ln.li);
+        const line = lw ? lw.ref : 'new' + Date.now().toString(36);
+        openWordBox(xOfMs(s), '', 'New words here', v => replaceWords([], v, [s, e], line));
     }
 
     function undoWordEdit() {
@@ -1262,6 +1391,10 @@
             for (let i = 0; i < words.length; i++) {
                 if (Math.abs(words[i].s - ms) <= edgeTol) return { kind: 'start', i, ms };
             }
+            // the end of a word with a gap after it (where words touch, the next one's start moves both)
+            for (let i = 0; i < words.length; i++) {
+                if (Math.abs(words[i].e - ms) <= edgeTol && words[i].e - words[i].s > 2 * edgeTol) return { kind: 'end', i, ms };
+            }
             for (let i = 0; i < words.length; i++) if (ms > words[i].s && ms < words[i].e) return { kind: 'word', i, ms };
         }
         if (laneId === 'lines') {
@@ -1293,7 +1426,13 @@
         const first = d.idx[0], last = d.idx[d.idx.length - 1];
         const prev = o.get(first - 1), next = o.get(last + 1);
         const out = [];
-        if (d.kind === 'start') {
+        if (d.kind === 'end') {
+            const [s] = o.get(first);
+            let e = snapToOnset(ms, alt);
+            e = Math.max(s + 40, Math.min(next ? next[1] - 40 : state.buffer.duration * 1000, e));
+            out.push([first, s, e]);
+            if (next) out.push([first + 1, Math.max(next[0], e), next[1]]);
+        } else if (d.kind === 'start') {
             const [, e] = o.get(first);
             let s = snapToOnset(ms, alt);
             s = Math.max(prev ? prev[0] + 40 : 0, Math.min(e - 40, s));
@@ -1325,7 +1464,7 @@
         wordDrag = null;
         if (!d.moved) {
             draw();
-            if (d.kind !== 'line' && state.lyrWordsMs[d.i]) setVocalStatus(`"${state.lyrWordsMs[d.i].text}" picked: drag it or use the arrow keys to move it, Delete to remove it.`, null);
+            if (d.kind !== 'line' && state.lyrWordsMs[d.i]) setVocalStatus(`"${state.lyrWordsMs[d.i].text}" picked: drag it or its edges, arrow keys move it, Enter or double-click changes the words, Delete removes it.`, null);
             return;
         }
         // Only record what actually changed.
@@ -1334,7 +1473,7 @@
             return Math.round(o[1]) !== Math.round(s) || Math.round(o[2]) !== Math.round(e);
         });
         if (changed.length) {
-            const what = d.kind === 'line' ? 'Moved the line' : d.kind === 'start' ? `Moved the start of "${state.lyrWordsMs[d.i].text}"` : `Moved "${state.lyrWordsMs[d.i].text}"`;
+            const what = d.kind === 'line' ? 'Moved the line' : d.kind === 'start' ? `Moved the start of "${state.lyrWordsMs[d.i].text}"` : d.kind === 'end' ? `Moved the end of "${state.lyrWordsMs[d.i].text}"` : `Moved "${state.lyrWordsMs[d.i].text}"`;
             commitWordTimes(changed, what + '. Ctrl+Z undoes it.');
         }
     }
@@ -1385,14 +1524,21 @@
         $('vocalStats').innerHTML = (L.source === 'lyrics' ? 'Using your lyrics. ' : 'Using the words it heard. Paste the real lyrics above for exact words. ') +
             parts.join(' · ') + (warn ? `<div class="warn">${esc(warn)}</div>` : '');
         const df = $('dropFillers');
-        if (df) df.addEventListener('click', () => removeWords(fillers.map(w => w.ri), `Removed ${fillers.length} filled-in "${st.filler}" words.`));
+        if (df) df.addEventListener('click', () => removeWords(fillers, `Removed ${fillers.length} filled-in "${st.filler}" words.`));
         const tb = $('lyricRows');
         tb.innerHTML = '';
         for (const ln of L.lines) {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td class="num"><button type="button" class="link seek">${fmtTime(ln.s, true)}</button></td><td>${esc(ln.text)}</td><td class="num"><button type="button" class="link drop" title="Remove this line's words (Ctrl+Z brings them back)" aria-label="Remove this line">✕</button></td>`;
+            tr.innerHTML = `<td class="num"><button type="button" class="link seek">${fmtTime(ln.s, true)}</button></td><td>${esc(ln.text)}</td><td class="num"><button type="button" class="link edit" title="Change this line's words" aria-label="Change this line">✎</button> <button type="button" class="link drop" title="Remove this line's words (Ctrl+Z brings them back)" aria-label="Remove this line">✕</button></td>`;
             tr.querySelector('.seek').addEventListener('click', () => seek(ln.s, true));
-            tr.querySelector('.drop').addEventListener('click', () => removeWords(state.lyrWordsMs.filter(w => w.line === ln.li).map(w => w.ri), `Removed "${ln.text}" at ${fmtTime(ln.s, true)}.`));
+            tr.querySelector('.drop').addEventListener('click', () => removeWords(state.lyrWordsMs.filter(w => w.line === ln.li), `Removed "${ln.text}" at ${fmtTime(ln.s, true)}.`));
+            tr.querySelector('.edit').addEventListener('click', () => {
+                // show the line in the timeline, then type over it there
+                const ms = ln.s * 1000;
+                if (ln.s < state.view.t0 || ln.e > state.view.t0 + plotWidth() / state.view.pxPerSec) { state.view.t0 = clampT0(ln.s - 1); draw(); }
+                tl.scrollIntoView({ block: 'nearest' });
+                editLine(ln.li);
+            });
             tb.appendChild(tr);
         }
     }
@@ -1780,7 +1926,7 @@
             const L = p.lyrics || {};
             $('lyricsText').value = L.text || '';
             try { localStorage.setItem(lyricsKey(), L.text || ''); } catch (e) { /* storage blocked */ }
-            state.wordEdits = new Map((L.wordEdits || []).map(([k, s, e]) => [k, [s, e]]));
+            state.wordEdits = new Map((L.wordEdits || []).map(([k, ...v]) => [k, v]));
             state.editUndo = [];
             saveWordEdits();
             if (L.aligned && L.voice) {

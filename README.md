@@ -80,10 +80,14 @@ land on the wrong repeat. Fix it in xLights after import.
 
 ### Fixing word timing
 
-In the timeline's **Words** row, drag a word's left edge to move its start, or drag the
-word to move it; drag a line in the **Lyrics** row to move the whole line. Starts snap to
+In the timeline's **Words** row, drag a word's left edge to move its start (or its right
+edge, where a gap follows, to move its end), or drag the word to move it; drag a line in the **Lyrics** row to move the whole line. Starts snap to
 vocal onsets (Alt places freely). Click a word and use ← → to nudge 10 ms (Shift 50 ms).
-Delete removes the picked word; ✕ in the line list removes a line's words; *remove them*
+Double-click a word (or Enter / F2 on the picked one) to type new words: the same count keeps
+their times, more or fewer share the word's span by length. Double-click a Lyrics line or ✎ in
+the line list retypes a line; double-click empty space in Words adds words there (part of the
+line it falls in, or a new line). Added words are `add:<id>` edits `[s, e, text, line]`, new
+text on a found word is `[s, e, text]`. Delete removes the picked word; ✕ in the line list removes a line's words; *remove them*
 next to the filled-in sounds removes every filled-in word (stored as a [-1, -1] edit).
 Ctrl+Z undoes. Edits are kept per song (keyed by word position + word), survive
 "Update words" when the lyrics around them are unchanged, and can be removed in one go.
