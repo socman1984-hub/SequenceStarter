@@ -595,18 +595,29 @@
     const VOL_KEY = 'xlweb-volume';
     const vol = { level: 1, muted: false };
     try { Object.assign(vol, JSON.parse(localStorage.getItem(VOL_KEY) || '{}')); } catch (e) { /* storage blocked */ }
+    // a speaker with 0-2 sound waves, or crossed out
+    function speakerIcon(waves, off) {
+        const w = off ? '<path d="M15 9l5 6M20 9l-5 6"/>'
+            : (waves > 0 ? '<path d="M15.5 9.5a3.5 3.5 0 0 1 0 5"/>' : '') + (waves > 1 ? '<path d="M18 7a7 7 0 0 1 0 10"/>' : '');
+        return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z" fill="currentColor"/>${w}</svg>`;
+    }
     function applyVolume() {
         const v = vol.muted ? 0 : vol.level;
         // squared, so the slider feels even to the ear
         if (state.out) state.out.gain.setTargetAtTime(v * v, state.ctx.currentTime, 0.015);
         $('volume').value = String(Math.round(vol.level * 100));
-        $('muteBtn').textContent = v === 0 ? '🔇' : v < 0.5 ? '🔉' : '🔊';
-        $('muteBtn').title = vol.muted ? 'Unmute (M)' : 'Mute (M)';
-        $('muteBtn').setAttribute('aria-label', vol.muted ? 'Unmute' : 'Mute');
+        const b = $('muteBtn');
+        b.innerHTML = speakerIcon(v >= 0.5 ? 2 : v > 0 ? 1 : 0, v === 0);
+        b.classList.toggle('on', vol.muted);
+        b.setAttribute('aria-pressed', String(vol.muted));
+        b.title = vol.muted ? 'Muted: click or press M to hear the song again' : 'Mute (M)';
+        $('volume').classList.toggle('muted', vol.muted);
         try { localStorage.setItem(VOL_KEY, JSON.stringify(vol)); } catch (e) { /* storage blocked */ }
     }
     $('volume').addEventListener('input', e => { vol.level = +e.target.value / 100; vol.muted = false; applyVolume(); });
-    $('muteBtn').addEventListener('click', () => { vol.muted = !vol.muted; applyVolume(); });
+    // let go of focus, so Space plays and pauses again instead of pressing these
+    $('volume').addEventListener('change', e => e.target.blur());
+    $('muteBtn').addEventListener('click', e => { vol.muted = !vol.muted; applyVolume(); if (e.detail) e.currentTarget.blur(); });
     applyVolume();
 
     function scheduleClicks() {

@@ -89,8 +89,9 @@ button.link {
 .transport { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .chk { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
 .volume { display: inline-flex; align-items: center; gap: 4px; }
-.volume .btn { font-size: 15px; }
+.btn.tiny.mute { display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; height: 26px; color: var(--text); }
 .volume input[type=range] { width: 90px; accent-color: var(--accent); }
+.volume input[type=range].muted { opacity: 0.35; }
 .clock { font-variant-numeric: tabular-nums; font-family: ui-monospace, Consolas, monospace; min-width: 9ch; }
 
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 12px 0; }
