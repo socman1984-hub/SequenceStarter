@@ -1,18 +1,10 @@
 [
   {
-    "version": "2026.10.25.3",
-    "date": "2026-10-25",
-    "title": "Clearer mute button",
-    "items": [
-      ["fixed", "The mute button next to the volume slider looked greyed out, and muting barely changed it, so it seemed to do nothing. It is now a clear speaker icon that turns pink and crossed out when muted, and the slider fades. After clicking it or the slider, Space plays and pauses again."]
-    ]
-  },
-  {
     "version": "2026.10.25.2",
     "date": "2026-10-25",
     "title": "Volume slider",
     "items": [
-      ["new", "A volume slider next to Play sets how loud the song and the beat click are. Click 🔊 or press M to mute. Your volume is remembered for next time."],
+      ["new", "A volume slider next to Play sets how loud the song and the beat click are. Click the speaker button or press M to mute. Your volume is remembered for next time."],
       ["better", "Suggested by SCUBA STEVE on Discord. Thank you!"]
     ]
   },

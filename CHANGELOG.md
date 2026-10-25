@@ -2,17 +2,11 @@
 
 Release notes for SequenceStarter, newest first. The same list is in the app under **✨ What's new**.
 
-## 2026.10.25.3 — Clearer mute button
-
-_2026-10-25_
-
-- **Fixed:** The mute button next to the volume slider looked greyed out, and muting barely changed it, so it seemed to do nothing. It is now a clear speaker icon that turns pink and crossed out when muted, and the slider fades. After clicking it or the slider, Space plays and pauses again.
-
 ## 2026.10.25.2 — Volume slider
 
 _2026-10-25_
 
-- **New:** A volume slider next to Play sets how loud the song and the beat click are. Click 🔊 or press M to mute. Your volume is remembered for next time.
+- **New:** A volume slider next to Play sets how loud the song and the beat click are. Click the speaker button or press M to mute. Your volume is remembered for next time.
 - **Better:** Suggested by SCUBA STEVE on Discord. Thank you!
 
 ## 2026.10.25 — Pick a section's color, faces on groups fixed
