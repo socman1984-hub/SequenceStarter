@@ -1,5 +1,14 @@
 [
   {
+    "version": "2026.10.25.2",
+    "date": "2026-10-25",
+    "title": "Volume slider",
+    "items": [
+      ["new", "A volume slider next to Play sets how loud the song and the beat click are. Click 🔊 or press M to mute. Your volume is remembered for next time."],
+      ["better", "Suggested by SCUBA STEVE on Discord. Thank you!"]
+    ]
+  },
+  {
     "version": "2026.10.25",
     "date": "2026-10-25",
     "title": "Pick a section's color, faces on groups fixed",

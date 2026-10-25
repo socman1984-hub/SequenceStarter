@@ -170,7 +170,12 @@
             state.voc = state.lyr = state.lyrRaw = state.lyrWordsMs = state.vocBuffer = null;
             state.wordEdits = new Map();
             state.editUndo = [];
-            state.ctx = state.ctx || new AudioContext();
+            if (!state.ctx) {
+                state.ctx = new AudioContext();
+                state.out = state.ctx.createGain();
+                state.out.connect(state.ctx.destination);
+                applyVolume();
+            }
             state.buffer = await state.ctx.decodeAudioData(ab);
             const t0 = performance.now();
             state.model = await Analysis.analyze(state.buffer, (p, what) => setStatus(`${what}… ${Math.round(p * 100)}%`));
@@ -550,7 +555,7 @@
         const src = state.ctx.createBufferSource();
         src.buffer = $('voiceOnly').checked && state.vocBuffer ? state.vocBuffer : state.buffer;
         src.playbackRate.value = p.rate || 1;
-        src.connect(state.ctx.destination);
+        src.connect(state.out);
         p.startCtx = state.ctx.currentTime + 0.03;
         p.startPos = p.pos;
         src.start(p.startCtx, p.pos);
@@ -585,6 +590,25 @@
         draw();
     }
 
+    // ---------- volume ----------
+    // One gain for the song and the beat click, remembered between visits.
+    const VOL_KEY = 'xlweb-volume';
+    const vol = { level: 1, muted: false };
+    try { Object.assign(vol, JSON.parse(localStorage.getItem(VOL_KEY) || '{}')); } catch (e) { /* storage blocked */ }
+    function applyVolume() {
+        const v = vol.muted ? 0 : vol.level;
+        // squared, so the slider feels even to the ear
+        if (state.out) state.out.gain.setTargetAtTime(v * v, state.ctx.currentTime, 0.015);
+        $('volume').value = String(Math.round(vol.level * 100));
+        $('muteBtn').textContent = v === 0 ? '🔇' : v < 0.5 ? '🔉' : '🔊';
+        $('muteBtn').title = vol.muted ? 'Unmute (M)' : 'Mute (M)';
+        $('muteBtn').setAttribute('aria-label', vol.muted ? 'Unmute' : 'Mute');
+        try { localStorage.setItem(VOL_KEY, JSON.stringify(vol)); } catch (e) { /* storage blocked */ }
+    }
+    $('volume').addEventListener('input', e => { vol.level = +e.target.value / 100; vol.muted = false; applyVolume(); });
+    $('muteBtn').addEventListener('click', () => { vol.muted = !vol.muted; applyVolume(); });
+    applyVolume();
+
     function scheduleClicks() {
         const p = state.play;
         if (!p.playing || !$('click').checked) return;
@@ -604,7 +628,7 @@
             g.gain.setValueAtTime(0.0001, when);
             g.gain.exponentialRampToValueAtTime(b.n === 1 ? 0.5 : 0.3, when + 0.002);
             g.gain.exponentialRampToValueAtTime(0.0001, when + 0.05);
-            osc.connect(g).connect(state.ctx.destination);
+            osc.connect(g).connect(state.out);
             osc.start(when);
             osc.stop(when + 0.06);
         }
@@ -633,6 +657,7 @@
     document.addEventListener('keydown', e => {
         if (!state.buffer || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
         if (e.key === 'Home') { e.preventDefault(); toStart(); return; }
+        if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey && !e.altKey) { vol.muted = !vol.muted; applyVolume(); return; }
         const songTab = !document.querySelector('[data-pane=song]').hidden;
         if (e.code === 'Space' && e.target.tagName !== 'BUTTON') {
             e.preventDefault();
