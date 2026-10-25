@@ -447,9 +447,14 @@ const Sequencer = (() => {
             const N = { n, u: new Float32Array(n), v: new Float32Array(n), k: new Int32Array(n), seed: new Int32Array(n), g: new Int32Array(n), w: 96, h: 50 };
             // the same nodes seen through each model's own buffer
             const NM = { ...N, u: new Float32Array(n), v: new Float32Array(n), k: new Int32Array(n), bw: new Float32Array(n), bh: new Float32Array(n) };
+            // the props the nodes belong to (a group or submodel row has no model of its own)
+            const members = [], mi = new Int32Array(n);
             list.forEach((t, i) => {
                 N.u[i] = t.u; N.v[i] = t.v; N.k[i] = i; N.g[i] = t.model.offset + t.i; N.seed[i] = N.g[i] * 2654435761 | 0;
                 NM.u[i] = t.mu; NM.v[i] = t.mv; NM.k[i] = t.i; NM.bw[i] = Math.max(1, t.bw || 1); NM.bh[i] = Math.max(1, t.bh || 1);
+                let j = members.indexOf(t.model);
+                if (j < 0) j = members.push(t.model) - 1;
+                mi[i] = j;
             });
             const m = show.models.get(name);
             const grp = show.groups.get(name);
@@ -469,7 +474,7 @@ const Sequencer = (() => {
             }
             // imported layers first (xLights' last layer is the bottom), then the ones made here
             const imp = (r.imp || []).slice().sort((a, b) => b.key - a.key).map(x => x.fx);
-            targets.push({ name, N, NM, NP: N.pw ? { ...N, w: N.pw, h: N.ph } : N, model: m || null, layers: imp.concat(r.layers.filter(Boolean)), tmp: new Float32Array(3 * n), acc: new Float32Array(3 * n) });
+            targets.push({ name, N, NM, NP: N.pw ? { ...N, w: N.pw, h: N.ph } : N, model: m || null, members, mi, layers: imp.concat(r.layers.filter(Boolean)), tmp: new Float32Array(3 * n), acc: new Float32Array(3 * n) });
         }
         // rows render in the sequence's order (a later row draws over earlier ones)
         const pos = new Map(rowOrder(show, gen.imported).map((n2, i) => [n2, i]));
@@ -501,9 +506,8 @@ const Sequencer = (() => {
         return null;
     }
 
-    function renderFaces(fx, tgt, song, out, t) {
-        const m = tgt.model;
-        if (!m) return;
+    function renderFaces(fx, m, song, out, t) {
+        if (!m || !m.faces) return;
         const face = m.faces.find(f => f.name === fx.o.face) || m.faces[0];
         if (!face) return;
         const ph = song.lyr ? itemAt(song.lyr.phonemes, t) : null;
@@ -635,11 +639,14 @@ const Sequencer = (() => {
                 if (fx.eff.id === 'faces') {
                     if (!any) acc.fill(0);
                     any = true;
-                    const local = new Float32Array(3 * tgt.model.nodes.length);
-                    renderFaces(fx, tgt, song, local, t);
-                    // faces address model nodes directly
+                    // faces address model nodes directly; on a group, each member prop shows its own face
+                    const locals = tgt.members.map(mm => {
+                        const local = new Float32Array(3 * mm.nodes.length);
+                        renderFaces(fx, mm, song, local, t);
+                        return local;
+                    });
                     for (let k = 0; k < N.n; k++) {
-                        const gi = N.g[k] - tgt.model.offset;
+                        const local = locals[tgt.mi[k]], gi = tgt.NM.k[k];
                         acc[3 * k] += local[3 * gi]; acc[3 * k + 1] += local[3 * gi + 1]; acc[3 * k + 2] += local[3 * gi + 2];
                     }
                     continue;

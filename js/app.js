@@ -335,6 +335,14 @@
         sectionsChanged({ op: 'rename', id });
     }
 
+    // The color is the section's group letter: same letter, same color.
+    function recolorSection(id, letter) {
+        const s = ownSections().find(x => x.id === id);
+        if (!s || s.letter === letter) return;
+        s.letter = letter;
+        sectionsChanged({ op: 'recolor', id });
+    }
+
     // Move the boundary between section i-1 and i.
     function moveBoundary(i, t, free) {
         const list = ownSections();
@@ -391,10 +399,11 @@
             const tr = document.createElement('tr');
             tr.innerHTML = `<td class="num"><button type="button" class="link seek">${fmtTime(s.s)}</button></td>
                 <td class="num">${s.bars} bars</td>
-                <td><span class="swatch" style="background:${sectionColor(s.letter || 'A')}"></span><input type="text" value="${esc(s.name)}" aria-label="Section name"></td>
+                <td><button type="button" class="swatch pick" style="background:${sectionColor(s.letter || 'A')}" title="Change color" aria-label="Change color of ${esc(s.name)}"></button><input type="text" value="${esc(s.name)}" aria-label="Section name"></td>
                 <td><span class="meter"><span style="width:${Math.round((s.energy ?? 0.5) * 100)}%"></span></span></td>
                 <td class="sec-actions"><button type="button" class="btn tiny split" title="Split this section at the playhead">Split</button>${i + 1 < list.length ? '<button type="button" class="btn tiny merge" title="Join with the next section">Join ↓</button>' : ''}</td>`;
             tr.querySelector('.seek').addEventListener('click', () => seek(s.s, true));
+            tr.querySelector('.pick').addEventListener('click', e => { e.stopPropagation(); openColorPicker(e.currentTarget, s); });
             const inp = tr.querySelector('input');
             inp.addEventListener('input', e => { s.name = e.target.value; draw(); });
             inp.addEventListener('change', e => renameSection(s.id, e.target.value));
@@ -415,6 +424,35 @@
     }
 
     function setSectionNote(msg) { $('sectionNote').textContent = msg; }
+
+    let colorPicker = null;
+    function closeColorPicker() { if (colorPicker) { colorPicker.remove(); colorPicker = null; } }
+    function openColorPicker(btn, s) {
+        closeColorPicker();
+        const pop = colorPicker = document.createElement('div');
+        pop.className = 'color-pop';
+        pop.innerHTML = SECTION_HUES.map((_, i) => {
+            const L = String.fromCharCode(65 + i);
+            return `<button type="button" class="swatch${L === s.letter ? ' on' : ''}" data-l="${L}" style="background:${sectionColor(L)}" aria-label="Color ${i + 1}"></button>`;
+        }).join('');
+        pop.addEventListener('click', e => {
+            const b = e.target.closest('[data-l]');
+            if (!b) return;
+            const name = s.name, same = state.grid.sections.filter(x => x !== s && x.letter === b.dataset.l).map(x => x.name);
+            closeColorPicker();
+            recolorSection(s.id, b.dataset.l);
+            setSectionNote(`"${name}" is now this color${same.length ? `, like ${same.slice(0, 3).join(', ')}${same.length > 3 ? '…' : ''}` : ''}.`);
+        });
+        document.body.appendChild(pop);
+        const r = btn.getBoundingClientRect();
+        pop.style.left = Math.max(8, Math.min(r.left, innerWidth - pop.offsetWidth - 8)) + 'px';
+        pop.style.top = (r.bottom + 4 + pop.offsetHeight > innerHeight ? r.top - 4 - pop.offsetHeight : r.bottom + 4) + 'px';
+        pop.querySelector('.on, .swatch')?.focus();
+    }
+    document.addEventListener('click', e => { if (colorPicker && !colorPicker.contains(e.target)) closeColorPicker(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeColorPicker(); });
+    addEventListener('scroll', closeColorPicker, true);
+    addEventListener('resize', closeColorPicker);
 
     $('splitAtPlayhead').addEventListener('click', () => {
         const t = currentTime(), s = sectionAtTime(t);

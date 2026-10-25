@@ -1,5 +1,15 @@
 [
   {
+    "version": "2026.10.25",
+    "date": "2026-10-25",
+    "title": "Pick a section's color, faces on groups fixed",
+    "items": [
+      ["new", "Click the color dot next to a section's name to give it another color. Sections with the same color belong together, so after renaming you can make every verse one color and every chorus another. The timeline and saved projects keep your choice."],
+      ["fixed", "Working on an xLights sequence with a singing face on a group or a submodel failed with \"Cannot read properties of null (reading 'nodes')\". Each prop in the group now sings with its own face, and a submodel shows its part of the face."],
+      ["better", "The section colors were asked for by Larry D., and augustus reported the faces error, both on Discord. Thank you!"]
+    ]
+  },
+  {
     "version": "2026.10.21",
     "date": "2026-10-21",
     "title": "Change and add words, resize from either end",

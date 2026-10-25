@@ -2,6 +2,14 @@
 
 Release notes for SequenceStarter, newest first. The same list is in the app under **✨ What's new**.
 
+## 2026.10.25 — Pick a section's color, faces on groups fixed
+
+_2026-10-25_
+
+- **New:** Click the color dot next to a section's name to give it another color. Sections with the same color belong together, so after renaming you can make every verse one color and every chorus another. The timeline and saved projects keep your choice.
+- **Fixed:** Working on an xLights sequence with a singing face on a group or a submodel failed with "Cannot read properties of null (reading 'nodes')". Each prop in the group now sings with its own face, and a submodel shows its part of the face.
+- **Better:** The section colors were asked for by Larry D., and augustus reported the faces error, both on Discord. Thank you!
+
 ## 2026.10.21 — Change and add words, resize from either end
 
 _2026-10-21_
