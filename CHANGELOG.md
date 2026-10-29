@@ -2,6 +2,13 @@
 
 Release notes for SequenceStarter, newest first. The same list is in the app under **✨ What's new**.
 
+## 2026.10.28 — Submodels in Prop types
+
+_2026-10-28_
+
+- **New:** Prop types… now lists each prop's submodels under it, so a part can be its own kind of prop (the star on a mini tree, the matrix inside a fence). Ideas then give that part the effects for its type, or leave it alone if you choose Skip. To light a submodel yourself, click ▸ next to a prop in Choose lights.
+- **Better:** Suggested by cjalmond, and asked about by Screaminlean, on Discord. Thank you!
+
 ## 2026.10.25.2 — Volume slider
 
 _2026-10-25_

@@ -2232,19 +2232,21 @@
         const find = $('typesFind').value.trim().toLowerCase();
         const onlyUnknown = $('typesUnknown').checked;
         const label = c => Ideas.CLASS_LABELS[c] || c;
-        const row = (name, kind) => {
+        const row = (name, kind, shown = name, sub = false) => {
             const guess = Ideas.guessClass(sh, name);
             if (guess === 'face') return '';
             const set = sh.propTypes[name] || '';
             if (onlyUnknown && guess !== 'generic' && !set) return '';
             if (find && !name.toLowerCase().includes(find)) return '';
-            return `<tr><td>${esc(name)}<div class="muted small">${esc(kind)}</div></td><td><select data-name="${esc(name)}">
+            return `<tr${sub ? ' class="sub"' : ''}><td>${esc(shown)}<div class="muted small">${esc(kind)}</div></td><td><select data-name="${esc(name)}">
                 <option value="">Guess: ${esc(label(guess))}</option>
                 ${TYPE_CHOICES.map(c => `<option value="${c}" ${set === c ? 'selected' : ''}>${esc(label(c))}</option>`).join('')}
             </select></td></tr>`;
         };
         const groups = [...sh.groups.keys()].map(g => row(g, `group of ${Show.resolveTarget(sh, g).length.toLocaleString()} lights`)).join('');
-        const models = [...sh.models.values()].filter(m => m.attrs.Controller !== 'No Controller').map(m => row(m.name, `${m.type}, ${m.nodes.length.toLocaleString()} lights`)).join('');
+        // each prop, then its submodels (a part can be a different kind: "MiniTree1/Star")
+        const models = [...sh.models.values()].filter(m => m.attrs.Controller !== 'No Controller').map(m => row(m.name, `${m.type}, ${m.nodes.length.toLocaleString()} lights`) +
+            m.submodels.filter(s => s.nodes.length).map(s => row(m.name + '/' + s.name, `part of ${m.name}, ${s.nodes.length.toLocaleString()} lights`, s.name, true)).join('')).join('');
         $('typesTable').innerHTML = (groups ? `<tr><th colspan="2">Groups</th></tr>${groups}` : '') + (models ? `<tr><th colspan="2">Props</th></tr>${models}` : '') ||
             '<tr><td class="muted">Nothing to show.</td></tr>';
         $('typesTable').querySelectorAll('select').forEach(sel => sel.addEventListener('change', () => {

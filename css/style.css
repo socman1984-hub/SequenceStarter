@@ -382,6 +382,7 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: .92em; backgro
 .mix-wrap { overflow: auto; padding: 8px 16px; min-height: 0; }
 .mix-table { border-collapse: collapse; font-size: 13px; }
 .mix-table th, .mix-table td { padding: 3px 5px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.mix-table tr.sub td:first-child { padding-left: 22px; }
 .mix-table thead th { position: sticky; top: 0; background: var(--surface); font-weight: 600; }
 .mix-prop { font-weight: 600; }
 .mix-prop .muted { display: block; font-weight: 400; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }

@@ -681,7 +681,10 @@ const Ideas = (() => {
             const parts = (ROUND.has(cls) || cls === 'megatree' || cls === 'minitree') && energy >= 0.4 && pr() < 0.5 ? partsOf(show, t) : [];
             if (parts.length >= 2) {
                 parts.forEach((pt, i) => {
-                    for (const r of [].concat(rowFor(show, pt.targets[0], propRng(t + '#' + pt.name), ctx, cls) || [])) {
+                    // a part gets its prop's effects, unless it was given a type of its own (Prop types)
+                    const own = show.propTypes && show.propTypes[pt.targets[0]];
+                    if (own === 'skip') return;
+                    for (const r of [].concat(rowFor(show, pt.targets[0], propRng(t + '#' + pt.name), ctx, own || cls) || [])) {
                         r.targets = pt.targets;
                         r.of = t;
                         if (i % 2 === 1) { r.colors = [ctx.cp.accent || r.colors[0]]; r.scheme = schemeTag(r.colors, ctx.scheme); }
