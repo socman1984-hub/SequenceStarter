@@ -292,6 +292,21 @@
         $('fxpStatus').scrollIntoView({ block: 'nearest' });
     });
 
+    $('fxpPresets').addEventListener('click', () => {
+        if (!stats || !found) return;
+        if (!stats.sequences.length) { $('fxpScan').textContent = 'Tick at least one sequence to take effects from.'; return; }
+        if (!pickedKinds.size && !pickedProps.size) { $('fxpScan').textContent = 'Tick at least one kind of prop or one prop.'; return; }
+        const title = ($('fxpProfName').value.trim() || 'My effects') + ' ' + new Date().toLocaleDateString('en-CA');
+        const r = Profiles.presetsXml(stats, showNow(), { kinds: [...pickedKinds], props: [...pickedProps] }, title);
+        if (!r.presets) { $('fxpScan').textContent = 'The ticked props have no effects to save.'; return; }
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([r.xml], { type: 'application/xml' }));
+        a.download = title.replace(/[\\/:*?"<>|]+/g, '_') + '.xpreset';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+        $('fxpScan').textContent = `Saved ${r.presets} presets for ${r.props} prop${r.props === 1 ? '' : 's'}. In xLights: Effect Presets, Import, then pick the .xpreset file.`;
+    });
+
     bind();
     draw();
 })();

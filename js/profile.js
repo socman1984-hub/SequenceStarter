@@ -11,7 +11,7 @@ const Profiles = (() => {
 
     // One sequence: { made: true when this app wrote it, effects: [{ target, name, s, e, settings, pal }] }
     function readXsq(text) {
-        const out = { made: /Made with (SequenceStarter|Lights Auto Sequencer)/.test(text), effects: [] };
+        const out = { made: /Made with (SequenceStarter|Lights Auto Sequencer)/.test(text), effects: [], version: (/<version>([^<]*)<\/version>/.exec(text) || [])[1] || '' };
         const dbBlock = /<EffectDB>([\s\S]*?)<\/EffectDB>/.exec(text);
         const db = dbBlock ? [...dbBlock[1].matchAll(/<Effect>([\s\S]*?)<\/Effect>|<Effect\/>/g)].map(m => unesc(m[1] || '')) : [];
         const palBlock = /<ColorPalettes>([\s\S]*?)<\/ColorPalettes>/.exec(text);
@@ -59,6 +59,15 @@ const Profiles = (() => {
         return { id, o, hit };
     }
 
+    // The effects exactly as xLights saved them, for xLights presets: distinct
+    // effect + settings + colors, with how often each was used.
+    const RAW_MAX = 60;
+    function addRaw(list, r) {
+        const had = list.find(x => x.name === r.name && x.settings === r.settings && x.pal === r.pal);
+        if (had) had.n += r.n;
+        else if (list.length < RAW_MAX) list.push({ ...r });
+    }
+
     // Everything read so far, by target: { [target]: { look: {id: sec}, hit: {id: n}, opts: {id: [o...]}, seqs: Set } }
     function emptyStats() { return { targets: {}, sequences: [], skipped: [] }; }
     function addSequence(stats, fileName, text, { skipMade = true } = {}) {
@@ -69,8 +78,9 @@ const Profiles = (() => {
         const keyOf = s => s.replace(/[^\w ]/g, '');
         for (const x of seq.effects) {
             const f = effectOf(x);
-            const T = stats.targets[x.target] || (stats.targets[x.target] = { look: {}, hit: {}, opts: {}, seqs: [], unknown: {} });
+            const T = stats.targets[x.target] || (stats.targets[x.target] = { look: {}, hit: {}, opts: {}, seqs: [], unknown: {}, raw: [] });
             if (!T.seqs.includes(fileName)) T.seqs.push(fileName);
+            addRaw(T.raw, { name: x.name, settings: x.settings, pal: x.pal, ms: Math.round((x.e - x.s) * 1000), n: 1, ver: seq.version });
             if (!f) { T.unknown[x.name] = (T.unknown[x.name] || 0) + 1; continue; }
             if (f.hit) T.hit[f.id] = (T.hit[f.id] || 0) + 1;
             else T.look[f.id] = (T.look[f.id] || 0) + (x.e - x.s);
@@ -175,7 +185,8 @@ const Profiles = (() => {
             if (!s) continue;
             out.sequences.push(...s.sequences);
             for (const [t, T] of Object.entries(s.targets)) {
-                const M = out.targets[t] || (out.targets[t] = { look: {}, hit: {}, opts: {}, seqs: [], unknown: {} });
+                const M = out.targets[t] || (out.targets[t] = { look: {}, hit: {}, opts: {}, seqs: [], unknown: {}, raw: [] });
+                for (const r of T.raw || []) addRaw(M.raw, r);
                 for (const [k, v] of Object.entries(T.look)) M.look[k] = (M.look[k] || 0) + v;
                 for (const [k, v] of Object.entries(T.hit)) M.hit[k] = (M.hit[k] || 0) + v;
                 for (const [k, v] of Object.entries(T.unknown)) M.unknown[k] = (M.unknown[k] || 0) + v;
@@ -186,5 +197,41 @@ const Profiles = (() => {
         return out;
     }
 
-    return { readXsq, effectOf, emptyStats, addSequence, readOne, merge, summary, build, kindOf, HIT_SEC };
+    // An xLights preset file (.xpreset, for Effect Presets > Import) of the effects
+    // read: a group per kind of prop, in it a group per prop, most used first.
+    // pick: { kinds: [kind], props: [target] } (a prop is in when it or its kind is ticked).
+    function presetsXml(stats, show, pick, title) {
+        const x = v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\t/g, '&#9;').replace(/\n/g, '&#10;').replace(/\r/g, '&#13;');
+        const kinds = new Set(pick.kinds || []), props = new Set(pick.props || []);
+        const byKind = new Map();
+        const targets = Object.keys(stats.targets).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+        for (const t of targets) {
+            const T = stats.targets[t];
+            const kind = kindOf(show, t.split('/')[0]);
+            if (!T.raw || !T.raw.length || !(props.has(t) || kinds.has(kind))) continue;
+            if (!byKind.has(kind)) byKind.set(kind, []);
+            byKind.get(kind).push([t, T.raw]);
+        }
+        let n = 0, body = '';
+        for (const [kind, list] of byKind) {
+            body += `    <effectGroup name="${x((Ideas.CLASS_LABELS && Ideas.CLASS_LABELS[kind]) || kind)}">\n`;
+            for (const [t, raw] of list) {
+                body += `      <effectGroup name="${x(t)}">\n`;
+                const count = {};
+                for (const r of [...raw].sort((a, b) => b.n - a.n)) {
+                    count[r.name] = (count[r.name] || 0) + 1;
+                    // what xLights copies for one effect on one row (CopyFormat1), placed where it's dropped
+                    const data = `CopyFormat1\t0\t1\t0\t0\t-1000\tNO_PASTE_BY_CELL\tRELATIVE\n${r.name}\t${r.settings}\t${r.pal}\t0\t${Math.max(r.ms, 50)}\t0\t-1000\tNO_PASTE_BY_CELL\tLAYER:0\n`;
+                    body += `        <effect name="${x(r.name + ' ' + count[r.name])}" settings="${x(data)}" version="0007" xLightsVersion="${x(r.ver || '2024.01')}"/>\n`;
+                    n++;
+                }
+                body += '      </effectGroup>\n';
+            }
+            body += '    </effectGroup>\n';
+        }
+        const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<preset SourceVersion="SequenceStarter">\n  <effectGroup name="${x(title)}">\n${body}  </effectGroup>\n</preset>\n`;
+        return { xml, presets: n, kinds: byKind.size, props: [...byKind.values()].reduce((a, l) => a + l.length, 0) };
+    }
+
+    return { readXsq, effectOf, presetsXml, emptyStats, addSequence, readOne, merge, summary, build, kindOf, HIT_SEC };
 })();

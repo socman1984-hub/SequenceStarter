@@ -1,5 +1,14 @@
 [
   {
+    "version": "2026.10.28.2",
+    "date": "2026-10-28",
+    "title": "Download your effects as xLights presets",
+    "items": [
+      ["new", "Effects for props, Build a profile from your own sequences: the new Download xLights presets button saves the effects of the ticked props and kinds of prop, exactly as your sequences have them, as an .xpreset file. In xLights, open Effect Presets, click Import and pick the file: you get a group for each kind of prop, a group for each prop in it, and the most used effects first."],
+      ["better", "Suggested by Fame28 on Discord. Thank you!"]
+    ]
+  },
+  {
     "version": "2026.10.28",
     "date": "2026-10-28",
     "title": "Submodels in Prop types",
