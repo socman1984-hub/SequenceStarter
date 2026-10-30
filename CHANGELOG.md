@@ -6,7 +6,7 @@ Release notes for SequenceStarter, newest first. The same list is in the app und
 
 _2026-10-28_
 
-- **New:** Effects for props, Build a profile from your own sequences: the new Download xLights presets button saves the effects of the ticked props and kinds of prop, exactly as your sequences have them, as an .xpreset file. In xLights, open Effect Presets, click Import and pick the file: you get a group for each kind of prop, a group for each prop in it, and the most used effects first.
+- **New:** Effects for props, Build a profile from your own sequences: the new Download xLights presets button saves the effects of the ticked props and kinds of prop, exactly as your sequences have them, as an .xpreset file. Effects stacked on a prop's layers at the same time become one layered preset, like the ones you save in xLights. In xLights, open Effect Presets, click Import and pick the file: you get a group for each kind of prop, a group for each prop in it, layered looks first, then the most used single effects.
 - **Better:** Suggested by Fame28 on Discord. Thank you!
 
 ## 2026.10.28 — Submodels in Prop types

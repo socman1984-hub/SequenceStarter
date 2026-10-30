@@ -24,7 +24,8 @@ const Profiles = (() => {
             if (!model) continue;
             // the element's own layers, submodel layers (Model/Sub), strands and nodes (the model)
             const body = el[1];
-            const add = (target, chunk) => {
+            // layer: which of the target's layers (0 = top), null for strands and nodes
+            const add = (target, chunk, layer = null) => {
                 for (const ef of chunk.matchAll(/<Effect\s[^>]*?\/?>/g)) {
                     const t = ef[0];
                     const name = attr(t, 'name');
@@ -32,13 +33,23 @@ const Profiles = (() => {
                     const ref = attr(t, 'ref');
                     const s = +attr(t, 'startTime') / 1000, e = +attr(t, 'endTime') / 1000;
                     if (!(e > s)) continue;
-                    out.effects.push({ target, name: unesc(name), s, e, settings: ref != null ? db[+ref] || '' : '', pal: pals[+(attr(t, 'palette') || 0)] || '' });
+                    out.effects.push({ target, layer, name: unesc(name), s, e, settings: ref != null ? db[+ref] || '' : '', pal: pals[+(attr(t, 'palette') || 0)] || '' });
                 }
             };
             let rest = body;
-            for (const sm of body.matchAll(/<SubModelEffectLayer\s[^>]*name="([^"]*)"[^>]*>([\s\S]*?)<\/SubModelEffectLayer>/g)) {
-                add(model + '/' + unesc(sm[1]), sm[2]);
+            // a submodel with several layers has a SubModelEffectLayer for each, in order
+            const smLayers = {};
+            for (const sm of body.matchAll(/<SubModelEffectLayer\s[^>]*?name="([^"]*)"[^>]*?\/>|<SubModelEffectLayer\s[^>]*?name="([^"]*)"[^>]*>([\s\S]*?)<\/SubModelEffectLayer>/g)) {
+                const sub = unesc(sm[1] ?? sm[2]);
+                smLayers[sub] = (smLayers[sub] ?? -1) + 1;
+                if (sm[3]) add(model + '/' + sub, sm[3], smLayers[sub]);
                 rest = rest.replace(sm[0], '');
+            }
+            let layer = 0;
+            for (const L of rest.matchAll(/<EffectLayer\s*\/>|<EffectLayer\b[^>]*>([\s\S]*?)<\/EffectLayer>/g)) {
+                if (L[1]) add(model, L[1], layer);
+                layer++;
+                rest = rest.replace(L[0], '');
             }
             add(model, rest);
         }
@@ -59,13 +70,53 @@ const Profiles = (() => {
         return { id, o, hit };
     }
 
-    // The effects exactly as xLights saved them, for xLights presets: distinct
-    // effect + settings + colors, with how often each was used.
-    const RAW_MAX = 60;
+    // The effects exactly as xLights saved them, for xLights presets. A look is the
+    // effects on one target that overlap in time, on all its layers (one effect when
+    // nothing is stacked on it): { key, rows: [{ name, settings, pal, s, e, layer }] (ms
+    // from the look's start, layers from 0), n: times used, ver: xLights version }.
+    const RAW_MAX = 80, LOOK_MAX_MS = 60000, LOOK_MAX_ROWS = 48, BACKDROP_MS = 30000;
     function addRaw(list, r) {
-        const had = list.find(x => x.name === r.name && x.settings === r.settings && x.pal === r.pal);
+        const had = list.find(x => x.key === r.key);
         if (had) had.n += r.n;
         else if (list.length < RAW_MAX) list.push({ ...r });
+    }
+    function lookOf(effects, ver) {
+        const t0 = Math.min(...effects.map(x => x.s));
+        const layers = [...new Set(effects.map(x => x.layer ?? 0))].sort((a, b) => a - b);
+        const rows = effects.map(x => ({ name: x.name, settings: x.settings, pal: x.pal, s: Math.round((x.s - t0) * 1000), e: Math.round((x.e - t0) * 1000), layer: layers.indexOf(x.layer ?? 0) }))
+            .sort((a, b) => a.layer - b.layer || a.s - b.s);
+        // a look is the same at any length: timings count as shares of its length
+        const len = Math.max(...rows.map(w => w.e)) || 1;
+        const key = rows.length === 1 ? [rows[0].name, rows[0].settings, rows[0].pal].join('\t')
+            : JSON.stringify(rows.map(w => [w.name, w.settings, w.pal, w.layer, Math.round(w.s / len * 50), Math.round(w.e / len * 50)]));
+        return { key, rows, n: 1, ver };
+    }
+    // effects (one target, one sequence) in groups that overlap in time
+    function overlapping(list) {
+        const out = [];
+        let cur = null, end = -1;
+        for (const x of [...list].sort((a, b) => a.s - b.s)) {
+            if (cur && x.s < end) { cur.push(x); end = Math.max(end, x.e); }
+            else { cur = [x]; end = x.e; out.push(cur); }
+        }
+        return out;
+    }
+    function looksIn(effects, ver) {
+        const out = [];
+        const layered = effects.filter(x => x.layer != null);
+        for (const x of effects) if (x.layer == null) out.push(lookOf([x], ver));
+        for (const g of overlapping(layered)) {
+            const fits = gg => gg.length <= LOOK_MAX_ROWS && Math.max(...gg.map(x => x.e)) - Math.min(...gg.map(x => x.s)) <= LOOK_MAX_MS / 1000;
+            if (fits(g)) { out.push(lookOf(g, ver)); continue; }
+            // too long to be one look: long backdrops on their own, then what is stacked on them
+            const long = g.filter(x => x.e - x.s > BACKDROP_MS / 1000);
+            for (const x of long) out.push(lookOf([x], ver));
+            for (const gg of overlapping(g.filter(x => !long.includes(x)))) {
+                if (fits(gg)) out.push(lookOf(gg, ver));
+                else for (const x of gg) out.push(lookOf([x], ver));
+            }
+        }
+        return out;
     }
 
     // Everything read so far, by target: { [target]: { look: {id: sec}, hit: {id: n}, opts: {id: [o...]}, seqs: Set } }
@@ -80,7 +131,6 @@ const Profiles = (() => {
             const f = effectOf(x);
             const T = stats.targets[x.target] || (stats.targets[x.target] = { look: {}, hit: {}, opts: {}, seqs: [], unknown: {}, raw: [] });
             if (!T.seqs.includes(fileName)) T.seqs.push(fileName);
-            addRaw(T.raw, { name: x.name, settings: x.settings, pal: x.pal, ms: Math.round((x.e - x.s) * 1000), n: 1, ver: seq.version });
             if (!f) { T.unknown[x.name] = (T.unknown[x.name] || 0) + 1; continue; }
             if (f.hit) T.hit[f.id] = (T.hit[f.id] || 0) + 1;
             else T.look[f.id] = (T.look[f.id] || 0) + (x.e - x.s);
@@ -91,6 +141,9 @@ const Profiles = (() => {
                 if (!list.some(o => keyOf(JSON.stringify(o)) === k)) list.push(f.o);
             }
         }
+        const byTarget = {};
+        for (const x of seq.effects) (byTarget[x.target] || (byTarget[x.target] = [])).push(x);
+        for (const [t, list] of Object.entries(byTarget)) for (const r of looksIn(list, seq.version)) addRaw(stats.targets[t].raw, r);
     }
 
     // What a target is: the open show says (classify), else its name does.
@@ -218,11 +271,17 @@ const Profiles = (() => {
             for (const [t, raw] of list) {
                 body += `      <effectGroup name="${x(t)}">\n`;
                 const count = {};
-                for (const r of [...raw].sort((a, b) => b.n - a.n)) {
-                    count[r.name] = (count[r.name] || 0) + 1;
-                    // what xLights copies for one effect on one row (CopyFormat1), placed where it's dropped
-                    const data = `CopyFormat1\t0\t1\t0\t0\t-1000\tNO_PASTE_BY_CELL\tRELATIVE\n${r.name}\t${r.settings}\t${r.pal}\t0\t${Math.max(r.ms, 50)}\t0\t-1000\tNO_PASTE_BY_CELL\tLAYER:0\n`;
-                    body += `        <effect name="${x(r.name + ' ' + count[r.name])}" settings="${x(data)}" version="0007" xLightsVersion="${x(r.ver || '2024.01')}"/>\n`;
+                // layered looks first, then the most used
+                for (const r of [...raw].sort((a, b) => (b.rows.length > 1) - (a.rows.length > 1) || b.n - a.n)) {
+                    const names = [...new Set(r.rows.map(w => w.name))];
+                    const name = names.slice(0, 3).join(' + ') + (names.length > 3 ? ' + …' : '');
+                    count[name] = (count[name] || 0) + 1;
+                    // what xLights copies (CopyFormat1): one effect is placed on the row it's
+                    // dropped on (RELATIVE); a stack keeps its layers ("Using Layers")
+                    const one = r.rows.length === 1;
+                    let data = `CopyFormat1\t0\t${r.rows.length}\t0\t0\t-1000\tNO_PASTE_BY_CELL\t${one ? 'RELATIVE' : 'ANCHOR_ROW:0'}\n`;
+                    for (const w of r.rows) data += `${w.name}\t${w.settings}\t${w.pal}\t${w.s}\t${one ? Math.max(w.e, 50) : w.e}\t${w.layer}\t-1000\tNO_PASTE_BY_CELL\tLAYER:${w.layer}\n`;
+                    body += `        <effect name="${x(name + ' ' + count[name])}" settings="${x(data)}" version="0007" xLightsVersion="${x(r.ver || '2024.01')}"/>\n`;
                     n++;
                 }
                 body += '      </effectGroup>\n';
