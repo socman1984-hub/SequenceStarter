@@ -2,6 +2,13 @@
 
 Release notes for SequenceStarter, newest first. The same list is in the app under **✨ What's new**.
 
+## 2026.10.30 — Remove the downloaded voice models
+
+_2026-10-30_
+
+- **New:** Once the voice and speech models are downloaded, the bottom of the page shows how much space they take, with a Remove them button to get it back. Finding words on a new song downloads them again.
+- **Better:** Asked about by Lambo on Discord. Thank you!
+
 ## 2026.10.28.2 — Download your effects as xLights presets
 
 _2026-10-28_

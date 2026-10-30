@@ -2,10 +2,46 @@
 // (Transformers.js). Audio arrives as 16 kHz mono windows, each already cut
 // at a gap in the singing, so no word is split and long instrumental stretches
 // never reach the model (that is where Whisper invents text).
-import { pipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0';
+import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0';
 
 let asr = null, loadedModel = null, device = null;
 const post = (type, data = {}) => self.postMessage({ type, ...data });
+
+// The browser refuses to cache a single file much over 250 MB, and the larger
+// speech model's encoder is 336 MB: it would download again on every run. So big
+// files are kept in parts, with a small entry for the file itself written last,
+// which means a part-saved file just counts as not cached.
+const PART_BYTES = 100 * 1048576;
+const openCache = () => caches.open('transformers-cache');
+const partKey = (key, i) => `${key}?part=${i}`;
+
+env.useCustomCache = true;
+env.customCache = {
+    async match(key) {
+        const cache = await openCache();
+        const hit = await cache.match(key);
+        const n = hit && parseInt(hit.headers.get('x-parts') || '0', 10);
+        if (!n) return hit;
+        const parts = [];
+        for (let i = 0; i < n; i++) {
+            const part = await cache.match(partKey(key, i));
+            if (!part) return undefined;
+            parts.push(await part.blob());
+        }
+        const whole = new Blob(parts);
+        return new Response(whole, { headers: { 'content-length': String(whole.size) } });
+    },
+    async put(key, response) {
+        const cache = await openCache();
+        const whole = await response.clone().blob();
+        if (whole.size <= PART_BYTES) return cache.put(key, response);
+        const n = Math.ceil(whole.size / PART_BYTES);
+        for (let i = 0; i < n; i++) {
+            await cache.put(partKey(key, i), new Response(whole.slice(i * PART_BYTES, (i + 1) * PART_BYTES)));
+        }
+        await cache.put(key, new Response(null, { headers: { 'x-parts': String(n) } }));
+    },
+};
 
 async function load(model) {
     if (asr && loadedModel === model) return;

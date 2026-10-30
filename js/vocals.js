@@ -14,6 +14,7 @@ const Vocals = (() => {
     const HOP = 110;                 // 5 ms envelope frames
     const ENV_FPS = SR / HOP;
     const CACHE_DB = 'xlweb-cache';
+    const MODEL_CACHES = ['xlweb-models-v1', 'transformers-cache'];   // separate.js, Transformers.js
 
     // ---------- small helpers ----------
 
@@ -102,6 +103,21 @@ const Vocals = (() => {
     }
 
     const mb = n => (n / 1048576).toFixed(0) + ' MB';
+
+    // ---------- the downloaded models ----------
+
+    // The browser's own figure: unlike the files added up, it counts everything on disk.
+    async function modelBytes() {
+        try {
+            if (!(await caches.keys()).some(name => MODEL_CACHES.includes(name))) return 0;
+            const e = await navigator.storage.estimate();
+            return (e.usageDetails && e.usageDetails.caches) || e.usage || 0;
+        } catch (e) { return 0; }   // storage blocked
+    }
+
+    async function removeModels() {
+        for (const name of MODEL_CACHES) await caches.delete(name);
+    }
 
     // ---------- 2. the vocal stem: envelope, voiced segments, onsets ----------
 
@@ -886,5 +902,5 @@ const Vocals = (() => {
         return (await build(v, '')).lines.map(l => l.text).join('\n');
     }
 
-    return { analyze, addText, build, relayout, loadDict, heardText, norm, displayWord, SR, ENV_FPS, HOP, _debug: { envelope, voicedSegments, onsetEdges, align, parseLyrics, linesFromWhisper, numberWords } };
+    return { analyze, addText, modelBytes, removeModels, build, relayout, loadDict, heardText, norm, displayWord, SR, ENV_FPS, HOP, _debug: { envelope, voicedSegments, onsetEdges, align, parseLyrics, linesFromWhisper, numberWords } };
 })();

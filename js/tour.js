@@ -16,7 +16,7 @@
         { tab: 'song', el: panelOf('#sectionRows'), need: 'a song', title: "The song's parts",
           text: 'Verse, chorus and the rest are guesses. Rename them, split a part where the music changes, join two, or drag a boundary in the timeline. Each part gets its own lights; parts with the same name can share ideas.' },
         { tab: 'song', el: () => $('vocalPanel'), need: 'a song', title: 'Words and singing (optional)',
-          text: 'For singing faces and words on a matrix, paste the lyrics if you have them and press Find words & vocals. The first time, about 400 MB of models download once; then a song takes a few minutes.' },
+          text: 'For singing faces and words on a matrix, paste the lyrics if you have them and press Find words & vocals. The first time, about 400 MB of models download once (about 950 MB with no lyrics); then a song takes a few minutes.' },
         { tab: 'seq', el: () => $('showPanel'), title: 'Open your xLights show',
           text: 'Choose your xLights show folder (the one with xlights_rgbeffects.xml). The app reads your props, groups, singing faces and house photo, and remembers the folder next time.' },
         { tab: 'seq', el: () => $('previewPanel'), need: 'your show', title: 'Your house',

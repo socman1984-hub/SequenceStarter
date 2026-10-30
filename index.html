@@ -130,7 +130,7 @@
         <div class="btnrow">
           <button type="button" class="btn" id="half">½ tempo</button>
           <button type="button" class="btn" id="double">2× tempo</button>
-          <button type="button" class="btn" id="tapBtn">Tap tempo</button>
+          <button type="button" class="btn" id="tapBtn" title="Click in time with the beat, 4 or more times: the BPM is set from your taps. Stop for 3 seconds to start over.">Tap tempo</button>
           <button type="button" class="btn" id="reset">Reset to detected</button>
         </div>
         <p id="gridFit" class="fit"></p>
@@ -156,7 +156,7 @@
 
     <div class="panel" id="vocalPanel">
       <h2>Words &amp; vocals</h2>
-      <p class="panel-note">Separates the singing from the music, writes down the words with their timing, and tracks the melody. Everything runs on this computer. The first run downloads about 400 MB of models, which your browser keeps; after that a song takes a minute or two.</p>
+      <p class="panel-note">Separates the singing from the music, writes down the words with their timing, and tracks the melody. Everything runs on this computer. The first run downloads about 400 MB of models (about 950 MB if you leave the lyrics empty), which your browser keeps (you can remove them at the bottom of this page); after that a song takes a minute or two.</p>
       <label class="lyrics-label" for="lyricsText">Song lyrics <span>(optional, but best. Paste the official lyrics and each line here becomes a line on your matrix. Leave it empty and the page writes down what it hears.)</span></label>
       <textarea id="lyricsText" rows="7" spellcheck="false" placeholder="We got dust on our Bibles, brand-new iPhones&#10;No wonder why we feel this way&#10;…"></textarea>
       <div class="btnrow">
@@ -465,7 +465,8 @@
 
 <footer class="site-foot">
   <p><b>Private by design:</b> everything runs in your browser. Your song and your show folder are never uploaded.
-  The first time you find the words, the voice and speech models (about 400 MB) download once from Hugging Face and are kept by your browser.</p>
+  The first time you find the words, the voice and speech models (about 400 MB, or about 950 MB if you leave the lyrics empty) download once from Hugging Face and are kept by your browser.
+  <span id="modelStore" hidden>They now take <span id="modelSize"></span> on this computer. <button type="button" class="link" id="modelRemove">Remove them</button></span></p>
   <p>Works best in <b>Chrome</b> or <b>Edge</b> on a computer (they can open your show folder and run the models on the graphics card).
   Moving heads are drawn with their beams; other DMX fixtures show as single dots in the preview (the saved sequence is fine).
   Sequences made in xLights can be imported (File menu) and come back out exactly as they were.
@@ -659,7 +660,7 @@
 </dialog>
 
 <script src="js/analysis.js?v=6d7a06e8"></script>
-<script src="js/vocals.js?v=3807bf51"></script>
+<script src="js/vocals.js?v=5e7c9467"></script>
 <script src="js/show.js?v=b21a0635"></script>
 <script src="js/xlmedia.js?v=c139c520"></script>
 <script src="js/xlmeta.js?v=8092a3f9"></script>
@@ -670,12 +671,12 @@
 <script src="js/ideas.js?v=1a33e817"></script>
 <script src="js/profile.js?v=cfb19172"></script>
 <script src="js/fit.js?v=900a68c1"></script>
-<script src="js/app.js?v=0ea0ea11"></script>
+<script src="js/app.js?v=2c715876"></script>
 <script src="js/sequi.js?v=f4d9b355"></script>
 <script src="js/fxpage.js?v=665e8c3c"></script>
 <script src="js/layout.js?v=fcd1cfbc"></script>
 <script src="js/steps.js?v=79ebef7d"></script>
-<script src="js/tour.js?v=fdcb0649"></script>
+<script src="js/tour.js?v=11738f17"></script>
 <script src="js/whatsnew.js?v=2ef23c90"></script>
 </body>
 </html>

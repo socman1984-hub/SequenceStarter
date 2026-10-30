@@ -1185,7 +1185,14 @@
         } finally {
             state.vocBusy = false;
             $('findWords').disabled = false;
+            showModelStore();
         }
+    }
+
+    async function showModelStore() {
+        const bytes = await Vocals.modelBytes();
+        $('modelSize').textContent = Math.round(bytes / 1048576) + ' MB';
+        $('modelStore').hidden = !bytes;
     }
 
     async function applyLyrics() {
@@ -1628,7 +1635,7 @@
             } catch (err) {
                 setVocalStatus('Could not finish: ' + err.message, null, true);
                 return;
-            } finally { state.vocBusy = false; }
+            } finally { state.vocBusy = false; showModelStore(); }
             if (hash !== state.hash) return;
         }
         $('lyricsText').value = await Vocals.heardText(state.voc);
@@ -1636,6 +1643,13 @@
         setVocalStatus('This is what it heard. Fix any wrong words, then press Update words.', null);
     });
     $('voiceOnly').addEventListener('change', () => { if (state.play.playing) { stop(); play(); } });
+    $('modelRemove').addEventListener('click', async () => {
+        if (state.vocBusy) { alert('Words are being found right now. Try again when that has finished.'); return; }
+        if (!confirm(`Remove the voice and speech models (${$('modelSize').textContent}) from this computer? Finding words on a new song downloads them again.`)) return;
+        await Vocals.removeModels();
+        showModelStore();
+    });
+    showModelStore();
 
     // ---------- export ----------
 
