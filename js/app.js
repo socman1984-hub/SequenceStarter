@@ -1193,6 +1193,7 @@
         const bytes = await Vocals.modelBytes();
         $('modelSize').textContent = Math.round(bytes / 1048576) + ' MB';
         $('modelStore').hidden = !bytes;
+        $('modelNone').hidden = !!bytes;
     }
 
     async function applyLyrics() {
