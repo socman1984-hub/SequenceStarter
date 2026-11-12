@@ -1,5 +1,14 @@
 [
   {
+    "version": "2026.11.11",
+    "date": "2026-11-11",
+    "title": "Tempo changes",
+    "items": [
+      ["new", "Songs that speed up or slow down between sections get a beat grid that follows them. The new Tempo changes list under Tempo grid shows where each tempo starts and its BPM; edit either, add a change at the playhead, or Find tempo changes again. The beats lane marks each change, and timing tracks, exports and sequences use the varying beats. Songs with one steady tempo work just as before."],
+      ["better", "Suggested by Jameson on Discord. Thank you!"]
+    ]
+  },
+  {
     "version": "2026.10.30",
     "date": "2026-10-30",
     "title": "Remove the downloaded voice models",

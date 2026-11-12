@@ -9,7 +9,7 @@
         buffer: null,
         model: null,
         grid: null,
-        params: null,       // { bpm, offset, meter, barShift }
+        params: null,       // { bpm, offset, meter, barShift, tempoMap: [{ t, bpm }] | null }
         view: { pxPerSec: 50, t0: 0 },
         play: { source: null, startCtx: 0, startPos: 0, playing: false, pos: 0, clickNext: 0, timer: 0 },
         taps: [],
@@ -180,9 +180,10 @@
             const t0 = performance.now();
             state.model = await Analysis.analyze(state.buffer, (p, what) => setStatus(`${what}… ${Math.round(p * 100)}%`));
             const tm = state.model.tempo;
-            state.params = { bpm: tm.bpm, offset: tm.offset, meter: 4, barShift: null };
+            tm.map = Analysis.detectTempoMap(state.model, tm.bpm, tm.offset);
+            state.params = detectedParams();
             const savedParams = loadParams();
-            if (savedParams) state.params = savedParams;
+            if (savedParams) state.params = withTempoMap(savedParams);
             loadUserSections();
             rebuild();
             state.params.barShift = state.grid.barShift;
@@ -252,6 +253,18 @@
             if (p && p.bpm > 0) return p;
         } catch (e) { /* none */ }
         return null;
+    }
+    function detectedParams() {
+        const tm = state.model.tempo;
+        return { bpm: tm.bpm, offset: tm.offset, meter: 4, barShift: null, tempoMap: tm.map || null };
+    }
+    // Grids saved before tempo maps existed: an untouched detected grid takes
+    // the detected tempo changes, one the user set by hand stays steady.
+    function withTempoMap(p) {
+        if (p.tempoMap !== undefined) return p;
+        const tm = state.model.tempo;
+        const untouched = Math.abs(p.bpm - tm.bpm) < 1e-6 && Math.abs(p.offset - tm.offset) < 1e-6;
+        return { ...p, tempoMap: untouched ? tm.map || null : null };
     }
     function saveParams() {
         try { localStorage.setItem(paramsKey(), JSON.stringify(state.params)); } catch (e) { /* storage blocked */ }
@@ -376,7 +389,8 @@
         const g = state.grid, m = state.model, tm = m.tempo;
         const kicks = m.onsets.kick.length, snares = m.onsets.snare.length;
         const items = [
-            ['Tempo', `${g.bpm.toFixed(2)} BPM`, g.bpm !== tm.bpm ? `detected ${tm.bpm.toFixed(2)}` : (tm.octaveFrom ? `detected (${tm.octave} from ${tm.octaveFrom.toFixed(0)})` : 'detected')],
+            g.tempoMap ? ['Tempo', tempoRange(g.tempoMap), `${g.tempoMap.length - 1} tempo change${g.tempoMap.length > 2 ? 's' : ''}`]
+                : ['Tempo', `${g.bpm.toFixed(2)} BPM`, g.bpm !== tm.bpm ? `detected ${tm.bpm.toFixed(2)}` : (tm.octaveFrom ? `detected (${tm.octave} from ${tm.octaveFrom.toFixed(0)})` : 'detected')],
             ['Beats', g.beats.length, `${g.meter}/4 time, ${g.bars.length} bars`],
             ['Sections', g.sections.length, g.sections.filter(s => /^Chorus/.test(s.name)).length + ' chorus'],
             ['Drum hits', kicks + snares, `${kicks} kick · ${snares} snare`],
@@ -390,7 +404,7 @@
         const good = f.meanMs < 20 && f.within40 > 0.85 && Math.abs(f.driftMs) < 25;
         const ok = f.meanMs < 35 && f.within40 > 0.65;
         let msg = `${f.source === 'kick' ? 'Kick hits' : 'Onsets'} land ${f.meanMs.toFixed(1)} ms from the grid on average, ${Math.round(f.within40 * 100)}% within 40 ms.`;
-        if (Math.abs(f.driftMs) >= 25) msg += ` The grid drifts ${f.driftMs > 0 ? 'early' : 'late'} by about ${Math.abs(f.driftMs).toFixed(0)} ms over the song, so try nudging BPM by ±0.05.`;
+        if (Math.abs(f.driftMs) >= 25) msg += ` The grid drifts ${f.driftMs > 0 ? 'early' : 'late'} by about ${Math.abs(f.driftMs).toFixed(0)} ms over the song, so try nudging BPM by ±0.05${g.tempoMap ? '' : ', or Find tempo changes if the song speeds up or slows down'}.`;
         else if (!ok) msg += ' That is a loose fit. The tempo may vary (live recording?) or be a multiple of the real one.';
         el.textContent = msg;
         el.className = 'fit ' + (good ? 'good' : ok ? 'ok' : 'bad');
@@ -483,16 +497,104 @@
     function syncControls() {
         const p = state.params;
         $('bpm').value = p.bpm.toFixed(2);
-        $('offset').value = p.offset.toFixed(3);
+        $('offset').value = (p.tempoMap ? state.grid.offset : p.offset).toFixed(3);
         $('meter').value = String(p.meter);
         const db = $('downbeat');
         db.innerHTML = '';
         for (let i = 0; i < p.meter; i++) db.add(new Option(String(i + 1), String(i)));
         db.value = String(state.grid.barShift);
+        renderTempoMap();
     }
+
+    // ---------- tempo changes ----------
+
+    function tempoRange(map) {
+        const b = map.map(s => s.bpm), lo = Math.min(...b), hi = Math.max(...b);
+        const f = v => (Math.round(v * 10) / 10).toString();
+        return lo === hi ? `${f(lo)} BPM` : `${f(lo)}–${f(hi)} BPM`;
+    }
+
+    function renderTempoMap() {
+        const el = $('tempoMap'), map = state.params.tempoMap;
+        const btns = `<button type="button" class="btn small" data-tm="find" title="Look for places where the song speeds up or slows down, and give each its own tempo.">Find tempo changes</button>
+            <button type="button" class="btn small" data-tm="add" title="Start a new tempo at the beat nearest the playhead.">Add change at playhead</button>`
+            + (map ? `<button type="button" class="btn small" data-tm="steady" title="Use one tempo for the whole song.">One tempo</button>` : '');
+        if (!map) {
+            el.innerHTML = `<div class="tm-head"><span>One tempo for the whole song.</span>${btns}</div>`;
+            return;
+        }
+        el.innerHTML = `<div class="tm-head"><span>Tempo changes: the grid follows the song as it speeds up or slows down. Each one starts on a beat.</span></div>
+            <table><thead><tr><th>From (s)</th><th>BPM</th><th></th></tr></thead><tbody>${map.map((s, i) => `<tr>
+                <td><input type="number" step="0.001" min="0" data-i="${i}" data-k="t" value="${s.t.toFixed(3)}" title="${fmtTime(s.t, true)}"></td>
+                <td><input type="number" step="0.01" min="40" max="240" data-i="${i}" data-k="bpm" value="${s.bpm.toFixed(2)}"></td>
+                <td><button type="button" class="btn tiny" data-tm="seek" data-i="${i}" title="Play from just before here">▶</button>
+                    <button type="button" class="btn tiny" data-tm="del" data-i="${i}" title="Remove this tempo change">✕</button></td>
+            </tr>`).join('')}</tbody></table>
+            <div class="tm-head">${btns}</div>`;
+    }
+
+    function setTempoMap(map) {
+        map = map ? map.filter(s => s.bpm >= 30 && s.bpm <= 300 && s.t >= 0).sort((a, b) => a.t - b.t) : null;
+        if (map && map.length < 2) {
+            // one piece left: a steady grid through its anchor
+            if (map.length === 1) { state.params.bpm = map[0].bpm; state.params.offset = map[0].t; }
+            map = null;
+        }
+        if (map) state.params.bpm = map[0].bpm;
+        state.params.tempoMap = map;
+        state.params.barShift = null;
+        rebuild();
+        state.params.barShift = state.grid.barShift;
+        syncControls();
+    }
+
+    $('tempoMap').addEventListener('change', e => {
+        const inp = e.target.closest('input[data-i]');
+        if (!inp) return;
+        const v = parseFloat(inp.value), map = state.params.tempoMap.map(s => ({ ...s }));
+        if (!(v >= 0)) { renderTempoMap(); return; }
+        map[+inp.dataset.i][inp.dataset.k] = Math.round(v * 1000) / 1000;
+        setTempoMap(map);
+    });
+    $('tempoMap').addEventListener('click', e => {
+        const b = e.target.closest('button[data-tm]');
+        if (!b) return;
+        const p = state.params, g = state.grid;
+        const mean = p.tempoMap ? Math.round(60 / g.T * 1000) / 1000 : p.bpm;
+        if (b.dataset.tm === 'find') {
+            // from the detected tempo unless the grid was moved to another octave
+            const tm = state.model.tempo, near = Math.abs(mean / tm.bpm - 1) < 0.03;
+            const map = near ? tm.map : Analysis.detectTempoMap(state.model, mean, Analysis.refitOffset(state.model, mean));
+            if (!map) { setStatus('No tempo changes found: one tempo fits this song.'); if (p.tempoMap) setTempoMap(null); return; }
+            setStatus(`Found ${map.length - 1} tempo change${map.length > 2 ? 's' : ''}.`);
+            setTempoMap(map);
+        } else if (b.dataset.tm === 'add') {
+            const t = currentTime();
+            let near = g.beats[0];
+            for (const x of g.beats) if (Math.abs(x.s - t) < Math.abs(near.s - t)) near = x;
+            const map = p.tempoMap ? p.tempoMap.map(s => ({ ...s })) : [{ t: Math.round(g.beats[0].s * 1000) / 1000, bpm: p.bpm }];
+            if (map.some(s => Math.abs(s.t - near.s) < 0.05)) return;
+            const here = [...map].reverse().find(s => s.t <= near.s) || map[0];
+            map.push({ t: Math.round(near.s * 1000) / 1000, bpm: here.bpm });
+            setTempoMap(map);
+        } else if (b.dataset.tm === 'steady') {
+            p.bpm = mean;
+            p.offset = Analysis.refitOffset(state.model, mean);
+            setTempoMap(null);
+        } else if (b.dataset.tm === 'del') {
+            setTempoMap(p.tempoMap.filter((_, i) => i !== +b.dataset.i));
+        } else if (b.dataset.tm === 'seek') {
+            seek(Math.max(0, p.tempoMap[+b.dataset.i].t - 2), true);
+            if (!state.play.playing) play();
+        }
+    });
 
     function setBpm(bpm, refit = true) {
         if (!(bpm >= 30 && bpm <= 300)) return;
+        const ratio = bpm / state.params.bpm;
+        // ½ and 2× keep the tempo changes; a typed or tapped BPM is one tempo
+        if (state.params.tempoMap && !refit) state.params.tempoMap = state.params.tempoMap.map(s => ({ t: s.t, bpm: Math.round(s.bpm * ratio * 1000) / 1000 }));
+        else state.params.tempoMap = null;
         state.params.bpm = Math.round(bpm * 1000) / 1000;
         if (refit) state.params.offset = Analysis.refitOffset(state.model, state.params.bpm);
         state.params.barShift = null;
@@ -504,7 +606,12 @@
     $('bpm').addEventListener('change', e => setBpm(parseFloat(e.target.value)));
     $('offset').addEventListener('change', e => {
         const v = parseFloat(e.target.value);
-        if (v >= 0) { state.params.offset = v; rebuild(); syncControls(); }
+        if (!(v >= 0)) return;
+        const p = state.params;
+        // with tempo changes, moving the first beat slides the whole map
+        if (p.tempoMap) p.tempoMap = p.tempoMap.map(s => ({ t: Math.max(0, Math.round((s.t + v - state.grid.offset) * 1000) / 1000), bpm: s.bpm }));
+        p.offset = v;
+        rebuild(); syncControls();
     });
     $('meter').addEventListener('change', e => {
         state.params.meter = parseInt(e.target.value, 10);
@@ -520,8 +627,7 @@
     $('half').addEventListener('click', () => setBpm(state.params.bpm / 2, false));
     $('double').addEventListener('click', () => setBpm(state.params.bpm * 2, false));
     $('reset').addEventListener('click', () => {
-        const tm = state.model.tempo;
-        state.params = { bpm: tm.bpm, offset: tm.offset, meter: 4, barShift: null };
+        state.params = detectedParams();
         rebuild();
         state.params.barShift = state.grid.barShift;
         syncControls();
@@ -1018,6 +1124,17 @@
                 if (g.T * v.pxPerSec > 22) {
                     c.textAlign = 'left';
                     c.fillText(String(b.n), x + 3, y + 7);
+                }
+            }
+            if (g.tempoMap) {
+                // where the tempo changes, and to what
+                c.textAlign = 'left';
+                c.fillStyle = col.accent;
+                for (const sg of g.tempoMap) {
+                    if (sg.t < v.t0 - 5 || sg.t > t1) continue;
+                    const x = Math.round(X(sg.t));
+                    c.fillRect(x - 1, y, 2, h);
+                    c.fillText(`♩ ${sg.bpm.toFixed(1)}`, x + 4, y + h - 6);
                 }
             }
             return;
@@ -1742,6 +1859,7 @@
             musicEndSec: r3(m.songEnd),
             bpm: g.bpm,
             firstBeatSec: r3(g.offset),
+            tempoMap: g.tempoMap ? g.tempoMap.map(s => ({ t: r3(s.t), bpm: s.bpm })) : null,
             beatsPerBar: g.meter,
             beats: g.beats.map(b => ({ t: r3(b.s), beat: b.n })),
             bars: g.bars.map(b => ({ t: r3(b.s), end: r3(b.e), bar: b.n })),
@@ -2007,7 +2125,7 @@
             if (p.song && p.song.hash && p.song.hash !== state.hash) {
                 setStatus(`Note: this is not exactly the song file the project was made with (${p.song.file}), so times may be off.`, true);
             }
-            if (p.grid && p.grid.bpm > 0) state.params = { ...p.grid };
+            if (p.grid && p.grid.bpm > 0) state.params = withTempoMap({ ...p.grid });
             state.userSections = Array.isArray(p.sections) && p.sections.length ? p.sections : null;
             saveUserSections();
             rebuild();

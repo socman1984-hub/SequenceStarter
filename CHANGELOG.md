@@ -2,6 +2,13 @@
 
 Release notes for SequenceStarter, newest first. The same list is in the app under **✨ What's new**.
 
+## 2026.11.11 — Tempo changes
+
+_2026-11-11_
+
+- **New:** Songs that speed up or slow down between sections get a beat grid that follows them. The new Tempo changes list under Tempo grid shows where each tempo starts and its BPM; edit either, add a change at the playhead, or Find tempo changes again. The beats lane marks each change, and timing tracks, exports and sequences use the varying beats. Songs with one steady tempo work just as before.
+- **Better:** Suggested by Jameson on Discord. Thank you!
+
 ## 2026.10.30 — Remove the downloaded voice models
 
 _2026-10-30_

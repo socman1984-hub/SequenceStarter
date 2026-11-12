@@ -696,12 +696,211 @@ const Analysis = (() => {
         return out;
     }
 
-    function buildGrid(model, { bpm, offset, meter, barShift }) {
+    // ---- tempo map: songs that speed up or slow down between sections ----
+    //
+    // Slide a 16-beat window along the steady grid and measure where the hits
+    // sit against it. On a steady song that phase stays put; when the band
+    // speeds up it slides early at a steady rate. Fitting straight lines to
+    // that drift, piece by piece, gives a tempo and a beat anchor per piece.
+    // Returns [{ t, bpm }, ...] (2+ pieces), or null when one tempo fits.
+    // split penalty (larger = fewer pieces); ms a merge may cost and still
+    // happen; ms the whole map must gain over one tempo
+    const PENALTY = 8, KEEP_MS = 1, GAIN_MS = 3;
+    function detectTempoMap(model, bpm, offset) {
         const T = 60 / bpm;
-        const startAt = Math.max(0, model.songStart - 0.1 * T);
-        let k = Math.ceil((startAt - offset) / T);
-        const beatsT = [];
-        for (let t = offset + k * T; t < model.songEnd + 0.5 * T && t < model.duration; t += T) beatsT.push(t);
+        const kicks = model.onsets.kick.filter(o => o.s > 0.3);
+        const list = kicks.length >= 40 ? kicks : model.onsets.all;
+        const k0 = Math.ceil((model.songStart - offset) / T), k1 = Math.floor((model.songEnd - offset) / T);
+        const W = 8, HOP = 4;
+        const pts = [];
+        let j0 = 0;
+        for (let k = k0 + W; k <= k1 - W; k += HOP) {
+            const tc = offset + k * T, lo = tc - W * T, hi = tc + W * T;
+            while (j0 < list.length && list[j0].t < lo) j0++;
+            let c = 0, s = 0, w = 0, n = 0;
+            for (let j = j0; j < list.length && list[j].t < hi; j++) {
+                const o = list[j], ph = 2 * Math.PI * (o.t - tc) / T;
+                c += o.s * Math.cos(ph); s += o.s * Math.sin(ph); w += o.s; n++;
+            }
+            if (n < 8 || Math.hypot(c, s) < 0.3 * w) continue;
+            pts.push({ x: tc, y: Math.atan2(s, c) / (2 * Math.PI) * T, w: Math.hypot(c, s) / w });
+        }
+        if (pts.length < 16) return null;
+        // unwrap: the drift moves far less than half a beat from one window to the next
+        for (let i = 1; i < pts.length; i++) {
+            let d = pts[i].y - pts[i - 1].y;
+            d -= T * Math.round(d / T);
+            pts[i].y = pts[i - 1].y + d;
+        }
+
+        // Optimal piecewise-linear split (dynamic programming over prefix sums).
+        const N = pts.length, P = [[0, 0, 0, 0, 0, 0]];
+        for (const p of pts) {
+            const q = P[P.length - 1], w = p.w;
+            P.push([q[0] + w, q[1] + w * p.x, q[2] + w * p.y, q[3] + w * p.x * p.x, q[4] + w * p.x * p.y, q[5] + w * p.y * p.y]);
+        }
+        const line = (a, b) => {   // weighted fit of points a..b-1: y = c0 + c1 x
+            const S = P[b].map((v, i) => v - P[a][i]);
+            const [sw, sx, sy, sxx, sxy, syy] = S;
+            const den = sw * sxx - sx * sx;
+            const c1 = den > 1e-12 ? (sw * sxy - sx * sy) / den : 0;
+            const c0 = (sy - c1 * sx) / sw;
+            const sse = Math.max(0, syy - 2 * c0 * sy - 2 * c1 * sxy + c0 * c0 * sw + 2 * c0 * c1 * sx + c1 * c1 * sxx);
+            return { c0, c1, sse, sw };
+        };
+        // noise of the drift curve, from point-to-point jitter
+        const jit = [];
+        for (let i = 2; i < N; i++) jit.push(Math.abs(pts[i].y - 2 * pts[i - 1].y + pts[i - 2].y));
+        const sigma = Math.max(0.006, 1.4826 * medianOf(jit) / Math.sqrt(6));
+        const norm = (P[N][0] / N) * sigma * sigma;   // sse of one typical point
+        const penalty = PENALTY * Math.log(N);
+        const MIN = 6;   // points, i.e. 24 beats: about six bars
+        const best = new Float64Array(N + 1).fill(Infinity), from = new Int32Array(N + 1);
+        best[0] = 0;
+        for (let b = MIN; b <= N; b++) {
+            for (let a = 0; a <= b - MIN; a++) {
+                if (best[a] === Infinity) continue;
+                const v = best[a] + line(a, b).sse / norm + penalty;
+                if (v < best[b]) { best[b] = v; from[b] = a; }
+            }
+        }
+        let cuts = [];
+        for (let b = N; b > 0; b = from[b]) cuts.unshift([from[b], b]);
+        // merge neighbours whose tempos are practically the same
+        const segBpm = ([a, b]) => bpm / (1 + line(a, b).c1);
+        for (let i = 1; i < cuts.length; i++) {
+            if (Math.abs(segBpm(cuts[i]) - segBpm(cuts[i - 1])) < 0.2) {
+                cuts.splice(i - 1, 2, [cuts[i - 1][0], cuts[i][1]]);
+                i = 0;
+            }
+        }
+        if (cuts.length < 2) return null;
+
+        // Anchor each piece on a beat: where it meets the piece before, on the
+        // beat of the steady grid at which the two lines agree best.
+        const mapOf = cs => cs.map(([a, b], i) => {
+            const L = line(a, b);
+            let x;
+            if (i === 0) x = pts[a].x;
+            else {
+                const Lp = line(cs[i - 1][0], cs[i - 1][1]);
+                let bestGap = Infinity;
+                for (let gx = pts[a - 1].x; gx <= pts[a].x + 1e-6; gx += T) {
+                    const gap = Math.abs((Lp.c0 + Lp.c1 * gx) - (L.c0 + L.c1 * gx));
+                    if (gap < bestGap) { bestGap = gap; x = gx; }
+                }
+            }
+            return { t: x + L.c0 + L.c1 * x, bpm: bpm / (1 + L.c1) };
+        }).map((sg, i, all) => {
+            // polish against the piece's own hits: the line only sees windows
+            const t1 = i + 1 < all.length ? all[i + 1].t : model.songEnd;
+            const own = list.filter(o => o.t >= (i ? sg.t : model.songStart) && o.t < t1);
+            let b = sg.bpm;
+            if (own.length >= 16) b = fitGrid(own, b * 0.997, b * 1.003, 0.005).bpm;
+            b = Math.round(b * 100) / 100;
+            const P = 60 / b;
+            const off = own.length >= 16 ? phaseFit(own, P).offset : sg.t;
+            const t = off + Math.round((sg.t - off) / P) * P;
+            return { t: Math.round(t * 1000) / 1000, bpm: b };
+        });
+
+        // The drift curve also bends when the drum pattern changes, not just
+        // the tempo, so every change has to earn its place: hits must land
+        // closer to the beats with it than without it.
+        const cost = beatsT => alignCost(list, beatsT);
+        let cur = cost(mapBeats(model, mapOf(cuts)));
+        while (cuts.length > 1) {
+            let bestI = -1, bestC = Infinity;
+            for (let i = 1; i < cuts.length; i++) {
+                const cs = [...cuts.slice(0, i - 1), [cuts[i - 1][0], cuts[i][1]], ...cuts.slice(i + 1)];
+                const c = cost(mapBeats(model, mapOf(cs)));
+                if (c < bestC) { bestC = c; bestI = i; }
+            }
+            if (bestC > cur + KEEP_MS / 1000) break;
+            cuts = [...cuts.slice(0, bestI - 1), [cuts[bestI - 1][0], cuts[bestI][1]], ...cuts.slice(bestI + 1)];
+            cur = Math.min(cur, bestC);
+        }
+        if (cuts.length < 2) return null;
+        const map = mapOf(cuts);
+        const bpms = map.map(m => m.bpm);
+        if (Math.max(...bpms) - Math.min(...bpms) < 0.3) return null;
+        const steady = [];
+        for (let t = offset + Math.ceil((model.songStart - offset) / T) * T; t < model.songEnd; t += T) steady.push(t);
+        const gain = cost(steady) - cost(mapBeats(model, map));
+        if (gain < GAIN_MS / 1000) return null;
+        return map;
+    }
+
+    // Mean distance from strong hits to the nearest beat, capped so off-beat
+    // hits count the same whatever the grid.
+    function alignCost(list, beatsT) {
+        let sum = 0, w = 0, i = 0;
+        for (const o of list) {
+            while (i + 1 < beatsT.length && beatsT[i + 1] <= o.t) i++;
+            const d = Math.min(Math.abs(o.t - beatsT[i]), i + 1 < beatsT.length ? Math.abs(beatsT[i + 1] - o.t) : Infinity);
+            sum += o.s * Math.min(d, 0.05);
+            w += o.s;
+        }
+        return w > 0 ? sum / w : 0;
+    }
+
+    // Beat times for a tempo map: each piece lays beats from its anchor at its
+    // own tempo until the next anchor (the first piece also reaches back to
+    // the start of the music).
+    function mapBeats(model, map) {
+        const segs = [...map].filter(s => s.bpm > 0 && s.t >= 0).sort((a, b) => a.t - b.t);
+        const out = [];
+        const P0 = 60 / segs[0].bpm;
+        const startAt = Math.max(0, model.songStart - 0.1 * P0);
+        for (let i = 0; i < segs.length; i++) {
+            const P = 60 / segs[i].bpm;
+            const end = i + 1 < segs.length ? segs[i + 1].t - 0.5 * P : Math.min(model.songEnd + 0.5 * P, model.duration);
+            let t = i === 0 ? segs[0].t + Math.ceil((startAt - segs[0].t) / P) * P : segs[i].t;
+            for (; t < end && t < model.duration; t += P) if (t >= startAt) out.push(t);
+        }
+        return out;
+    }
+
+    // How far hits sit from the nearest beat, for any list of beat times.
+    function gridFitBeats(model, beatsT) {
+        const kicks = model.onsets.kick.filter(o => o.s > 0.3);
+        const list = kicks.length > 16 ? model.onsets.kick : model.onsets.all;
+        const strong = list.filter(o => o.s > 0.3);
+        if (!strong.length || beatsT.length < 2) return null;
+        const errs = [], signedByThird = [[], [], []];
+        const span = model.songEnd - model.songStart || 1;
+        let i = 0;
+        for (const o of strong) {
+            while (i + 1 < beatsT.length && beatsT[i + 1] <= o.t) i++;
+            const j = i + 1 < beatsT.length && beatsT[i + 1] - o.t < o.t - beatsT[i] ? i + 1 : i;
+            const P = j + 1 < beatsT.length ? beatsT[j + 1] - beatsT[j] : beatsT[j] - beatsT[j - 1];
+            const d = o.t - beatsT[j];
+            if (Math.abs(d) > P / 4) continue;
+            errs.push(Math.abs(d));
+            signedByThird[Math.min(2, Math.max(0, Math.floor(3 * (o.t - model.songStart) / span)))].push(d);
+        }
+        if (!errs.length) return null;
+        const thirds = signedByThird.map(a => a.length ? medianOf(a) : 0);
+        return {
+            meanMs: errs.reduce((a, b) => a + b, 0) / errs.length * 1000,
+            within40: errs.filter(e => e <= 0.04).length / errs.length,
+            driftMs: (thirds[2] - thirds[0]) * 1000,
+            source: list === model.onsets.kick ? 'kick' : 'onsets',
+        };
+    }
+
+    function buildGrid(model, { bpm, offset, meter, barShift, tempoMap }) {
+        const varying = Array.isArray(tempoMap) && tempoMap.length >= 2;
+        let T = 60 / bpm;
+        let beatsT = [];
+        if (varying) {
+            beatsT = mapBeats(model, tempoMap);
+            if (beatsT.length > 1) T = (beatsT[beatsT.length - 1] - beatsT[0]) / (beatsT.length - 1);
+        } else {
+            const startAt = Math.max(0, model.songStart - 0.1 * T);
+            let k = Math.ceil((startAt - offset) / T);
+            for (let t = offset + k * T; t < model.songEnd + 0.5 * T && t < model.duration; t += T) beatsT.push(t);
+        }
 
         const detectedShift = beatsT.length > meter * 2 ? chooseDownbeat(model, beatsT, meter) : 0;
         const shift = barShift == null ? detectedShift : barShift;
@@ -737,11 +936,12 @@ const Analysis = (() => {
         }
 
         return {
-            bpm, offset, meter, T,
+            bpm, offset: varying ? beatsT[0] : offset, meter, T,
+            tempoMap: varying ? [...tempoMap].sort((a, b) => a.t - b.t) : null,
             barShift: shift, detectedShift,
             beats, bars, sections, phrases,
             energy: energyLevels(model, bars),
-            fit: gridFit(model, beatsT, T),
+            fit: varying ? gridFitBeats(model, beatsT) : gridFit(model, beatsT, T),
         };
     }
 
@@ -750,5 +950,5 @@ const Analysis = (() => {
         return phaseFit(strong.length >= 40 ? strong : model.onsets.all, 60 / bpm).offset;
     }
 
-    return { analyze, buildGrid, refitOffset, _debug: { downbeatEvidence } };
+    return { analyze, buildGrid, refitOffset, detectTempoMap, _debug: { downbeatEvidence } };
 })();
