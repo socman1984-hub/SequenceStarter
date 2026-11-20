@@ -3097,14 +3097,29 @@
     const pop = $('pvPop');
     function closePop() { pop.hidden = true; S.box = null; setHighlight(null); }
 
+    // The box floats over the page, not inside the preview (which clips it), so
+    // all of it shows even when the preview is short: below the click if it
+    // fits in the window, else above it, else as low as it goes (and it
+    // scrolls if still too tall). Scrolling the page closes it.
+    function closePopOnScroll() { if (!pop.hidden) closePop(); }
     function showPop(at, html, wire) {
         pop.innerHTML = `<button type="button" class="pop-x" aria-label="Close">×</button>${html}`;
+        // on the page itself, so nothing in the preview's column covers it
+        // (and in the pop-out window's page when the preview is there)
+        if (pop.parentElement !== canvas.ownerDocument.body) canvas.ownerDocument.body.appendChild(pop);
         pop.hidden = false;
+        const win = pop.ownerDocument.defaultView;
+        const vw = win.innerWidth, vh = win.innerHeight;
         const wrap = canvas.parentElement.getBoundingClientRect();
-        const w = Math.min(320, wrap.width - 16);
+        const x = wrap.left + at.cx, y = wrap.top + at.cy;
+        const w = Math.min(320, vw - 16);
         pop.style.width = w + 'px';
-        pop.style.left = Math.max(8, Math.min(at.cx + 12, wrap.width - w - 8)) + 'px';
-        pop.style.top = Math.max(8, Math.min(at.cy + 12, wrap.height - 40)) + 'px';
+        pop.style.left = Math.max(8, Math.min(x + 12, vw - w - 8)) + 'px';
+        pop.style.maxHeight = Math.max(80, vh - 16) + 'px';
+        const h = pop.offsetHeight;
+        const top = y + 12 + h <= vh - 8 ? y + 12 : y - 12 - h >= 8 ? y - 12 - h : vh - 8 - h;
+        pop.style.top = Math.max(8, top) + 'px';
+        win.addEventListener('scroll', closePopOnScroll);
         pop.querySelector('.pop-x').addEventListener('click', closePop);
         wire(pop);
     }

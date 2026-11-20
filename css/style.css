@@ -318,8 +318,8 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: .92em; backgro
 #viewer { cursor: crosshair; }
 .pv-tip { margin-top: 2px; }
 .pv-pop {
-    position: absolute; z-index: 4; background: var(--surface); color: var(--text); border: 1px solid var(--line);
-    border-radius: 9px; padding: 10px 12px; box-shadow: 0 10px 28px rgba(0,0,0,.35); font-size: 13px; max-height: 70%; overflow: auto;
+    position: fixed; z-index: 45; background: var(--surface); color: var(--text); border: 1px solid var(--line);
+    border-radius: 9px; padding: 10px 12px; box-shadow: 0 10px 28px rgba(0,0,0,.35); font-size: 13px; overflow: auto;
 }
 .pv-pop h4 { margin: 0 24px 2px 0; font-size: 14px; }
 .pv-pop p { margin: 4px 0; }
