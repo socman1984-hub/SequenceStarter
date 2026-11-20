@@ -2,6 +2,12 @@
 
 Release notes for SequenceStarter, newest first. The same list is in the app under **✨ What's new**.
 
+## 2026.11.20 — Add lights box shows in full
+
+_2026-11-20_
+
+- **Fixed:** Clicking a prop near the bottom of the preview cut off the bottom of the Add lights box, so the last choices could not be reached. The whole box now shows, below or above where you click, whichever fits.
+
 ## 2026.11.11 — Tempo changes
 
 _2026-11-11_

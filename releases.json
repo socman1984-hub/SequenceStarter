@@ -1,5 +1,13 @@
 [
   {
+    "version": "2026.11.20",
+    "date": "2026-11-20",
+    "title": "Add lights box shows in full",
+    "items": [
+      ["fixed", "Clicking a prop near the bottom of the preview cut off the bottom of the Add lights box, so the last choices could not be reached. The whole box now shows, below or above where you click, whichever fits."]
+    ]
+  },
+  {
     "version": "2026.11.11",
     "date": "2026-11-11",
     "title": "Tempo changes",
